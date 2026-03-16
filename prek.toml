@@ -1,0 +1,19 @@
+default_install_hook_types = ["pre-commit", "commit-msg"]
+
+[[repos]]
+repo = "https://github.com/astral-sh/ruff-pre-commit"
+rev = "v0.15.5"
+hooks = [
+  # Run the linter.
+  { id = "ruff-check", args = ["--fix"], types_or = ["python", "pyi"] },
+
+  # Run the formatter.
+  { id = "ruff-format", types_or = ["python", "pyi"] },
+]
+
+[[repos]]
+repo = "https://github.com/commitizen-tools/commitizen"
+rev = "v4.13.9"
+hooks = [
+  { id = "commitizen", stages = ["commit-msg"] },
+]

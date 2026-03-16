@@ -1,0 +1,26 @@
+[project]
+name = "starter"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "commitizen>=4.13.9",
+    "prek>=0.3.5",
+    "ruff>=0.15.5",
+    "ty>=0.0.21",
+]
+
+[project.scripts]
+starter = "starter:main"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PTH"]
+ignore = ["E501"]
+
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"

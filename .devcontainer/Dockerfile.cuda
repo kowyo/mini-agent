@@ -1,0 +1,38 @@
+FROM nvidia/cuda:12.8.1-base-ubuntu24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG USERNAME=vscode
+ARG PROJECT_NAME=starter
+ENV TZ=Etc/UTC
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    sudo \
+    git \
+    openssh-client \
+    unzip \
+    build-essential \
+    ninja-build \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV UV_INSTALL_DIR="/home/${USERNAME}/.local/bin"
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+ENV PATH="/home/${USERNAME}/.local/bin/:$PATH"
+ENV UV_CACHE_DIR=/home/${USERNAME}/.cache/uv
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+ENV PATH="/workspaces/${PROJECT_NAME}/.venv/bin:$PATH"
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+
+ENTRYPOINT []
+
+ARG USER_UID=1001
+ARG USER_GID=1001
+RUN groupadd -g ${USER_GID} ${USERNAME} \
+    && useradd -m -u ${USER_UID} -g ${USER_GID} -s /bin/bash ${USERNAME} \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+WORKDIR /workspaces/${PROJECT_NAME}
+USER ${USERNAME}
