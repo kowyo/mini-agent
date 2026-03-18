@@ -1,9 +1,10 @@
 [project]
 name = "mini-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "A minimal agent."
 readme = "README.md"
 requires-python = ">=3.14"
+authors = [{ name = "Kowyo", email = "kowyo@outlook.com" }]
 dependencies = [
     "anthropic>=0.84.0",
     "python-dotenv>=1.2.2",
