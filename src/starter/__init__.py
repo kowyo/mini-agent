@@ -17,18 +17,6 @@ MODEL = os.environ["MODEL_ID"]
 
 SYSTEM = f"You are an agent at {WORKDIR}. Use tools to solve tasks."
 
-TOOLS: list[ToolParam] = [
-    {
-        "name": "bash",
-        "description": "Run a shell command.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"command": {"type": "string"}},
-            "required": ["command"],
-        },
-    }
-]
-
 
 def safe_path(p: str) -> Path:
     path = (WORKDIR / p).resolve()
@@ -89,6 +77,58 @@ def run_edit(path: str, old_text: str, new_text: str) -> str:
         return f"Error: {e}"
 
 
+TOOL_HANDLERS = {
+    "bash": lambda **kw: run_bash(kw["command"]),
+    "read_file": lambda **kw: run_read(kw["path"], kw.get("limit")),
+    "write_file": lambda **kw: run_write(kw["path"], kw["content"]),
+    "edit_file": lambda **kw: run_edit(kw["path"], kw["old_text"], kw["new_text"]),
+}
+
+
+TOOLS: list[ToolParam] = [
+    {
+        "name": "bash",
+        "description": "Run a shell command.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"command": {"type": "string"}},
+            "required": ["command"],
+        },
+    },
+    {
+        "name": "read_file",
+        "description": "Read file contents.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}, "limit": {"type": "integer"}},
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "write_file",
+        "description": "Write content to file.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+            "required": ["path", "content"],
+        },
+    },
+    {
+        "name": "edit_file",
+        "description": "Replace exact text in file.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "old_text": {"type": "string"},
+                "new_text": {"type": "string"},
+            },
+            "required": ["path", "old_text", "new_text"],
+        },
+    },
+]
+
+
 # -- The core pattern: a while loop that calls tools until the model stops --
 def agent_loop(messages: list[MessageParam]) -> None:
     while True:
@@ -108,10 +148,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
         results = []
         for block in response.content:
             if isinstance(block, ToolUseBlock):
-                command = str(block.input["command"])
-                print(f"\033[33m$ {command}\033[0m")
-                output = run_bash(command)
-                print(output[:200])
+                handler = TOOL_HANDLERS.get(block.name)
+                output = (
+                    handler(**block.input) if handler else f"Unknown tool: {block.name}"
+                )
+                print(f"> {block.name}: {output[:200]}")
                 results.append(
                     {"type": "tool_result", "tool_use_id": block.id, "content": output}
                 )
@@ -122,7 +163,7 @@ def main() -> None:
     history: list[MessageParam] = []
     while True:
         try:
-            query = input("\033[36ms01 >> \033[0m")
+            query = input("\033[36mmini-agent >> \033[0m")
         except EOFError, KeyboardInterrupt:
             break
         if query.strip().lower() in ("q", "exit", ""):
