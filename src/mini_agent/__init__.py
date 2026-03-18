@@ -175,7 +175,3 @@ def main() -> None:
             for block in response_content:
                 if hasattr(block, "text"):
                     print(block.text)
-
-
-if __name__ == "__main__":
-    main()
