@@ -1,4 +1,4 @@
-# starter
+# mini-agent
 
 A minimal Python CLI agent built with Anthropic's SDK.
 
@@ -11,5 +11,5 @@ make prepare
 ## Run
 
 ```bash
-uv run starter
+uv run mini-agent
 ```

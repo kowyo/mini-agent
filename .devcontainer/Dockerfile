@@ -3,7 +3,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG USERNAME=vscode
-ARG PROJECT_NAME=starter
+ARG PROJECT_NAME=mini-agent
 ENV TZ=Etc/UTC
 
 # Install system dependencies

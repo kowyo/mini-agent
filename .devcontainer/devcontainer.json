@@ -1,5 +1,5 @@
 {
-  "name": "starter",
+  "name": "mini-agent",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
