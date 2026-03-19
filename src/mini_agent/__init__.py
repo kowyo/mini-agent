@@ -5,6 +5,9 @@ from pathlib import Path
 from anthropic import Anthropic
 from anthropic.types import MessageParam, ToolParam, ToolUseBlock
 from dotenv import load_dotenv
+from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.key_binding import KeyBindings
 
 load_dotenv(override=True)
 
@@ -231,7 +234,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 output = (
                     handler(**block.input) if handler else f"Unknown tool: {block.name}"
                 )
-                print(f"> {block.name}: {output[:200]}")
+                print(f"> {block.name}: {output[:200]}\n")
                 results.append(
                     {"type": "tool_result", "tool_use_id": block.id, "content": output}
                 )
@@ -248,10 +251,34 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
 def main() -> None:
     history: list[MessageParam] = []
+
+    bindings = KeyBindings()
+
+    @bindings.add("c-c")
+    def _(event):
+        event.current_buffer.reset()
+
+    @bindings.add("enter")
+    def _(event):
+        event.current_buffer.validate_and_handle()
+
+    @bindings.add("escape", "enter")
+    def _(event):
+        event.current_buffer.insert_text("\n")
+
+    session: PromptSession = PromptSession(
+        HTML('<style color="#87CEEB">> </style>'),
+        multiline=True,
+        key_bindings=bindings,
+    )
+
     while True:
         try:
-            query = input("\033[36mmini-agent >> \033[0m")
-        except EOFError, KeyboardInterrupt:
+            query = session.prompt()
+            print()
+        except KeyboardInterrupt:
+            continue
+        except EOFError:
             break
         if query.strip().lower() in ("q", "exit", ""):
             break
@@ -261,4 +288,4 @@ def main() -> None:
         if isinstance(response_content, list):
             for block in response_content:
                 if hasattr(block, "text"):
-                    print(block.text)
+                    print(f"> {block.text}\n")

@@ -299,6 +299,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
+    { name = "prompt-toolkit" },
     { name = "python-dotenv" },
 ]
 
@@ -313,6 +314,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.84.0" },
+    { name = "prompt-toolkit", specifier = ">=3.0.51" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
 ]
 
