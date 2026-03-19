@@ -15,7 +15,47 @@ client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
 WORKDIR = Path.cwd()
 MODEL = os.environ["MODEL_ID"]
 
-SYSTEM = f"You are an agent at {WORKDIR}. Use tools to solve tasks."
+
+class TodoManager:
+    def __init__(self):
+        self.items = []
+
+    def update(self, items: list) -> str:
+        if len(items) > 20:
+            raise ValueError("Max 20 todos allowed")
+        validated = []
+        in_progress_count = 0
+        for i, item in enumerate(items):
+            text = str(item.get("text", "")).strip()
+            status = str(item.get("status", "pending")).lower()
+            item_id = str(item.get("id", str(i + 1)))
+            if not text:
+                raise ValueError(f"Item {item_id}: text required")
+            if status not in ("pending", "in_progress", "completed"):
+                raise ValueError(f"Item {item_id}: invalid status '{status}'")
+            if status == "in_progress":
+                in_progress_count += 1
+            validated.append({"id": item_id, "text": text, "status": status})
+        if in_progress_count > 1:
+            raise ValueError("Only one task can be in_progress at a time")
+        self.items = validated
+        return self.render()
+
+    def render(self) -> str:
+        if not self.items:
+            return "No todos."
+        lines = []
+        for item in self.items:
+            marker = {"pending": "[ ]", "in_progress": "[>]", "completed": "[x]"}[
+                item["status"]
+            ]
+            lines.append(f"{marker} #{item['id']}: {item['text']}")
+        done = sum(1 for t in self.items if t["status"] == "completed")
+        lines.append(f"\n({done}/{len(self.items)} completed)")
+        return "\n".join(lines)
+
+
+TODO = TodoManager()
 
 
 def safe_path(p: str) -> Path:
@@ -36,6 +76,8 @@ def run_bash(command: str) -> str:
             cwd=WORKDIR,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=120,
         )
         out = (r.stdout + r.stderr).strip()
@@ -82,6 +124,7 @@ TOOL_HANDLERS = {
     "read_file": lambda **kw: run_read(kw["path"], kw.get("limit")),
     "write_file": lambda **kw: run_write(kw["path"], kw["content"]),
     "edit_file": lambda **kw: run_edit(kw["path"], kw["old_text"], kw["new_text"]),
+    "todo": lambda **kw: TODO.update(kw["items"]),
 }
 
 
@@ -126,11 +169,46 @@ TOOLS: list[ToolParam] = [
             "required": ["path", "old_text", "new_text"],
         },
     },
+    {
+        "name": "todo",
+        "description": "Update task list. Track progress on multi-step tasks.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "text": {"type": "string"},
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending", "in_progress", "completed"],
+                            },
+                        },
+                        "required": ["id", "text", "status"],
+                    },
+                }
+            },
+            "required": ["items"],
+        },
+    },
 ]
+
+TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
+
+SYSTEM = f"""
+You are an expert coding assistant at {WORKDIR}. You help users by reading files, executing commands, editing code, and writing new files.
+
+Available tools:
+{TOOLS_LIST}
+"""
 
 
 # -- The core pattern: a while loop that calls tools until the model stops --
 def agent_loop(messages: list[MessageParam]) -> None:
+    rounds_since_todo = 0
     while True:
         response = client.messages.create(
             model=MODEL,
@@ -145,6 +223,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
         if response.stop_reason != "tool_use":
             return
         # Execute each tool call, collect results
+        used_todo = False
         results = []
         for block in response.content:
             if isinstance(block, ToolUseBlock):
@@ -155,6 +234,14 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 print(f"> {block.name}: {output[:200]}")
                 results.append(
                     {"type": "tool_result", "tool_use_id": block.id, "content": output}
+                )
+                if block.name == "todo":
+                    used_todo = True
+            rounds_since_todo = 0 if used_todo else rounds_since_todo + 1
+            if rounds_since_todo >= 3:
+                results.insert(
+                    0,
+                    {"type": "text", "text": "<reminder>Update your todos.</reminder>"},
                 )
         messages.append({"role": "user", "content": results})
 
