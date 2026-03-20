@@ -76,9 +76,9 @@ def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> Non
             return
         old_text = cast(str, input_data["old_text"])
         new_text = cast(str, input_data["new_text"])
-        existing_content = safe_path(path).read_text()
-        pos = existing_content.find(old_text)
-        start_line = existing_content[:pos].count("\n") + 1 if pos != -1 else 1
+        edited_content = safe_path(path).read_text()
+        pos = edited_content.find(new_text)
+        start_line = edited_content[:pos].count("\n") + 1 if pos != -1 else 1
         diff = format_edit_diff(old_text, new_text, start_line)
         print(f"> {name} - {path}\n{diff}\n")
         return
