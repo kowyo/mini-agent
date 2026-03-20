@@ -1,5 +1,4 @@
 import difflib
-import shutil
 from typing import Any, cast
 
 from .tools import safe_path
@@ -11,8 +10,7 @@ RESET = "\x1b[0m"
 
 
 def color_full_line(text: str, color: str) -> str:
-    width = shutil.get_terminal_size(fallback=(80, 20)).columns
-    return f"{color}{text.ljust(width)}{RESET}"
+    return f"{color}{text}\x1b[K{RESET}"
 
 
 def format_edit_diff(old_text: str, new_text: str, start_line: int) -> str:
