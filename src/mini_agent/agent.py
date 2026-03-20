@@ -1,6 +1,7 @@
 from anthropic.types import MessageParam, ToolUseBlock
 
 from .config import MODEL, WORKDIR, client
+from .display import print_tool_result
 from .tools import TOOL_HANDLERS, TOOLS
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
@@ -37,7 +38,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 output = (
                     handler(**block.input) if handler else f"Unknown tool: {block.name}"
                 )
-                print(f"> {block.name} - {block.input}\n{output[:200]}\n")
+                print_tool_result(block.name, block.input, output)
                 results.append(
                     {"type": "tool_result", "tool_use_id": block.id, "content": output}
                 )
