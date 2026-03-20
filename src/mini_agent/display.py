@@ -71,14 +71,14 @@ def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> Non
 
     if name == "edit_file":
         path = cast(str, input_data["path"])
+        if output.startswith("Error"):
+            print(f"> {name} - {path}\n{output}\n")
+            return
         old_text = cast(str, input_data["old_text"])
         new_text = cast(str, input_data["new_text"])
         existing_content = safe_path(path).read_text()
-        start_line = (
-            existing_content[: existing_content.index(old_text)].count("\n") + 1
-            if old_text in existing_content
-            else 1
-        )
+        pos = existing_content.find(old_text)
+        start_line = existing_content[:pos].count("\n") + 1 if pos != -1 else 1
         diff = format_edit_diff(old_text, new_text, start_line)
         print(f"> {name} - {path}\n{diff}\n")
         return
