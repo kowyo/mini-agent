@@ -83,4 +83,8 @@ def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> Non
         print(f"> {name} - {path}\n{diff}\n")
         return
 
+    if name == "todo":
+        print(f"> {name}\n{output[:200]}\n")
+        return
+
     print(f"> {name} - {input_data}\n{output[:200]}\n")
