@@ -62,6 +62,7 @@ def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> Non
         return
 
     if name == "write_file":
+        print(f"> {name} - {input_data['path']}\n")
         return
 
     if name == "bash":
