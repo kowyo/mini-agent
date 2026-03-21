@@ -61,6 +61,9 @@ def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> Non
         print(f"> {name} - {input_data['path']}\n")
         return
 
+    if name == "write_file":
+        return
+
     if name == "bash":
         print(
             f"> {name} - {input_data['command']}\n{LIGHT_TEXT}{output[:200]}{RESET}\n"
