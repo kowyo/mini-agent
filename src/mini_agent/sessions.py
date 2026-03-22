@@ -14,6 +14,7 @@ from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 
 from .config import SESSION_DIR
+from .display import print_session_history, print_welcome_banner
 
 
 @dataclass
@@ -154,7 +155,7 @@ def select_session(sessions: list[StoredSession]) -> str | None:
 
     def render() -> FormattedText:
         fragments: list[tuple[str, str]] = [
-            ("", "Resume session\n\n"),
+            ("", "Resume a previous session\n\n"),
         ]
         for index, stored in enumerate(sessions):
             prefix = "> " if index == selected_index else "  "
@@ -201,6 +202,7 @@ def prompt_resume(
     clear_terminal: Callable[[], None],
 ) -> tuple[str, list[MessageParam]]:
     del session
+    clear_terminal()
     sessions = list_sessions()
     if not sessions:
         print("No saved sessions found.\n")
@@ -221,4 +223,6 @@ def prompt_resume(
         return current_session_id, history
 
     clear_terminal()
+    print_welcome_banner()
+    print_session_history(chosen.history)
     return chosen.session_id, chosen.history.copy()

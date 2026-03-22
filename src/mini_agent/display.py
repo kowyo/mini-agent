@@ -1,6 +1,11 @@
 import difflib
 import importlib.metadata
+from html import escape
 from typing import Any, cast
+
+from anthropic.types import MessageParam
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.shortcuts import print_formatted_text
 
 from .config import MODEL
 from .tools import safe_path
@@ -73,6 +78,54 @@ def print_welcome_banner() -> None:
     for line in lines:
         print(f"│ {line.ljust(width)} │")
     print(f"╰{'─' * (width + 2)}╯\n")
+
+
+def extract_text_content(content: Any) -> list[str]:
+    if isinstance(content, str):
+        text = content.strip()
+        return [text] if text else []
+
+    if not isinstance(content, list):
+        return []
+
+    texts: list[str] = []
+    for block in content:
+        if hasattr(block, "text") and getattr(block, "type", None) == "text":
+            text = block.text.strip()
+            if text:
+                texts.append(text)
+            continue
+
+        if not isinstance(block, dict):
+            continue
+
+        if block.get("type") not in {None, "text"}:
+            continue
+
+        text = block.get("text")
+        if isinstance(text, str) and text.strip():
+            texts.append(text.strip())
+
+    return texts
+
+
+def print_session_history(history: list[MessageParam]) -> None:
+    for message in history:
+        if message["role"] == "user" and isinstance(message["content"], str):
+            text = message["content"].strip()
+            if text:
+                lines = text.splitlines() or [""]
+                print_formatted_text(
+                    HTML(f'<style color="#87CEEB">&gt; </style>{escape(lines[0])}')
+                )
+                for line in lines[1:]:
+                    print(line)
+                print()
+            continue
+
+        if message["role"] == "assistant":
+            for text in extract_text_content(message["content"]):
+                print(f"> {text}\n")
 
 
 def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> None:
