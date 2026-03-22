@@ -1,5 +1,6 @@
 import os
 import subprocess
+import uuid
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
@@ -7,6 +8,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 
 from .agent import agent_loop
+from .sessions import prompt_resume, save_session_history
 
 
 def clear_terminal() -> None:
@@ -40,6 +42,7 @@ def build_session() -> PromptSession:
 
 def main() -> None:
     history: list[MessageParam] = []
+    current_session_id = uuid.uuid4().hex
     session = build_session()
 
     while True:
@@ -56,14 +59,23 @@ def main() -> None:
             break
         if command == "/new":
             history.clear()
+            current_session_id = uuid.uuid4().hex
             clear_terminal()
+            continue
+        if command == "/resume":
+            current_session_id, history = prompt_resume(
+                session, current_session_id, history, clear_terminal
+            )
             continue
 
         history.append({"role": "user", "content": query})
         agent_loop(history)
+        save_session_history(current_session_id, history)
 
         response_content = history[-1]["content"]
         if isinstance(response_content, list):
             for block in response_content:
                 if hasattr(block, "text"):
                     print(f"> {block.text}\n")
+                elif isinstance(block, dict) and isinstance(block.get("text"), str):
+                    print(f"> {block['text']}\n")

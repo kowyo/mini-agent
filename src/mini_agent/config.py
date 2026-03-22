@@ -10,5 +10,6 @@ if os.getenv("ANTHROPIC_BASE_URL"):
     os.environ.pop("ANTHROPIC_API_KEY", None)
 
 WORKDIR = Path.cwd()
+SESSION_DIR = Path.home() / ".mini-agent" / "sessions"
 MODEL = os.environ["MODEL_ID"]
 client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
