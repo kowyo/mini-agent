@@ -3,7 +3,7 @@ import importlib.metadata
 from html import escape
 from typing import Any, cast
 
-from anthropic.types import MessageParam
+from anthropic.types import MessageParam, TextBlock
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
 
@@ -80,39 +80,12 @@ def print_welcome_banner() -> None:
     print(f"╰{'─' * (width + 2)}╯\n")
 
 
-def extract_text_content(content: Any) -> list[str]:
-    if isinstance(content, str):
-        text = content.strip()
-        return [text] if text else []
-
-    if not isinstance(content, list):
-        return []
-
-    texts: list[str] = []
-    for block in content:
-        if hasattr(block, "text") and getattr(block, "type", None) == "text":
-            text = block.text.strip()
-            if text:
-                texts.append(text)
-            continue
-
-        if not isinstance(block, dict):
-            continue
-
-        if block.get("type") not in {None, "text"}:
-            continue
-
-        text = block.get("text")
-        if isinstance(text, str) and text.strip():
-            texts.append(text.strip())
-
-    return texts
-
-
 def print_session_history(history: list[MessageParam]) -> None:
     for message in history:
-        if message["role"] == "user" and isinstance(message["content"], str):
-            text = message["content"].strip()
+        content = message["content"]
+
+        if message["role"] == "user" and isinstance(content, str):
+            text = content.strip()
             if text:
                 lines = text.splitlines() or [""]
                 print_formatted_text(
@@ -123,9 +96,10 @@ def print_session_history(history: list[MessageParam]) -> None:
                 print()
             continue
 
-        if message["role"] == "assistant":
-            for text in extract_text_content(message["content"]):
-                print(f"> {text}\n")
+        if message["role"] == "assistant" and isinstance(content, list):
+            for block in content:
+                if isinstance(block, TextBlock) and block.text.strip():
+                    print(f"> {block.text.strip()}\n")
 
 
 def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> None:
