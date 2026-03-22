@@ -8,16 +8,12 @@ from .diff import (
     format_edit_diff,
 )
 from .printing import (
-    CLI_NAME,
-    CLI_VERSION,
     print_session_history,
     print_tool_result,
     print_welcome_banner,
 )
 
 __all__ = [
-    "CLI_NAME",
-    "CLI_VERSION",
     "COMMANDS",
     "COMPLETION_STYLE",
     "CommandCompleter",

@@ -1,3 +1,4 @@
+import importlib.metadata
 import os
 from pathlib import Path
 
@@ -13,3 +14,6 @@ WORKDIR = Path.cwd()
 SESSION_DIR = Path.home() / ".mini-agent" / "sessions"
 MODEL = os.environ["MODEL_ID"]
 client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
+
+CLI_NAME = "mini-agent"
+CLI_VERSION = importlib.metadata.version(CLI_NAME)

@@ -1,4 +1,3 @@
-import importlib.metadata
 from html import escape
 from typing import cast
 
@@ -6,12 +5,9 @@ from anthropic.types import MessageParam
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
 
-from ..config import MODEL
+from ..config import CLI_NAME, CLI_VERSION, MODEL
 from ..tools import safe_path
 from .diff import LIGHT_TEXT, RESET, format_edit_diff
-
-CLI_NAME = "mini-agent"
-CLI_VERSION = importlib.metadata.version(CLI_NAME)
 
 
 def print_welcome_banner() -> None:
