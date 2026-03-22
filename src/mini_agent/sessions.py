@@ -1,4 +1,3 @@
-import copy
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -225,4 +224,4 @@ def prompt_resume(
     clear_terminal()
     print_welcome_banner()
     print_session_history(chosen.history)
-    return chosen.session_id, copy.deepcopy(chosen.history)
+    return chosen.session_id, chosen.history.copy()
