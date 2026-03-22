@@ -1,7 +1,4 @@
 import difflib
-from typing import Any, cast
-
-from .tools import safe_path
 
 RED_BG = "\x1b[48;5;224m\x1b[30m"
 GREEN_BG = "\x1b[48;5;194m\x1b[30m"
@@ -54,39 +51,3 @@ def format_edit_diff(old_text: str, new_text: str, start_line: int) -> str:
             append_insertions(new_lines[j1:j2])
 
     return "\n".join(formatted_lines)
-
-
-def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> None:
-    if name == "read_file":
-        print(f"> {name} - {input_data['path']}\n")
-        return
-
-    if name == "write_file":
-        print(f"> {name} - [{input_data['path']}]\n")
-        return
-
-    if name == "bash":
-        print(
-            f"> {name} - {input_data['command']}\n{LIGHT_TEXT}{output[:200]}{RESET}\n"
-        )
-        return
-
-    if name == "edit_file":
-        path = cast(str, input_data["path"])
-        if output.startswith("Error"):
-            print(f"> {name} - {path}\n{output}\n")
-            return
-        old_text = cast(str, input_data["old_text"])
-        new_text = cast(str, input_data["new_text"])
-        edited_content = safe_path(path).read_text()
-        pos = edited_content.find(new_text)
-        start_line = edited_content[:pos].count("\n") + 1 if pos != -1 else 1
-        diff = format_edit_diff(old_text, new_text, start_line)
-        print(f"> {name} - {path}\n{diff}\n")
-        return
-
-    if name == "todo":
-        print(f"> {name}\n{output[:200]}\n")
-        return
-
-    print(f"> {name} - {input_data}\n{output[:200]}\n")
