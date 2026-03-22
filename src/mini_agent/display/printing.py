@@ -43,7 +43,7 @@ def print_session_history(history: list[MessageParam]) -> None:
         if message["role"] == "assistant" and isinstance(content, list):
             for block in content:
                 if isinstance(block, dict) and block.get("type") == "text":
-                    text = cast(str, block.get("text", "")).strip()
+                    text = str(block.get("text", "")).strip()
                     if text:
                         print(f"> {text}\n")
 
