@@ -1,17 +1,20 @@
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from pathlib import Path
+from typing import cast
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import Application
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.layout import Layout
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import FormattedTextControl
+from pydantic import BaseModel
 
 from .config import SESSION_DIR
 from .display import print_session_history, print_welcome_banner
@@ -25,7 +28,7 @@ class StoredSession:
     history: list[MessageParam]
 
 
-def session_path(session_id: str):
+def session_path(session_id: str) -> Path:
     return SESSION_DIR / f"{session_id}.jsonl"
 
 
@@ -37,18 +40,16 @@ def now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def serialize_content(content: Any) -> Any:
+def serialize_content(content: str | Iterable[object]) -> str | list[object]:
     if isinstance(content, str):
         return content
-    if isinstance(content, list):
-        serialized_blocks: list[Any] = []
-        for block in content:
-            if hasattr(block, "model_dump"):
-                serialized_blocks.append(block.model_dump(mode="json"))
-            else:
-                serialized_blocks.append(block)
-        return serialized_blocks
-    return content
+    serialized_blocks: list[object] = []
+    for block in content:
+        if isinstance(block, BaseModel):
+            serialized_blocks.append(block.model_dump(mode="json"))
+        else:
+            serialized_blocks.append(block)
+    return serialized_blocks
 
 
 def save_session_history(session_id: str, history: list[MessageParam]) -> None:
@@ -79,16 +80,17 @@ def load_session_history(session_id: str) -> list[MessageParam]:
     return history
 
 
-def summarize_content(content: Any) -> str:
+def summarize_content(content: str | Iterable[object]) -> str:
     if isinstance(content, str):
         return content.strip()
-    if isinstance(content, list):
-        texts: list[str] = []
-        for block in content:
-            if isinstance(block, dict) and isinstance(block.get("text"), str):
-                texts.append(block["text"].strip())
-        return " ".join(texts).strip()
-    return ""
+    texts: list[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        text = cast(dict[str, object], block).get("text")
+        if isinstance(text, str):
+            texts.append(text.strip())
+    return " ".join(texts).strip()
 
 
 def session_title(history: list[MessageParam]) -> str:
@@ -165,24 +167,24 @@ def select_session(sessions: list[StoredSession]) -> str | None:
     bindings = KeyBindings()
 
     @bindings.add("up")
-    def move_up(event) -> None:
+    def move_up(event: KeyPressEvent) -> None:
         nonlocal selected_index
         selected_index = (selected_index - 1) % len(sessions)
         event.app.invalidate()
 
     @bindings.add("down")
-    def move_down(event) -> None:
+    def move_down(event: KeyPressEvent) -> None:
         nonlocal selected_index
         selected_index = (selected_index + 1) % len(sessions)
         event.app.invalidate()
 
     @bindings.add("enter")
-    def accept(event) -> None:
+    def accept(event: KeyPressEvent) -> None:
         event.app.exit(result=sessions[selected_index].session_id)
 
     @bindings.add("escape")
     @bindings.add("c-c")
-    def cancel(event) -> None:
+    def cancel(event: KeyPressEvent) -> None:
         event.app.exit(result=None)
 
     application = Application(

@@ -23,7 +23,7 @@ dev = [
 mini-agent = "mini_agent:main"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PTH"]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PTH", "ANN"]
 ignore = ["E501"]
 
 [build-system]

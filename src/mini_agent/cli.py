@@ -6,6 +6,7 @@ from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from .agent import agent_loop
 from .display import COMPLETION_STYLE, CommandCompleter, print_welcome_banner
@@ -23,15 +24,15 @@ def build_session() -> PromptSession:
     bindings = KeyBindings()
 
     @bindings.add("c-c")
-    def clear_buffer(event) -> None:
+    def clear_buffer(event: KeyPressEvent) -> None:
         event.current_buffer.reset()
 
     @bindings.add("enter")
-    def submit(event) -> None:
+    def submit(event: KeyPressEvent) -> None:
         event.current_buffer.validate_and_handle()
 
     @bindings.add("escape", "enter")
-    def insert_newline(event) -> None:
+    def insert_newline(event: KeyPressEvent) -> None:
         event.current_buffer.insert_text("\n")
 
     return PromptSession(
