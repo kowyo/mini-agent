@@ -1,3 +1,4 @@
+import copy
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -6,7 +7,6 @@ from pathlib import Path
 from typing import cast
 
 from anthropic.types import MessageParam
-from prompt_toolkit import PromptSession
 from prompt_toolkit.application import Application
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.key_binding import KeyBindings
@@ -36,10 +36,6 @@ def ensure_session_dir() -> None:
     SESSION_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def now_iso() -> str:
-    return datetime.now(UTC).isoformat()
-
-
 def serialize_content(content: str | Iterable[object]) -> str | list[object]:
     if isinstance(content, str):
         return content
@@ -62,7 +58,6 @@ def save_session_history(session_id: str, history: list[MessageParam]) -> None:
                 {
                     "role": message["role"],
                     "content": serialize_content(message["content"]),
-                    "created_at": now_iso(),
                 }
             )
         )
@@ -108,7 +103,9 @@ def list_sessions() -> list[StoredSession]:
     for path in SESSION_DIR.glob("*.jsonl"):
         try:
             history = load_session_history(path.stem)
-        except OSError, json.JSONDecodeError:
+        except OSError:
+            continue
+        except json.JSONDecodeError:
             continue
         updated_at = datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat()
         sessions.append(
@@ -198,12 +195,10 @@ def select_session(sessions: list[StoredSession]) -> str | None:
 
 
 def prompt_resume(
-    session: PromptSession,
     current_session_id: str,
     history: list[MessageParam],
     clear_terminal: Callable[[], None],
 ) -> tuple[str, list[MessageParam]]:
-    del session
     clear_terminal()
     sessions = list_sessions()
     if not sessions:
@@ -230,4 +225,4 @@ def prompt_resume(
     clear_terminal()
     print_welcome_banner()
     print_session_history(chosen.history)
-    return chosen.session_id, chosen.history.copy()
+    return chosen.session_id, copy.deepcopy(chosen.history)

@@ -72,7 +72,7 @@ def main() -> None:
             continue
         if command == "/resume":
             current_session_id, history = prompt_resume(
-                session, current_session_id, history, clear_terminal
+                current_session_id, history, clear_terminal
             )
             continue
 
