@@ -31,7 +31,7 @@ def print_session_history(history: list[MessageParam]) -> None:
         if message["role"] == "user" and isinstance(content, str):
             text = content.strip()
             if text:
-                lines = text.splitlines() or [""]
+                lines = text.splitlines()
                 print_formatted_text(
                     HTML(f'<style color="#87CEEB">&gt; </style>{escape(lines[0])}')
                 )
@@ -43,7 +43,7 @@ def print_session_history(history: list[MessageParam]) -> None:
         if message["role"] == "assistant" and isinstance(content, list):
             for block in content:
                 if isinstance(block, dict) and block.get("type") == "text":
-                    text = str(block.get("text", "")).strip()
+                    text = cast(str, block["text"]).strip()
                     if text:
                         print(f"> {text}\n")
 

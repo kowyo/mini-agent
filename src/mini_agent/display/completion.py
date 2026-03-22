@@ -14,16 +14,9 @@ COMMANDS = {
     "/resume": "Resume a previous session",
 }
 
-_MENU_ALIGNMENT_PATCHED = False
-_MENU_ANCHOR_PATCHED = False
-
 
 def _patch_completion_menu_alignment() -> None:
     """Remove the built-in one-cell left padding in completion rows."""
-    global _MENU_ALIGNMENT_PATCHED
-
-    if _MENU_ALIGNMENT_PATCHED:
-        return
 
     def _aligned_menu_item_fragments(
         completion: Completion,
@@ -59,16 +52,10 @@ def _patch_completion_menu_alignment() -> None:
     )
     menu_attr_name = "_get_menu_item_fragments"
     setattr(pt_menus, menu_attr_name, menu_fragments_fn)
-    _MENU_ALIGNMENT_PATCHED = True
 
 
 def _patch_completion_menu_anchor() -> None:
     """Shift the completion menu anchor to the completion start column."""
-    global _MENU_ANCHOR_PATCHED
-
-    if _MENU_ANCHOR_PATCHED:
-        return
-
     original_create_content = pt_controls.BufferControl.create_content
 
     def _aligned_create_content(
@@ -101,7 +88,6 @@ def _patch_completion_menu_anchor() -> None:
     )
     create_content_attr_name = "create_content"
     setattr(pt_controls.BufferControl, create_content_attr_name, create_content_fn)
-    _MENU_ANCHOR_PATCHED = True
 
 
 _patch_completion_menu_alignment()
