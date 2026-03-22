@@ -6,6 +6,12 @@ from typing import Any
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
+from prompt_toolkit.application import Application
+from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.layout import Layout
+from prompt_toolkit.layout.containers import Window
+from prompt_toolkit.layout.controls import FormattedTextControl
 
 from .config import SESSION_DIR
 
@@ -113,9 +119,79 @@ def list_sessions() -> list[StoredSession]:
     return sorted(sessions, key=lambda item: item.updated_at, reverse=True)
 
 
-def print_sessions(sessions: list[StoredSession]) -> None:
-    for index, stored in enumerate(sessions, start=1):
-        print(f"{index}. {stored.title} ({stored.updated_at})")
+def format_relative_time(timestamp: str) -> str:
+    try:
+        updated_at = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return timestamp
+
+    now = datetime.now(UTC)
+    delta = now - updated_at.astimezone(UTC)
+    seconds = max(int(delta.total_seconds()), 0)
+
+    if seconds < 60:
+        return "just now"
+    if seconds < 3600:
+        minutes = seconds // 60
+        unit = "minute" if minutes == 1 else "minutes"
+        return f"{minutes} {unit} ago"
+    if seconds < 86400:
+        hours = seconds // 3600
+        unit = "hour" if hours == 1 else "hours"
+        return f"{hours} {unit} ago"
+
+    days = seconds // 86400
+    unit = "day" if days == 1 else "days"
+    return f"{days} {unit} ago"
+
+
+def format_session_choice(stored: StoredSession) -> str:
+    return f"{stored.title} ({format_relative_time(stored.updated_at)})"
+
+
+def select_session(sessions: list[StoredSession]) -> str | None:
+    selected_index = 0
+
+    def render() -> FormattedText:
+        fragments: list[tuple[str, str]] = [
+            ("", "Resume session\n\n"),
+        ]
+        for index, stored in enumerate(sessions):
+            prefix = "> " if index == selected_index else "  "
+            fragments.append(("", f"{prefix}{format_session_choice(stored)}\n"))
+        return FormattedText(fragments)
+
+    bindings = KeyBindings()
+
+    @bindings.add("up")
+    def move_up(event) -> None:
+        nonlocal selected_index
+        selected_index = (selected_index - 1) % len(sessions)
+        event.app.invalidate()
+
+    @bindings.add("down")
+    def move_down(event) -> None:
+        nonlocal selected_index
+        selected_index = (selected_index + 1) % len(sessions)
+        event.app.invalidate()
+
+    @bindings.add("enter")
+    def accept(event) -> None:
+        event.app.exit(result=sessions[selected_index].session_id)
+
+    @bindings.add("escape")
+    @bindings.add("c-c")
+    def cancel(event) -> None:
+        event.app.exit(result=None)
+
+    application = Application(
+        layout=Layout(Window(FormattedTextControl(render), always_hide_cursor=True)),
+        key_bindings=bindings,
+        full_screen=False,
+        mouse_support=False,
+        style=None,
+    )
+    return application.run()
 
 
 def prompt_resume(
@@ -124,33 +200,22 @@ def prompt_resume(
     history: list[MessageParam],
     clear_terminal: Callable[[], None],
 ) -> tuple[str, list[MessageParam]]:
+    del session
     sessions = list_sessions()
     if not sessions:
         print("No saved sessions found.\n")
         return current_session_id, history
 
-    print_sessions(sessions)
-    try:
-        selection = session.prompt("Resume session: ").strip()
-        print()
-    except KeyboardInterrupt, EOFError:
-        print()
+    result = select_session(sessions)
+    print()
+
+    if result is None:
         return current_session_id, history
 
-    if not selection:
-        return current_session_id, history
-
-    chosen: StoredSession | None = None
-    if selection.isdigit():
-        index = int(selection) - 1
-        if 0 <= index < len(sessions):
-            chosen = sessions[index]
-    else:
-        for stored in sessions:
-            if stored.session_id == selection:
-                chosen = stored
-                break
-
+    chosen = next(
+        (stored for stored in sessions if stored.session_id == result),
+        None,
+    )
     if chosen is None:
         print("Invalid session selection.\n")
         return current_session_id, history
