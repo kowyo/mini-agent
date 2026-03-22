@@ -119,11 +119,7 @@ def list_sessions() -> list[StoredSession]:
 
 
 def format_relative_time(timestamp: str) -> str:
-    try:
-        updated_at = datetime.fromisoformat(timestamp)
-    except ValueError:
-        return timestamp
-
+    updated_at = datetime.fromisoformat(timestamp)
     now = datetime.now(UTC)
     delta = now - updated_at.astimezone(UTC)
     seconds = max(int(delta.total_seconds()), 0)
@@ -213,13 +209,7 @@ def prompt_resume(
         print_session_history(history)
         return current_session_id, history
 
-    chosen = next(
-        (stored for stored in sessions if stored.session_id == result),
-        None,
-    )
-    if chosen is None:
-        print("Invalid session selection.\n")
-        return current_session_id, history
+    chosen = next(stored for stored in sessions if stored.session_id == result)
 
     clear_terminal()
     print_welcome_banner()
