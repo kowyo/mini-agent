@@ -64,6 +64,7 @@ def main() -> None:
             history.clear()
             current_session_id = uuid.uuid4().hex
             clear_terminal()
+            print_welcome_banner()
             continue
         if command == "/resume":
             current_session_id, history = prompt_resume(
@@ -80,5 +81,3 @@ def main() -> None:
             for block in response_content:
                 if hasattr(block, "text"):
                     print(f"> {block.text}\n")
-                elif isinstance(block, dict) and isinstance(block.get("text"), str):
-                    print(f"> {block['text']}\n")
