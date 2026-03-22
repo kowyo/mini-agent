@@ -3,7 +3,7 @@ import importlib.metadata
 from html import escape
 from typing import Any, cast
 
-from anthropic.types import MessageParam, TextBlock
+from anthropic.types import MessageParam
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
 
@@ -98,8 +98,10 @@ def print_session_history(history: list[MessageParam]) -> None:
 
         if message["role"] == "assistant" and isinstance(content, list):
             for block in content:
-                if isinstance(block, TextBlock) and block.text.strip():
-                    print(f"> {block.text.strip()}\n")
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text = str(block.get("text", "")).strip()
+                    if text:
+                        print(f"> {text}\n")
 
 
 def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> None:
