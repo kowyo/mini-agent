@@ -4,11 +4,44 @@ from html import escape
 from typing import Any, cast
 
 from anthropic.types import MessageParam
+from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
+from prompt_toolkit.styles import Style
 
 from .config import MODEL
 from .tools import safe_path
+
+COMMANDS = {
+    "/new": "Start a new session",
+    "/resume": "Resume a previous session",
+}
+
+
+class CommandCompleter(Completer):
+    def get_completions(self, document, complete_event):
+        text = document.text_before_cursor.lstrip()
+        for cmd, desc in COMMANDS.items():
+            if cmd.startswith(text) and text:
+                yield Completion(
+                    cmd,
+                    start_position=-len(text),
+                    display_meta=desc,
+                )
+
+
+COMPLETION_STYLE = Style.from_dict(
+    {
+        "completion-menu.completion": "noinherit",
+        "completion-menu.completion.current": "noinherit bold",
+        "completion-menu.meta.completion": "noinherit",
+        "completion-menu.meta.completion.current": "noinherit bold",
+        "scrollbar.background": "noinherit",
+        "scrollbar.button": "noinherit",
+        "scrollbar.arrow-up": "noinherit",
+        "scrollbar.arrow-down": "noinherit",
+    }
+)
 
 CLI_NAME = "mini-agent"
 CLI_VERSION = importlib.metadata.version(CLI_NAME)

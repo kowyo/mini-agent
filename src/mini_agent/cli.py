@@ -8,7 +8,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 
 from .agent import agent_loop
-from .display import print_welcome_banner
+from .display import COMPLETION_STYLE, CommandCompleter, print_welcome_banner
 from .sessions import prompt_resume, save_session_history
 
 
@@ -38,6 +38,9 @@ def build_session() -> PromptSession:
         HTML('<style color="#87CEEB">> </style>'),
         multiline=True,
         key_bindings=bindings,
+        completer=CommandCompleter(),
+        complete_while_typing=True,
+        style=COMPLETION_STYLE,
     )
 
 
