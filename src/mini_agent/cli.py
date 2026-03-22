@@ -8,6 +8,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 
 from .agent import agent_loop
+from .display import print_welcome_banner
 from .sessions import prompt_resume, save_session_history
 
 
@@ -41,6 +42,8 @@ def build_session() -> PromptSession:
 
 
 def main() -> None:
+    clear_terminal()
+    print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
     session = build_session()

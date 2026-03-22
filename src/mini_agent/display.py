@@ -1,7 +1,12 @@
 import difflib
+import importlib.metadata
 from typing import Any, cast
 
+from .config import MODEL
 from .tools import safe_path
+
+CLI_NAME = "mini-agent"
+CLI_VERSION = importlib.metadata.version(CLI_NAME)
 
 RED_BG = "\x1b[48;5;224m\x1b[30m"
 GREEN_BG = "\x1b[48;5;194m\x1b[30m"
@@ -54,6 +59,20 @@ def format_edit_diff(old_text: str, new_text: str, start_line: int) -> str:
             append_insertions(new_lines[j1:j2])
 
     return "\n".join(formatted_lines)
+
+
+def print_welcome_banner() -> None:
+    lines = [
+        f" >_ {CLI_NAME} (v{CLI_VERSION})",
+        "",
+        f" model:     {MODEL}",
+    ]
+    width = max(len(line) for line in lines)
+
+    print(f"╭{'─' * (width + 2)}╮")
+    for line in lines:
+        print(f"│ {line.ljust(width)} │")
+    print(f"╰{'─' * (width + 2)}╯\n")
 
 
 def print_tool_result(name: str, input_data: dict[str, Any], output: str) -> None:
