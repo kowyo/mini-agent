@@ -212,6 +212,9 @@ def prompt_resume(
     print()
 
     if result is None:
+        clear_terminal()
+        print_welcome_banner()
+        print_session_history(history)
         return current_session_id, history
 
     chosen = next(
