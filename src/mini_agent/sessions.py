@@ -133,10 +133,7 @@ def prompt_resume(
     try:
         selection = session.prompt("Resume session: ").strip()
         print()
-    except KeyboardInterrupt:
-        print()
-        return current_session_id, history
-    except EOFError:
+    except KeyboardInterrupt, EOFError:
         print()
         return current_session_id, history
 
