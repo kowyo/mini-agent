@@ -1,9 +1,19 @@
+import os
+import subprocess
+
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 
 from .agent import agent_loop
+
+
+def clear_terminal() -> None:
+    subprocess.run(
+        ["cls" if os.name == "nt" else "clear"],
+        check=False,
+    )
 
 
 def build_session() -> PromptSession:
@@ -41,8 +51,13 @@ def main() -> None:
         except EOFError:
             break
 
-        if query.strip().lower() in {"", "q", "exit"}:
+        command = query.strip().lower()
+        if command in {"", "q", "exit"}:
             break
+        if command == "/new":
+            history.clear()
+            clear_terminal()
+            continue
 
         history.append({"role": "user", "content": query})
         agent_loop(history)
