@@ -17,6 +17,7 @@ def clear_terminal() -> None:
     subprocess.run(
         ["cls" if os.name == "nt" else "clear"],
         check=False,
+        shell=os.name == "nt",
     )
 
 
