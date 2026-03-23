@@ -1,15 +1,17 @@
 # mini-agent
 
-A minimal Python CLI agent built with Anthropic's SDK.
+A minimal agent running in your terminal.
 
-## Setup
+## Quick Start
+
+```bash
+uv tool install git+https://github.com/kowyo/mini-agent.git@main
+mini-agent
+```
+
+## Development
 
 ```bash
 make prepare
-```
-
-## Run
-
-```bash
 uv run mini-agent
 ```
