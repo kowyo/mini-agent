@@ -1,4 +1,4 @@
-from anthropic.types import MessageParam, ToolUseBlock
+from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
 from .config import MODEL, WORKDIR, client
 from .display import print_tool_result
@@ -24,6 +24,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             messages=messages,
             tools=TOOLS,
             max_tokens=8000,
+            thinking={"type": "enabled", "budget_tokens": 8000},
         )
         messages.append({"role": "assistant", "content": response.content})
 
@@ -44,6 +45,20 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 )
                 if block.name == "todo":
                     used_todo = True
+
+            if isinstance(block, ThinkingBlock):
+                if block.type == "thinking":
+                    if block.thinking:
+                        print(f"{block.thinking}\n")
+                        results.append(
+                            {
+                                "type": "thinking",
+                                "thinking": block.thinking,
+                                "signature": block.signature,
+                            }
+                        )
+                    else:
+                        print("Thinking: [omitted]")
 
         rounds_since_todo = 0 if used_todo else rounds_since_todo + 1
         if rounds_since_todo >= 3:
