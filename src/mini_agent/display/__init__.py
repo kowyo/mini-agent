@@ -8,6 +8,7 @@ from .diff import (
     format_edit_diff,
 )
 from .printing import (
+    clear_terminal,
     print_session_history,
     print_tool_result,
     print_welcome_banner,
@@ -26,4 +27,5 @@ __all__ = [
     "print_session_history",
     "print_tool_result",
     "print_welcome_banner",
+    "clear_terminal",
 ]

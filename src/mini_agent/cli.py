@@ -1,5 +1,3 @@
-import os
-import subprocess
 import uuid
 
 from anthropic.types import MessageParam
@@ -9,17 +7,14 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from .agent import agent_loop
-from .display import COMPLETION_STYLE, CommandCompleter, print_welcome_banner
+from .display import (
+    COMPLETION_STYLE,
+    CommandCompleter,
+    clear_terminal,
+    print_welcome_banner,
+)
 from .models import prompt_model
 from .sessions import prompt_resume, save_session_history
-
-
-def clear_terminal() -> None:
-    subprocess.run(
-        ["cls" if os.name == "nt" else "clear"],
-        check=False,
-        shell=os.name == "nt",
-    )
 
 
 def build_session() -> PromptSession:
@@ -73,9 +68,7 @@ def main() -> None:
             print_welcome_banner()
             continue
         if command == "/resume":
-            current_session_id, history = prompt_resume(
-                current_session_id, history, clear_terminal
-            )
+            current_session_id, history = prompt_resume(current_session_id, history)
             continue
         if command == "/model":
             prompt_model()

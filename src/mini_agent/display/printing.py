@@ -1,3 +1,5 @@
+import os
+import subprocess
 from html import escape
 from typing import cast
 
@@ -8,6 +10,14 @@ from prompt_toolkit.shortcuts import print_formatted_text
 from ..config import CLI_NAME, CLI_VERSION, get_model
 from ..tools import safe_path
 from .diff import LIGHT_TEXT, RESET, format_edit_diff
+
+
+def clear_terminal() -> None:
+    subprocess.run(
+        ["cls" if os.name == "nt" else "clear"],
+        check=False,
+        shell=os.name == "nt",
+    )
 
 
 def print_welcome_banner() -> None:

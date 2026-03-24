@@ -1,5 +1,5 @@
 import json
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,7 +16,11 @@ from prompt_toolkit.layout.controls import FormattedTextControl
 from pydantic import BaseModel
 
 from .config import SESSION_DIR
-from .display import print_session_history, print_welcome_banner
+from .display import (
+    clear_terminal,
+    print_session_history,
+    print_welcome_banner,
+)
 
 
 @dataclass
@@ -192,7 +196,6 @@ def select_session(sessions: list[StoredSession]) -> str | None:
 def prompt_resume(
     current_session_id: str,
     history: list[MessageParam],
-    clear_terminal: Callable[[], None],
 ) -> tuple[str, list[MessageParam]]:
     clear_terminal()
     sessions = list_sessions()
