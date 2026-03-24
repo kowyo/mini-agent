@@ -1,3 +1,4 @@
+import anthropic
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
 from .config import WORKDIR, client, get_model
@@ -18,14 +19,19 @@ def agent_loop(messages: list[MessageParam]) -> None:
     rounds_since_todo = 0
 
     while True:
-        response = client.messages.create(
-            model=get_model(),
-            system=SYSTEM,
-            messages=messages,
-            tools=TOOLS,
-            max_tokens=8000,
-            thinking={"type": "enabled", "budget_tokens": 8000},
-        )
+        try:
+            response = client.messages.create(
+                model=get_model(),
+                system=SYSTEM,
+                messages=messages,
+                tools=TOOLS,
+                max_tokens=8000,
+                thinking={"type": "enabled", "budget_tokens": 8000},
+            )
+        except anthropic.APIStatusError as e:
+            print(f"Error: {e}\n")
+            messages.pop()
+            return
         messages.append({"role": "assistant", "content": response.content})
 
         if response.stop_reason != "tool_use":

@@ -75,7 +75,12 @@ def main() -> None:
             continue
 
         history.append({"role": "user", "content": query})
+        history_len = len(history)
         agent_loop(history)
+
+        if len(history) <= history_len:
+            continue
+
         save_session_history(current_session_id, history)
 
         response_content = history[-1]["content"]
