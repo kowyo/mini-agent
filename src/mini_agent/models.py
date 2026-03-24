@@ -25,7 +25,7 @@ def select_model(models: list[str]) -> str | None:
 
     def render() -> FormattedText:
         fragments: list[tuple[str, str]] = [
-            ("", "Select a model\n\n"),
+            ("", "Select model\n\n"),
         ]
         for index, model_id in enumerate(models):
             prefix = "> " if index == selected_index else "  "
@@ -66,7 +66,6 @@ def select_model(models: list[str]) -> str | None:
 
 
 def prompt_model() -> None:
-    print("Fetching models...")
     try:
         models = fetch_models()
     except Exception as e:
