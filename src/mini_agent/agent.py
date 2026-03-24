@@ -1,6 +1,6 @@
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
-from .config import MODEL, WORKDIR, client
+from .config import WORKDIR, client, get_model
 from .display import print_tool_result
 from .tools import TOOL_HANDLERS, TOOLS
 
@@ -19,7 +19,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
     while True:
         response = client.messages.create(
-            model=MODEL,
+            model=get_model(),
             system=SYSTEM,
             messages=messages,
             tools=TOOLS,

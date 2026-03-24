@@ -9,6 +9,7 @@ dependencies = [
     "anthropic>=0.84.0",
     "prompt-toolkit>=3.0.51",
     "python-dotenv>=1.2.2",
+    "tomli-w>=1.2.0",
 ]
 
 [dependency-groups]
