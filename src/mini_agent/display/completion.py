@@ -12,6 +12,7 @@ from prompt_toolkit.styles import Style
 COMMANDS = {
     "/new": "Start a new session",
     "/resume": "Resume a previous session",
+    "/model": "Select a model",
 }
 
 

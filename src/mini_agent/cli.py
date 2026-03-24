@@ -10,6 +10,7 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from .agent import agent_loop
 from .display import COMPLETION_STYLE, CommandCompleter, print_welcome_banner
+from .models import prompt_model
 from .sessions import prompt_resume, save_session_history
 
 
@@ -75,6 +76,9 @@ def main() -> None:
             current_session_id, history = prompt_resume(
                 current_session_id, history, clear_terminal
             )
+            continue
+        if command == "/model":
+            prompt_model()
             continue
 
         history.append({"role": "user", "content": query})
