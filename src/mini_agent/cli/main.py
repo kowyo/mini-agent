@@ -43,7 +43,6 @@ def build_session() -> PromptSession:
 
 
 def main() -> None:
-    clear_terminal()
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
