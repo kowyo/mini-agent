@@ -7,8 +7,8 @@ from anthropic.types import MessageParam
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
 
-from ..config import CLI_NAME, CLI_VERSION, get_model
-from ..tools import safe_path
+from ...agent.tools import safe_path
+from ...config import CLI_NAME, CLI_VERSION, get_model
 from .diff import LIGHT_TEXT, RESET, format_edit_diff
 
 

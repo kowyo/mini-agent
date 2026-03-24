@@ -4,7 +4,7 @@ from typing import Any
 
 from anthropic.types import ToolParam
 
-from .config import WORKDIR
+from ..config import WORKDIR
 from .todos import TODO
 
 

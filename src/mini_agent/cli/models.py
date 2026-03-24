@@ -6,7 +6,7 @@ from prompt_toolkit.layout import Layout
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 
-from .config import client, get_model, save_model
+from ..config import client, get_model, save_model
 
 
 def fetch_models() -> list[str]:

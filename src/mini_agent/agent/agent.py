@@ -1,8 +1,8 @@
 import anthropic
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
-from .config import WORKDIR, client, get_model
-from .display import print_tool_result
+from ..cli.display import print_tool_result
+from ..config import WORKDIR, client, get_model
 from .tools import TOOL_HANDLERS, TOOLS
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
@@ -55,7 +55,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             if isinstance(block, ThinkingBlock):
                 if block.type == "thinking":
                     if block.thinking:
-                        print(f"{block.thinking}\n")
+                        print(f"{block.thinking}")
                         results.append(
                             {
                                 "type": "thinking",

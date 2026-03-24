@@ -6,7 +6,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
-from .agent import agent_loop
+from ..agent.agent import agent_loop
 from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
