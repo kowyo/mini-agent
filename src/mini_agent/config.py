@@ -9,13 +9,11 @@ from dotenv import load_dotenv
 
 WORKDIR = Path.cwd()
 DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
-load_dotenv(DEFAULT_CONFIG_DIR / ".env")
-
-CONFIG_DIR = Path(os.getenv("CONFIG_DIR", DEFAULT_CONFIG_DIR)).expanduser()
+DEFAULT_MODEL = "claude-sonnet-4-6"
+CONFIG_DIR = DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
-load_dotenv(CONFIG_DIR / ".env", override=True)
+load_dotenv(CONFIG_DIR / ".env")
 
 if os.getenv("ANTHROPIC_BASE_URL"):
     os.environ.pop("ANTHROPIC_API_KEY", None)
