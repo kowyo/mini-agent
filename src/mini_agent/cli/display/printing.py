@@ -24,7 +24,7 @@ def print_welcome_banner() -> None:
     lines = [
         f" >_ {CLI_NAME} (v{CLI_VERSION})",
         "",
-        f" model:     {get_model()}",
+        f" model: {get_model()}",
     ]
     width = max(len(line) for line in lines)
 
