@@ -15,7 +15,7 @@ from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 from pydantic import BaseModel
 
-from .config import SESSION_DIR
+from ..config import SESSION_DIR
 from .display import (
     clear_terminal,
     print_session_history,
