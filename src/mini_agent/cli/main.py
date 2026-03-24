@@ -64,7 +64,6 @@ def main() -> None:
             history.clear()
             current_session_id = uuid.uuid4().hex
             clear_terminal()
-            print_welcome_banner()
             continue
         if command == "/resume":
             current_session_id, history = prompt_resume(current_session_id, history)

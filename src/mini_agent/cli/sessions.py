@@ -19,7 +19,6 @@ from ..config import SESSION_DIR
 from .display import (
     clear_terminal,
     print_session_history,
-    print_welcome_banner,
 )
 
 
@@ -208,13 +207,11 @@ def prompt_resume(
 
     if result is None:
         clear_terminal()
-        print_welcome_banner()
         print_session_history(history)
         return current_session_id, history
 
     chosen = next(stored for stored in sessions if stored.session_id == result)
 
     clear_terminal()
-    print_welcome_banner()
     print_session_history(chosen.history)
     return chosen.session_id, chosen.history.copy()
