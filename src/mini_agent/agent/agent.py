@@ -67,7 +67,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             if isinstance(block, ThinkingBlock):
                 if block.type == "thinking":
                     if block.thinking:
-                        print(f"{block.thinking}")
+                        print(f"{block.thinking}\n")
                     else:
                         print("Thinking: [omitted]")
 
