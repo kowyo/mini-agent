@@ -40,7 +40,7 @@ class SkillLoader:
         for name, skill in self.skills.items():
             desc = skill["meta"].get("description", "No description")
             tags = skill["meta"].get("tags", "")
-            line = f"  - {name}: {desc}"
+            line = f"- {name}: {desc}"
             if tags:
                 line += f" [{tags}]"
             lines.append(line)
