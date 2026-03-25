@@ -28,7 +28,9 @@ def select_from_list[T](
         _, terminal_height = shutil.get_terminal_size(fallback=(80, 24))
         base_rows = max(terminal_height - 4, 1)
         show_hint = len(items) > base_rows
-        available_rows = max(terminal_height - 4 - (2 if show_hint else 0), 1)
+
+        item_rows = base_rows - 1 if show_hint else base_rows
+        available_rows = max(item_rows, 1)
 
         start_index = max(0, selected_index - available_rows // 2)
         end_index = min(len(items), start_index + available_rows)
@@ -42,7 +44,7 @@ def select_from_list[T](
 
         if show_hint:
             fragments.append(("", "\n"))
-            fragments.append((LIGHT_HINT_STYLE, "↑/↓ to browse\n"))
+            fragments.append((LIGHT_HINT_STYLE, "↑/↓ to browse"))
 
         return FormattedText(fragments)
 
