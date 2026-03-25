@@ -9,13 +9,14 @@ from prompt_toolkit.layout import Layout
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 
+SELECTED_STYLE = "bold"
 LIGHT_HINT_STYLE = "fg:#888888"
 
 
 def select_from_list[T](
     items: Sequence[T],
     title: str,
-    format_item: Callable[[T], str],
+    format_item: Callable[[T], str] = str,
     *,
     selected_index: int = 0,
 ) -> T | None:
@@ -39,8 +40,11 @@ def select_from_list[T](
         fragments: list[tuple[str, str]] = [("", f"{title}\n\n")]
 
         for index in range(start_index, end_index):
-            prefix = "> " if index == selected_index else "  "
-            fragments.append(("", f"{prefix}{format_item(items[index])}\n"))
+            label = format_item(items[index]).replace("\n", " ")
+            if index == selected_index:
+                fragments.append((SELECTED_STYLE, f"> {label}\n"))
+            else:
+                fragments.append(("", f"  {label}\n"))
 
         if show_hint:
             fragments.append(("", "\n"))
@@ -74,8 +78,5 @@ def select_from_list[T](
     application = Application(
         layout=Layout(Window(FormattedTextControl(render), always_hide_cursor=True)),
         key_bindings=bindings,
-        full_screen=False,
-        mouse_support=False,
-        style=None,
     )
     return application.run()

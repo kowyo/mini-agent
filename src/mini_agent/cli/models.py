@@ -15,9 +15,7 @@ def fetch_models() -> list[str]:
 def select_model(models: list[str]) -> str | None:
     current = get_model()
     selected_index = models.index(current) if current in models else 0
-    return select_from_list(
-        models, "Select model", lambda model_id: model_id, selected_index=selected_index
-    )
+    return select_from_list(models, "Select model", selected_index=selected_index)
 
 
 def prompt_model() -> None:
