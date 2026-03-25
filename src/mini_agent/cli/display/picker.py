@@ -9,8 +9,7 @@ from prompt_toolkit.layout import Layout
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 
-SELECTED_STYLE = "bold"
-LIGHT_HINT_STYLE = "fg:#888888"
+from .theme import LIGHT_HINT_STYLE, SELECTED_STYLE
 
 
 def select_from_list[T](

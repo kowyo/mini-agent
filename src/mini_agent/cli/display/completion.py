@@ -116,6 +116,7 @@ class CommandCompleter(Completer):
 
 COMPLETION_STYLE = Style.from_dict(
     {
+        "bottom-toolbar": "noinherit",
         "completion-menu.completion": "noinherit",
         "completion-menu.completion.current": "noinherit bold",
         "completion-menu.meta.completion": "noinherit",

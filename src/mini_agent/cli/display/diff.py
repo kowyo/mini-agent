@@ -1,9 +1,6 @@
 import difflib
 
-RED_BG = "\x1b[48;5;224m\x1b[30m"
-GREEN_BG = "\x1b[48;5;194m\x1b[30m"
-LIGHT_TEXT = "\x1b[37m"
-RESET = "\x1b[0m"
+from .theme import GREEN_BG, RED_BG, RESET
 
 
 def color_full_line(text: str, color: str) -> str:

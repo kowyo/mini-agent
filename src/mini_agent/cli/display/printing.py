@@ -9,8 +9,9 @@ from prompt_toolkit.shortcuts import print_formatted_text
 
 from ...agent.tools import safe_path
 from ...config import CLI_NAME, CLI_VERSION, get_model
-from .diff import LIGHT_TEXT, RESET, format_edit_diff
+from .diff import format_edit_diff
 from .picker import LIGHT_HINT_STYLE
+from .theme import LIGHT_TEXT, PROMPT_ACCENT_COLOR, RESET
 
 
 def clear_terminal() -> None:
@@ -48,7 +49,10 @@ def print_session_history(history: list[MessageParam]) -> None:
             if text:
                 lines = text.splitlines()
                 print_formatted_text(
-                    HTML(f'<style color="#87CEEB">&gt; </style>{escape(lines[0])}')
+                    HTML(
+                        f'<style color="{PROMPT_ACCENT_COLOR}">&gt; </style>'
+                        f"{escape(lines[0])}"
+                    )
                 )
                 for line in lines[1:]:
                     print(line)
