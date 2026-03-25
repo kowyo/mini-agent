@@ -13,6 +13,7 @@ from .display import (
     clear_terminal,
     print_welcome_banner,
 )
+from .display.printing import get_status_toolbar
 from .models import prompt_model
 from .sessions import prompt_resume, save_session_history
 
@@ -39,6 +40,7 @@ def build_session() -> PromptSession:
         completer=CommandCompleter(),
         complete_while_typing=True,
         style=COMPLETION_STYLE,
+        bottom_toolbar=get_status_toolbar,
     )
 
 

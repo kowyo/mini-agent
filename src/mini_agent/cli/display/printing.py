@@ -4,12 +4,13 @@ from html import escape
 from typing import cast
 
 from anthropic.types import MessageParam
-from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.formatted_text import HTML, FormattedText
 from prompt_toolkit.shortcuts import print_formatted_text
 
 from ...agent.tools import safe_path
 from ...config import CLI_NAME, CLI_VERSION, get_model
 from .diff import LIGHT_TEXT, RESET, format_edit_diff
+from .picker import LIGHT_HINT_STYLE
 
 
 def clear_terminal() -> None:
@@ -32,6 +33,10 @@ def print_welcome_banner() -> None:
     for line in lines:
         print(f"│ {line.ljust(width)} │")
     print(f"╰{'─' * (width + 2)}╯\n")
+
+
+def get_status_toolbar() -> FormattedText:
+    return FormattedText([(LIGHT_HINT_STYLE, f"  {get_model()}")])
 
 
 def print_session_history(history: list[MessageParam]) -> None:
