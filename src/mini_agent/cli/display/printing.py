@@ -100,4 +100,8 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
         print(f"> {name}\n{output[:200]}\n")
         return
 
+    if name == "load_skill":
+        print(f"> {name} - {input_data['name']}\n")
+        return
+
     print(f"> {name} - {input_data}\n{output[:200]}\n")

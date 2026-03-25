@@ -7,12 +7,15 @@ import tomli_w
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-WORKDIR = Path.cwd()
 DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
 DEFAULT_MODEL = "claude-sonnet-4-6"
 CONFIG_DIR = DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
+
+WORKDIR = Path.cwd()
+SKILLS_DIR = WORKDIR / ".agents" / "skills"
+
 load_dotenv(CONFIG_DIR / ".env")
 
 if os.getenv("ANTHROPIC_BASE_URL"):

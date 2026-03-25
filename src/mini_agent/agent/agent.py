@@ -4,6 +4,7 @@ from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 from ..cli.display import print_tool_result
 from ..config import WORKDIR, client, get_model
 from ..errors import APIKeyMissingError
+from .skills import SKILL_LOADER
 from .tools import TOOL_HANDLERS, TOOLS
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
@@ -13,6 +14,9 @@ You are an expert coding assistant at {WORKDIR}. You help users by reading files
 
 Available tools:
 {TOOLS_LIST}
+
+Available skills:
+{SKILL_LOADER.get_descriptions()}
 """
 
 

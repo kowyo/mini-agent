@@ -11,3 +11,7 @@ wheels/
 
 # Environment variables
 .env
+
+# AI
+.agents/
+skills-lock.json

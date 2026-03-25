@@ -5,6 +5,7 @@ from typing import Any
 from anthropic.types import ToolParam
 
 from ..config import WORKDIR
+from .skills import SKILL_LOADER
 from .todos import TODO
 
 
@@ -78,6 +79,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     "write_file": lambda **kw: run_write(kw["path"], kw["content"]),
     "edit_file": lambda **kw: run_edit(kw["path"], kw["old_text"], kw["new_text"]),
     "todo": lambda **kw: TODO.update(kw["items"]),
+    "load_skill": lambda **kw: SKILL_LOADER.get_content(kw["name"]),
 }
 
 TOOLS: list[ToolParam] = [
@@ -144,6 +146,17 @@ TOOLS: list[ToolParam] = [
                 }
             },
             "required": ["items"],
+        },
+    },
+    {
+        "name": "load_skill",
+        "description": "Load specialized knowledge by name.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Skill name to load"}
+            },
+            "required": ["name"],
         },
     },
 ]
