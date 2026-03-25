@@ -6,20 +6,11 @@ from pathlib import Path
 from typing import cast
 
 from anthropic.types import MessageParam
-from prompt_toolkit.application import Application
-from prompt_toolkit.formatted_text import FormattedText
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.key_binding.key_processor import KeyPressEvent
-from prompt_toolkit.layout import Layout
-from prompt_toolkit.layout.containers import Window
-from prompt_toolkit.layout.controls import FormattedTextControl
 from pydantic import BaseModel
 
 from ..config import SESSION_DIR
-from .display import (
-    clear_terminal,
-    print_session_history,
-)
+from .display import clear_terminal, print_session_history
+from .display.picker import select_from_list
 
 
 @dataclass
@@ -148,48 +139,12 @@ def format_session_choice(stored: StoredSession) -> str:
 
 
 def select_session(sessions: list[StoredSession]) -> str | None:
-    selected_index = 0
-
-    def render() -> FormattedText:
-        fragments: list[tuple[str, str]] = [
-            ("", "Resume a previous session\n\n"),
-        ]
-        for index, stored in enumerate(sessions):
-            prefix = "> " if index == selected_index else "  "
-            fragments.append(("", f"{prefix}{format_session_choice(stored)}\n"))
-        return FormattedText(fragments)
-
-    bindings = KeyBindings()
-
-    @bindings.add("up")
-    def move_up(event: KeyPressEvent) -> None:
-        nonlocal selected_index
-        selected_index = (selected_index - 1) % len(sessions)
-        event.app.invalidate()
-
-    @bindings.add("down")
-    def move_down(event: KeyPressEvent) -> None:
-        nonlocal selected_index
-        selected_index = (selected_index + 1) % len(sessions)
-        event.app.invalidate()
-
-    @bindings.add("enter")
-    def accept(event: KeyPressEvent) -> None:
-        event.app.exit(result=sessions[selected_index].session_id)
-
-    @bindings.add("escape")
-    @bindings.add("c-c")
-    def cancel(event: KeyPressEvent) -> None:
-        event.app.exit(result=None)
-
-    application = Application(
-        layout=Layout(Window(FormattedTextControl(render), always_hide_cursor=True)),
-        key_bindings=bindings,
-        full_screen=False,
-        mouse_support=False,
-        style=None,
+    result = select_from_list(
+        sessions,
+        "Resume a previous session",
+        format_session_choice,
     )
-    return application.run()
+    return result.session_id if result is not None else None
 
 
 def prompt_resume(

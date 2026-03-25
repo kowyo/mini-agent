@@ -1,12 +1,5 @@
-from prompt_toolkit.application import Application
-from prompt_toolkit.formatted_text import FormattedText
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.key_binding.key_processor import KeyPressEvent
-from prompt_toolkit.layout import Layout
-from prompt_toolkit.layout.containers import Window
-from prompt_toolkit.layout.controls import FormattedTextControl
-
 from ..config import client, get_model, save_model
+from .display.picker import select_from_list
 
 
 def fetch_models() -> list[str]:
@@ -22,47 +15,9 @@ def fetch_models() -> list[str]:
 def select_model(models: list[str]) -> str | None:
     current = get_model()
     selected_index = models.index(current) if current in models else 0
-
-    def render() -> FormattedText:
-        fragments: list[tuple[str, str]] = [
-            ("", "Select model\n\n"),
-        ]
-        for index, model_id in enumerate(models):
-            prefix = "> " if index == selected_index else "  "
-            fragments.append(("", f"{prefix}{model_id}\n"))
-        return FormattedText(fragments)
-
-    bindings = KeyBindings()
-
-    @bindings.add("up")
-    def move_up(event: KeyPressEvent) -> None:
-        nonlocal selected_index
-        selected_index = (selected_index - 1) % len(models)
-        event.app.invalidate()
-
-    @bindings.add("down")
-    def move_down(event: KeyPressEvent) -> None:
-        nonlocal selected_index
-        selected_index = (selected_index + 1) % len(models)
-        event.app.invalidate()
-
-    @bindings.add("enter")
-    def accept(event: KeyPressEvent) -> None:
-        event.app.exit(result=models[selected_index])
-
-    @bindings.add("escape")
-    @bindings.add("c-c")
-    def cancel(event: KeyPressEvent) -> None:
-        event.app.exit(result=None)
-
-    application = Application(
-        layout=Layout(Window(FormattedTextControl(render), always_hide_cursor=True)),
-        key_bindings=bindings,
-        full_screen=False,
-        mouse_support=False,
-        style=None,
+    return select_from_list(
+        models, "Select model", lambda model_id: model_id, selected_index=selected_index
     )
-    return application.run()
 
 
 def prompt_model() -> None:
