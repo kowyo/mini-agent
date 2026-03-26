@@ -25,7 +25,10 @@ from .models import prompt_model
 from .sessions import prompt_resume, save_session_history
 
 
-def build_session(agent_running: threading.Event) -> tuple[PromptSession, object]:
+def build_session(
+    agent_running: threading.Event,
+    cancel: threading.Event,
+) -> tuple[PromptSession, object]:
     bindings = KeyBindings()
     last_ctrl_c = 0.0
     hint_refresh_timer: threading.Timer | None = None
@@ -41,6 +44,10 @@ def build_session(agent_running: threading.Event) -> tuple[PromptSession, object
     @bindings.add("c-c")
     def clear_buffer(event: KeyPressEvent) -> None:
         nonlocal last_ctrl_c, hint_refresh_timer
+
+        if agent_running.is_set():
+            cancel.set()
+            return
 
         now = time.monotonic()
         if now - last_ctrl_c <= ctrl_c_timeout:
@@ -88,7 +95,8 @@ def main() -> None:
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
     agent_running = threading.Event()
-    session, exit_sentinel = build_session(agent_running)
+    cancel = threading.Event()
+    session, exit_sentinel = build_session(agent_running, cancel)
     msg_queue: queue.Queue[str | None] = queue.Queue()
 
     def agent_worker() -> None:
@@ -104,7 +112,8 @@ def main() -> None:
 
             history.append({"role": "user", "content": query})
             history_len = len(history)
-            agent_loop(history)
+            agent_loop(history, cancel=cancel)
+            cancel.clear()
 
             if len(history) > history_len:
                 save_session_history(current_session_id, history)

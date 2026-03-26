@@ -1,3 +1,5 @@
+import threading
+
 import anthropic
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
@@ -20,10 +22,18 @@ Available skills:
 """
 
 
-def agent_loop(messages: list[MessageParam]) -> None:
+def agent_loop(
+    messages: list[MessageParam],
+    cancel: threading.Event | None = None,
+) -> None:
     rounds_since_todo = 0
 
     while True:
+        if cancel is not None and cancel.is_set():
+            cancel.clear()
+            print("Interrupted.\n")
+            return
+
         try:
             response = client.messages.create(
                 model=get_model(),
@@ -52,6 +62,12 @@ def agent_loop(messages: list[MessageParam]) -> None:
         used_todo = False
         results = []
         for block in response.content:
+            if cancel is not None and cancel.is_set():
+                cancel.clear()
+                messages.pop()
+                print("Interrupted.\n")
+                return
+
             if isinstance(block, ToolUseBlock):
                 handler = TOOL_HANDLERS.get(block.name)
                 output = (
