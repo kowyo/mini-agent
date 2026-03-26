@@ -64,12 +64,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 if block.name == "todo":
                     used_todo = True
 
-            if isinstance(block, ThinkingBlock):
-                if block.type == "thinking":
-                    if block.thinking:
-                        print(f"{block.thinking}\n")
-                    else:
-                        print("Thinking: [omitted]")
+            if isinstance(block, ThinkingBlock) and block.type == "thinking":
+                if block.thinking:
+                    print(f"{block.thinking}\n")
+                else:
+                    print("Thinking: [omitted]")
 
         rounds_since_todo = 0 if used_todo else rounds_since_todo + 1
         if rounds_since_todo >= 3:
