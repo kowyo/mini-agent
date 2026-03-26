@@ -28,5 +28,5 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PTH", "ANN"]
 ignore = ["E501"]
 
 [build-system]
-requires = ["uv_build>=0.10.0,<0.11.0"]
+requires = ["uv_build>=0.11.1,<0.12"]
 build-backend = "uv_build"
