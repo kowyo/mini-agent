@@ -1,12 +1,15 @@
+import queue
 import threading
 import time
 import uuid
+from contextlib import suppress
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML, FormattedText
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
+from prompt_toolkit.patch_stdout import patch_stdout
 
 from ..agent.agent import agent_loop
 from .display import (
@@ -22,7 +25,7 @@ from .models import prompt_model
 from .sessions import prompt_resume, save_session_history
 
 
-def build_session() -> tuple[PromptSession, object]:
+def build_session(agent_running: threading.Event) -> tuple[PromptSession, object]:
     bindings = KeyBindings()
     last_ctrl_c = 0.0
     hint_refresh_timer: threading.Timer | None = None
@@ -74,6 +77,7 @@ def build_session() -> tuple[PromptSession, object]:
             complete_while_typing=True,
             style=COMPLETION_STYLE,
             bottom_toolbar=status_toolbar,
+            reserve_space_for_menu=2,
         ),
         exit_sentinel,
     )
@@ -83,46 +87,69 @@ def main() -> None:
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session, exit_sentinel = build_session()
+    agent_running = threading.Event()
+    session, exit_sentinel = build_session(agent_running)
+    msg_queue: queue.Queue[str | None] = queue.Queue()
 
-    while True:
-        try:
-            query = session.prompt()
-            print()
-        except KeyboardInterrupt:
-            continue
-        except EOFError:
-            break
+    def agent_worker() -> None:
+        nonlocal current_session_id
+        while True:
+            query = msg_queue.get()
+            if query is None:
+                break
 
-        if query is exit_sentinel:
-            break
+            agent_running.set()
+            with suppress(Exception):
+                session.app.invalidate()
 
-        command = query.strip().lower()
-        if command in {"", "q", "exit"}:
-            break
-        if command == "/new":
-            history.clear()
-            current_session_id = uuid.uuid4().hex
-            clear_terminal()
-            continue
-        if command == "/resume":
-            current_session_id, history = prompt_resume(current_session_id, history)
-            continue
-        if command == "/model":
-            prompt_model()
-            continue
+            history.append({"role": "user", "content": query})
+            history_len = len(history)
+            agent_loop(history)
 
-        history.append({"role": "user", "content": query})
-        history_len = len(history)
-        agent_loop(history)
+            if len(history) > history_len:
+                save_session_history(current_session_id, history)
+                response_content = history[-1]["content"]
+                if isinstance(response_content, list):
+                    for block in response_content:
+                        if hasattr(block, "text"):
+                            print(f"> {block.text}\n")
 
-        if len(history) <= history_len:
-            continue
+            agent_running.clear()
+            with suppress(Exception):
+                session.app.invalidate()
 
-        save_session_history(current_session_id, history)
+    worker = threading.Thread(target=agent_worker, daemon=True)
+    worker.start()
 
-        response_content = history[-1]["content"]
-        if isinstance(response_content, list):
-            for block in response_content:
-                if hasattr(block, "text"):
-                    print(f"> {block.text}\n")
+    with patch_stdout(raw=True):
+        while True:
+            try:
+                query = session.prompt()
+                print()
+            except KeyboardInterrupt:
+                continue
+            except EOFError:
+                break
+
+            if query is exit_sentinel:
+                break
+
+            command = query.strip().lower()
+            if command in {"", "q", "exit"}:
+                break
+            if command == "/new":
+                history.clear()
+                current_session_id = uuid.uuid4().hex
+                clear_terminal()
+                continue
+            if command == "/resume":
+                current_session_id, history = prompt_resume(current_session_id, history)
+                continue
+            if command == "/model":
+                prompt_model()
+                continue
+
+            msg_queue.put(query)
+
+    msg_queue.put(None)
+    worker.join(timeout=5)
