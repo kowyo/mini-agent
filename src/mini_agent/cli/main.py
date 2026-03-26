@@ -1,14 +1,17 @@
+import threading
+import time
 import uuid
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
-from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.formatted_text import HTML, FormattedText
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from ..agent.agent import agent_loop
 from .display import (
     COMPLETION_STYLE,
+    LIGHT_HINT_STYLE,
     CommandCompleter,
     clear_terminal,
     print_welcome_banner,
@@ -19,12 +22,40 @@ from .models import prompt_model
 from .sessions import prompt_resume, save_session_history
 
 
-def build_session() -> PromptSession:
+def build_session() -> tuple[PromptSession, object]:
     bindings = KeyBindings()
+    last_ctrl_c = 0.0
+    hint_refresh_timer: threading.Timer | None = None
+    exit_sentinel = object()
+    ctrl_c_timeout = 1.0
+    _hint_text = FormattedText([(LIGHT_HINT_STYLE, "  Press Ctrl-C again to exit")])
+
+    def status_toolbar() -> FormattedText:
+        if time.monotonic() < last_ctrl_c + ctrl_c_timeout:
+            return _hint_text
+        return get_status_toolbar()
 
     @bindings.add("c-c")
     def clear_buffer(event: KeyPressEvent) -> None:
+        nonlocal last_ctrl_c, hint_refresh_timer
+
+        now = time.monotonic()
+        if now - last_ctrl_c <= ctrl_c_timeout:
+            if hint_refresh_timer is not None:
+                hint_refresh_timer.cancel()
+            event.app.exit(result=exit_sentinel)
+            return
+
+        last_ctrl_c = now
         event.current_buffer.reset()
+        event.app.invalidate()
+
+        if hint_refresh_timer is not None:
+            hint_refresh_timer.cancel()
+
+        hint_refresh_timer = threading.Timer(ctrl_c_timeout, event.app.invalidate)
+        hint_refresh_timer.daemon = True
+        hint_refresh_timer.start()
 
     @bindings.add("enter")
     def submit(event: KeyPressEvent) -> None:
@@ -34,14 +65,17 @@ def build_session() -> PromptSession:
     def insert_newline(event: KeyPressEvent) -> None:
         event.current_buffer.insert_text("\n")
 
-    return PromptSession(
-        HTML(f'<style color="{PROMPT_ACCENT_COLOR}">> </style>'),
-        multiline=True,
-        key_bindings=bindings,
-        completer=CommandCompleter(),
-        complete_while_typing=True,
-        style=COMPLETION_STYLE,
-        bottom_toolbar=get_status_toolbar,
+    return (
+        PromptSession(
+            HTML(f'<style color="{PROMPT_ACCENT_COLOR}">> </style>'),
+            multiline=True,
+            key_bindings=bindings,
+            completer=CommandCompleter(),
+            complete_while_typing=True,
+            style=COMPLETION_STYLE,
+            bottom_toolbar=status_toolbar,
+        ),
+        exit_sentinel,
     )
 
 
@@ -49,7 +83,7 @@ def main() -> None:
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session = build_session()
+    session, exit_sentinel = build_session()
 
     while True:
         try:
@@ -58,6 +92,9 @@ def main() -> None:
         except KeyboardInterrupt:
             continue
         except EOFError:
+            break
+
+        if query is exit_sentinel:
             break
 
         command = query.strip().lower()
