@@ -1,8 +1,9 @@
 import anthropic
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
-from ..cli.display import print_tool_result, update_token_usage
+from ..cli.display import print_tool_result
 from ..cli.models import get_max_output_tokens
+from ..cli.token_usage import update_token_usage
 from ..config import WORKDIR, client, get_model
 from ..exceptions import APIKeyMissingError
 from .skills import SKILL_LOADER

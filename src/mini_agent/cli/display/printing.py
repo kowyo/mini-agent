@@ -1,35 +1,16 @@
 import os
-import shutil
 import subprocess
 from html import escape
 from typing import cast
 
 from anthropic.types import MessageParam
-from prompt_toolkit.formatted_text import HTML, FormattedText
+from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
 
 from ...agent.tools import safe_path
 from ...config import CLI_NAME, CLI_VERSION, get_model
-from ..models import get_max_context_tokens
 from .diff import format_edit_diff
-from .picker import LIGHT_HINT_STYLE
 from .theme import LIGHT_TEXT, PROMPT_ACCENT_COLOR, RESET
-
-_last_usage: tuple[int, int] | None = None
-
-
-def update_token_usage(input_tokens: int, output_tokens: int) -> None:
-    global _last_usage
-    _last_usage = (input_tokens, output_tokens)
-
-
-def reset_token_usage() -> None:
-    global _last_usage
-    _last_usage = None
-
-
-def get_token_usage() -> tuple[int, int] | None:
-    return _last_usage
 
 
 def clear_terminal() -> None:
@@ -52,24 +33,6 @@ def print_welcome_banner() -> None:
     for line in lines:
         print(f"│ {line.ljust(width)} │")
     print(f"╰{'─' * (width + 2)}╯\n")
-
-
-def get_status_toolbar() -> FormattedText:
-    left = f"  {get_model()}"
-    if _last_usage is not None:
-        right = f"↑{_last_usage[0]} ↓{_last_usage[1]}"
-        context_limit = get_max_context_tokens(get_model())
-
-        if context_limit:
-            used_tokens = _last_usage[0] + _last_usage[1]
-            percent = min(100.0, (used_tokens / context_limit) * 100)
-            right = f"{right} {percent:.1f}%"
-
-        right = f"{right}  "
-        term_width, _ = shutil.get_terminal_size(fallback=(80, 24))
-        padding = " " * max(0, term_width - len(left) - len(right))
-        return FormattedText([(LIGHT_HINT_STYLE, left + padding + right)])
-    return FormattedText([(LIGHT_HINT_STYLE, left)])
 
 
 def print_session_history(history: list[MessageParam]) -> None:

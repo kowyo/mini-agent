@@ -2,13 +2,9 @@ from .completion import COMMANDS, COMPLETION_STYLE, CommandCompleter
 from .diff import color_full_line, format_edit_diff
 from .printing import (
     clear_terminal,
-    get_status_toolbar,
-    get_token_usage,
     print_session_history,
     print_tool_result,
     print_welcome_banner,
-    reset_token_usage,
-    update_token_usage,
 )
 from .theme import (
     GREEN_BG,
@@ -18,6 +14,7 @@ from .theme import (
     RED_BG,
     RESET,
 )
+from .toolbar import get_status_toolbar
 
 __all__ = [
     "COMMANDS",
@@ -32,11 +29,8 @@ __all__ = [
     "color_full_line",
     "format_edit_diff",
     "get_status_toolbar",
-    "get_token_usage",
     "print_session_history",
     "print_tool_result",
     "print_welcome_banner",
-    "reset_token_usage",
-    "update_token_usage",
     "clear_terminal",
 ]
