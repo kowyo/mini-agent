@@ -51,12 +51,15 @@ def agent_loop(messages: list[MessageParam]) -> None:
         messages.append({"role": "assistant", "content": response.content})
         update_token_usage(response.usage.input_tokens, response.usage.output_tokens)
 
-        if response.stop_reason != "tool_use":
-            return
-
         used_todo = False
         results = []
         for block in response.content:
+            if isinstance(block, ThinkingBlock) and block.type == "thinking":
+                if block.thinking:
+                    print(f"{block.thinking}\n")
+                else:
+                    print("Thinking: [omitted]\n")
+
             if isinstance(block, ToolUseBlock):
                 handler = TOOL_HANDLERS.get(block.name)
                 output = (
@@ -69,11 +72,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 if block.name == "todo":
                     used_todo = True
 
-            if isinstance(block, ThinkingBlock) and block.type == "thinking":
-                if block.thinking:
-                    print(f"{block.thinking}\n")
-                else:
-                    print("Thinking: [omitted]")
+        if response.stop_reason != "tool_use":
+            return
 
         rounds_since_todo = 0 if used_todo else rounds_since_todo + 1
         if rounds_since_todo >= 3:
