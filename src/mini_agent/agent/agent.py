@@ -60,7 +60,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             if not thinking_started:
                                 status.stop()
                                 thinking_started = True
-                            print(event.delta.thinking, end="", flush=True)
+                            print(event.delta.thinking.rstrip(), end="", flush=True)
                         elif isinstance(event.delta, TextDelta) and event.delta.text:
                             if not text_started:
                                 status.stop()
