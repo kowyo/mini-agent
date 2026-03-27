@@ -3,7 +3,7 @@ from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
 from ..cli.display import print_tool_result
 from ..config import WORKDIR, client, get_model
-from ..errors import APIKeyMissingError
+from ..exceptions import APIKeyMissingError
 from .skills import SKILL_LOADER
 from .tools import TOOL_HANDLERS, TOOLS
 
