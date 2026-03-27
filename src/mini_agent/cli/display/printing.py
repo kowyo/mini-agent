@@ -10,6 +10,7 @@ from prompt_toolkit.shortcuts import print_formatted_text
 
 from ...agent.tools import safe_path
 from ...config import CLI_NAME, CLI_VERSION, get_model
+from ..models import get_max_context_tokens
 from .diff import format_edit_diff
 from .picker import LIGHT_HINT_STYLE
 from .theme import LIGHT_TEXT, PROMPT_ACCENT_COLOR, RESET
@@ -56,7 +57,15 @@ def print_welcome_banner() -> None:
 def get_status_toolbar() -> FormattedText:
     left = f"  {get_model()}"
     if _last_usage is not None:
-        right = f"↑{_last_usage[0]} ↓{_last_usage[1]}  "
+        right = f"↑{_last_usage[0]} ↓{_last_usage[1]}"
+        context_limit = get_max_context_tokens(get_model())
+
+        if context_limit:
+            used_tokens = _last_usage[0] + _last_usage[1]
+            percent = min(100.0, (used_tokens / context_limit) * 100)
+            right = f"{right} {percent:.1f}%"
+
+        right = f"{right}  "
         term_width, _ = shutil.get_terminal_size(fallback=(80, 24))
         padding = " " * max(0, term_width - len(left) - len(right))
         return FormattedText([(LIGHT_HINT_STYLE, left + padding + right)])
