@@ -11,7 +11,9 @@ from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
     clear_terminal,
+    get_token_usage,
     print_welcome_banner,
+    reset_token_usage,
 )
 from .display.printing import get_status_toolbar
 from .display.theme import PROMPT_ACCENT_COLOR
@@ -66,6 +68,7 @@ def main() -> None:
         if command == "/new":
             history.clear()
             current_session_id = uuid.uuid4().hex
+            reset_token_usage()
             clear_terminal()
             continue
         if command == "/resume":
@@ -82,7 +85,7 @@ def main() -> None:
         if len(history) <= history_len:
             continue
 
-        save_session_history(current_session_id, history)
+        save_session_history(current_session_id, history, get_token_usage())
 
         response_content = history[-1]["content"]
         if isinstance(response_content, list):

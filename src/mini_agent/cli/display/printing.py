@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from html import escape
 from typing import cast
@@ -12,6 +13,22 @@ from ...config import CLI_NAME, CLI_VERSION, get_model
 from .diff import format_edit_diff
 from .picker import LIGHT_HINT_STYLE
 from .theme import LIGHT_TEXT, PROMPT_ACCENT_COLOR, RESET
+
+_last_usage: tuple[int, int] | None = None
+
+
+def update_token_usage(input_tokens: int, output_tokens: int) -> None:
+    global _last_usage
+    _last_usage = (input_tokens, output_tokens)
+
+
+def reset_token_usage() -> None:
+    global _last_usage
+    _last_usage = None
+
+
+def get_token_usage() -> tuple[int, int] | None:
+    return _last_usage
 
 
 def clear_terminal() -> None:
@@ -37,7 +54,13 @@ def print_welcome_banner() -> None:
 
 
 def get_status_toolbar() -> FormattedText:
-    return FormattedText([(LIGHT_HINT_STYLE, f"  {get_model()}")])
+    left = f"  {get_model()}"
+    if _last_usage is not None:
+        right = f"↑{_last_usage[0]} ↓{_last_usage[1]}  "
+        term_width, _ = shutil.get_terminal_size(fallback=(80, 24))
+        padding = " " * max(0, term_width - len(left) - len(right))
+        return FormattedText([(LIGHT_HINT_STYLE, left + padding + right)])
+    return FormattedText([(LIGHT_HINT_STYLE, left)])
 
 
 def print_session_history(history: list[MessageParam]) -> None:

@@ -1,7 +1,7 @@
 import anthropic
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
-from ..cli.display import print_tool_result
+from ..cli.display import print_tool_result, update_token_usage
 from ..cli.models import get_max_output_tokens
 from ..config import WORKDIR, client, get_model
 from ..exceptions import APIKeyMissingError
@@ -28,14 +28,15 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
     while True:
         try:
-            response = client.messages.create(
+            with client.messages.stream(
                 model=model,
                 system=SYSTEM,
                 messages=messages,
                 tools=TOOLS,
                 max_tokens=max_tokens,
                 thinking={"type": "enabled", "budget_tokens": 6000},
-            )
+            ) as stream:
+                response = stream.get_final_message()
         except TypeError as e:
             if "Could not resolve authentication method" in str(e):
                 print(f"Error: {APIKeyMissingError()}\n")
@@ -48,6 +49,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             messages.pop()
             return
         messages.append({"role": "assistant", "content": response.content})
+        update_token_usage(response.usage.input_tokens, response.usage.output_tokens)
 
         if response.stop_reason != "tool_use":
             return
