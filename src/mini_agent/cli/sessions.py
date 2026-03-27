@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from ..config import SESSION_DIR
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
-from .token_usage import update_token_usage
+from .token import update_token_usage
 
 
 @dataclass

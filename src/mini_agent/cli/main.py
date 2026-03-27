@@ -17,7 +17,7 @@ from .display.theme import PROMPT_ACCENT_COLOR
 from .display.toolbar import get_status_toolbar
 from .models import prompt_model
 from .sessions import prompt_resume, save_session_history
-from .token_usage import get_token_usage, reset_token_usage
+from .token import get_token_usage, reset_token_usage
 
 
 def build_session() -> PromptSession:

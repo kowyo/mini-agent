@@ -4,7 +4,7 @@ from prompt_toolkit.formatted_text import FormattedText
 
 from ...config import get_model
 from ..models import get_max_context_tokens
-from ..token_usage import get_token_usage
+from ..token import get_token_usage
 from .picker import LIGHT_HINT_STYLE
 
 
