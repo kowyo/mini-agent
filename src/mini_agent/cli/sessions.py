@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from ..config import SESSION_DIR
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
-from .token import update_token_usage
+from .token import token
 
 
 @dataclass
@@ -193,5 +193,5 @@ def prompt_resume(
     clear_terminal()
     print_session_history(chosen.history)
     if chosen.last_usage is not None:
-        update_token_usage(*chosen.last_usage)
+        token.update(*chosen.last_usage)
     return chosen.session_id, chosen.history.copy()

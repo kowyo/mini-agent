@@ -3,7 +3,7 @@ from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
 from ..cli.display import print_tool_result
 from ..cli.models import get_max_output_tokens
-from ..cli.token import update_token_usage
+from ..cli.token import token
 from ..config import WORKDIR, client, get_model
 from ..exceptions import APIKeyMissingError
 from .skills import SKILL_LOADER
@@ -50,7 +50,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             messages.pop()
             return
         messages.append({"role": "assistant", "content": response.content})
-        update_token_usage(response.usage.input_tokens, response.usage.output_tokens)
+        token.update(response.usage.input_tokens, response.usage.output_tokens)
 
         used_todo = False
         results = []

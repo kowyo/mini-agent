@@ -12,16 +12,4 @@ class Token:
         return self._last_usage
 
 
-_token_tracker = Token()
-
-
-def update_token_usage(input_tokens: int, output_tokens: int) -> None:
-    _token_tracker.update(input_tokens, output_tokens)
-
-
-def reset_token_usage() -> None:
-    _token_tracker.reset()
-
-
-def get_token_usage() -> tuple[int, int] | None:
-    return _token_tracker.get()
+token = Token()
