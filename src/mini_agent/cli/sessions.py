@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from ..config import SESSION_DIR
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
+from .token import token
 
 
 @dataclass
@@ -19,6 +20,7 @@ class StoredSession:
     title: str
     updated_at: str
     history: list[MessageParam]
+    last_usage: tuple[int, int] | None = None
 
 
 def session_path(session_id: str) -> Path:
@@ -41,7 +43,11 @@ def serialize_content(content: str | Iterable[object]) -> str | list[object]:
     return serialized_blocks
 
 
-def save_session_history(session_id: str, history: list[MessageParam]) -> None:
+def save_session_history(
+    session_id: str,
+    history: list[MessageParam],
+    last_usage: tuple[int, int] | None = None,
+) -> None:
     ensure_session_dir()
     path = session_path(session_id)
     lines = []
@@ -54,18 +60,34 @@ def save_session_history(session_id: str, history: list[MessageParam]) -> None:
                 }
             )
         )
+    if last_usage is not None:
+        lines.append(
+            json.dumps(
+                {
+                    "_meta": True,
+                    "input_tokens": last_usage[0],
+                    "output_tokens": last_usage[1],
+                }
+            )
+        )
     path.write_text("\n".join(lines) + ("\n" if lines else ""))
 
 
-def load_session_history(session_id: str) -> list[MessageParam]:
+def load_session_history(
+    session_id: str,
+) -> tuple[list[MessageParam], tuple[int, int] | None]:
     path = session_path(session_id)
     history: list[MessageParam] = []
+    last_usage: tuple[int, int] | None = None
     for line in path.read_text().splitlines():
         if not line.strip():
             continue
         record = json.loads(line)
-        history.append({"role": record["role"], "content": record["content"]})
-    return history
+        if record.get("_meta"):
+            last_usage = (record["input_tokens"], record["output_tokens"])
+        else:
+            history.append({"role": record["role"], "content": record["content"]})
+    return history, last_usage
 
 
 def summarize_content(content: str | Iterable[object]) -> str:
@@ -95,7 +117,7 @@ def list_sessions() -> list[StoredSession]:
     sessions: list[StoredSession] = []
     for path in SESSION_DIR.glob("*.jsonl"):
         try:
-            history = load_session_history(path.stem)
+            history, last_usage = load_session_history(path.stem)
         except OSError:
             continue
         except json.JSONDecodeError:
@@ -107,6 +129,7 @@ def list_sessions() -> list[StoredSession]:
                 title=session_title(history),
                 updated_at=updated_at,
                 history=history,
+                last_usage=last_usage,
             )
         )
     return sorted(sessions, key=lambda item: item.updated_at, reverse=True)
@@ -169,4 +192,6 @@ def prompt_resume(
 
     clear_terminal()
     print_session_history(chosen.history)
+    if chosen.last_usage is not None:
+        token.update(*chosen.last_usage)
     return chosen.session_id, chosen.history.copy()

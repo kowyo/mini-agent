@@ -2,6 +2,8 @@ import anthropic
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
 from ..cli.display import print_tool_result
+from ..cli.models import get_max_output_tokens
+from ..cli.token import token
 from ..config import WORKDIR, client, get_model
 from ..exceptions import APIKeyMissingError
 from .skills import SKILL_LOADER
@@ -22,17 +24,20 @@ Available skills:
 
 def agent_loop(messages: list[MessageParam]) -> None:
     rounds_since_todo = 0
+    model = get_model()
+    max_tokens = get_max_output_tokens(model) or 1024
 
     while True:
         try:
-            response = client.messages.create(
-                model=get_model(),
+            with client.messages.stream(
+                model=model,
                 system=SYSTEM,
                 messages=messages,
                 tools=TOOLS,
-                max_tokens=8000,
+                max_tokens=max_tokens,
                 thinking={"type": "enabled", "budget_tokens": 6000},
-            )
+            ) as stream:
+                response = stream.get_final_message()
         except TypeError as e:
             if "Could not resolve authentication method" in str(e):
                 print(f"Error: {APIKeyMissingError()}\n")
@@ -45,13 +50,17 @@ def agent_loop(messages: list[MessageParam]) -> None:
             messages.pop()
             return
         messages.append({"role": "assistant", "content": response.content})
-
-        if response.stop_reason != "tool_use":
-            return
+        token.update(response.usage.input_tokens, response.usage.output_tokens)
 
         used_todo = False
         results = []
         for block in response.content:
+            if isinstance(block, ThinkingBlock) and block.type == "thinking":
+                if block.thinking:
+                    print(f"{block.thinking}\n")
+                else:
+                    print("Thinking: [omitted]\n")
+
             if isinstance(block, ToolUseBlock):
                 handler = TOOL_HANDLERS.get(block.name)
                 output = (
@@ -64,11 +73,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 if block.name == "todo":
                     used_todo = True
 
-            if isinstance(block, ThinkingBlock) and block.type == "thinking":
-                if block.thinking:
-                    print(f"{block.thinking}\n")
-                else:
-                    print("Thinking: [omitted]")
+        if response.stop_reason != "tool_use":
+            return
 
         rounds_since_todo = 0 if used_todo else rounds_since_todo + 1
         if rounds_since_todo >= 3:
