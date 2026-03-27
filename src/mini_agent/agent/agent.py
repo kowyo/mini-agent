@@ -2,6 +2,7 @@ import anthropic
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
 
 from ..cli.display import print_tool_result
+from ..cli.models import get_max_output_tokens
 from ..config import WORKDIR, client, get_model
 from ..exceptions import APIKeyMissingError
 from .skills import SKILL_LOADER
@@ -22,15 +23,17 @@ Available skills:
 
 def agent_loop(messages: list[MessageParam]) -> None:
     rounds_since_todo = 0
+    model = get_model()
+    max_tokens = get_max_output_tokens(model) or 1024
 
     while True:
         try:
             response = client.messages.create(
-                model=get_model(),
+                model=model,
                 system=SYSTEM,
                 messages=messages,
                 tools=TOOLS,
-                max_tokens=8000,
+                max_tokens=max_tokens,
                 thinking={"type": "enabled", "budget_tokens": 6000},
             )
         except TypeError as e:
