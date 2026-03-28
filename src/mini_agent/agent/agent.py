@@ -69,17 +69,14 @@ def agent_loop(messages: list[MessageParam]) -> None:
                                 text_started = True
                             print(event.delta.text, end="", flush=True)
                 response = stream.get_final_message()
-        except TypeError as e:
+        except (TypeError, anthropic.APIStatusError) as e:
             status.stop()
-            if "Could not resolve authentication method" in str(e):
+            if isinstance(
+                e, TypeError
+            ) and "Could not resolve authentication method" in str(e):
                 print(f"Error: {APIKeyMissingError()}\n")
             else:
                 print(f"Error: {e}\n")
-            messages.pop()
-            return
-        except anthropic.APIStatusError as e:
-            status.stop()
-            print(f"Error: {e}\n")
             messages.pop()
             return
 
