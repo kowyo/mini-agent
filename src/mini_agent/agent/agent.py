@@ -1,5 +1,6 @@
 import anthropic
 from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
+from rich.console import Console
 
 from ..cli.display import print_tool_result
 from ..cli.models import get_max_output_tokens
@@ -8,6 +9,8 @@ from ..config import WORKDIR, client, get_model
 from ..exceptions import APIKeyMissingError
 from .skills import SKILL_LOADER
 from .tools import TOOL_HANDLERS, TOOLS
+
+_console = Console()
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
 
@@ -29,14 +32,17 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
     while True:
         try:
-            with client.messages.stream(
-                model=model,
-                system=SYSTEM,
-                messages=messages,
-                tools=TOOLS,
-                max_tokens=max_tokens,
-                thinking={"type": "enabled", "budget_tokens": 6000},
-            ) as stream:
+            with (
+                _console.status("Thinking"),
+                client.messages.stream(
+                    model=model,
+                    system=SYSTEM,
+                    messages=messages,
+                    tools=TOOLS,
+                    max_tokens=max_tokens,
+                    thinking={"type": "enabled", "budget_tokens": 6000},
+                ) as stream,
+            ):
                 response = stream.get_final_message()
         except TypeError as e:
             if "Could not resolve authentication method" in str(e):
