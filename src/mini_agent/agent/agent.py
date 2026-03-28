@@ -12,7 +12,6 @@ from ..cli.display import print_tool_result
 from ..cli.models import get_max_output_tokens
 from ..cli.token import token
 from ..config import WORKDIR, client, get_model
-from ..exceptions import APIKeyMissingError
 from .skills import SKILL_LOADER
 from .tools import TOOL_HANDLERS, TOOLS
 
@@ -71,12 +70,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 response = stream.get_final_message()
         except (TypeError, anthropic.APIStatusError) as e:
             status.stop()
-            if isinstance(
-                e, TypeError
-            ) and "Could not resolve authentication method" in str(e):
-                print(f"Error: {APIKeyMissingError()}\n")
-            else:
-                print(f"Error: {e}\n")
+            print(f"Unexpected {e=}\n")
             messages.pop()
             return
 
