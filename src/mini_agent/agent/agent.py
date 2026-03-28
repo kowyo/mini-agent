@@ -2,7 +2,6 @@ import anthropic
 from anthropic.types import (
     MessageParam,
     RawContentBlockDeltaEvent,
-    RawContentBlockStartEvent,
     TextDelta,
     ThinkingDelta,
     ToolUseBlock,
@@ -10,7 +9,6 @@ from anthropic.types import (
 from rich.console import Console
 
 from ..cli.display import print_tool_result
-from ..cli.display.theme import LIGHT_TEXT, RESET
 from ..cli.models import get_max_output_tokens
 from ..cli.token import token
 from ..config import WORKDIR, client, get_model
@@ -41,7 +39,6 @@ def agent_loop(messages: list[MessageParam]) -> None:
     while True:
         status = _console.status("Thinking")
         status.start()
-        thinking_block_seen = False
         thinking_started = False
         text_started = False
 
@@ -55,10 +52,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 thinking={"type": "enabled", "budget_tokens": 6000},
             ) as stream:
                 for event in stream:
-                    if isinstance(event, RawContentBlockStartEvent):
-                        if event.content_block.type == "thinking":
-                            thinking_block_seen = True
-                    elif isinstance(event, RawContentBlockDeltaEvent):
+                    if isinstance(event, RawContentBlockDeltaEvent):
                         if (
                             isinstance(event.delta, ThinkingDelta)
                             and event.delta.thinking
@@ -66,17 +60,12 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             if not thinking_started:
                                 status.stop()
                                 thinking_started = True
-                                print(LIGHT_TEXT, end="", flush=True)
                             print(event.delta.thinking, end="", flush=True)
                         elif isinstance(event.delta, TextDelta) and event.delta.text:
                             if not text_started:
+                                status.stop()
                                 if thinking_started:
-                                    print(RESET + "\n", flush=True)
-                                elif thinking_block_seen:
-                                    status.stop()
-                                    print("Thinking: [omitted]\n")
-                                else:
-                                    status.stop()
+                                    print("\n", flush=True)
                                 text_started = True
                             print(event.delta.text, end="", flush=True)
                 response = stream.get_final_message()
@@ -94,14 +83,10 @@ def agent_loop(messages: list[MessageParam]) -> None:
             messages.pop()
             return
 
-        if thinking_started and not text_started:
-            print(RESET + "\n", flush=True)
-        elif not thinking_started and not text_started:
-            status.stop()
-            if thinking_block_seen:
-                print("Thinking: [omitted]\n")
-        elif text_started:
+        if text_started or thinking_started:
             print("\n")
+        else:
+            status.stop()
 
         messages.append({"role": "assistant", "content": response.content})
         token.update(response.usage.input_tokens, response.usage.output_tokens)
