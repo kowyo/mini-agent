@@ -85,9 +85,3 @@ def main() -> None:
             continue
 
         save_session_history(current_session_id, history, token.get())
-
-        response_content = history[-1]["content"]
-        if isinstance(response_content, list):
-            for block in response_content:
-                if hasattr(block, "text"):
-                    print(f"> {block.text}\n")

@@ -1,13 +1,21 @@
 import anthropic
-from anthropic.types import MessageParam, ThinkingBlock, ToolUseBlock
+from anthropic.types import (
+    MessageParam,
+    RawContentBlockDeltaEvent,
+    TextDelta,
+    ThinkingDelta,
+    ToolUseBlock,
+)
+from rich.console import Console
 
 from ..cli.display import print_tool_result
 from ..cli.models import get_max_output_tokens
 from ..cli.token import token
 from ..config import WORKDIR, client, get_model
-from ..exceptions import APIKeyMissingError
 from .skills import SKILL_LOADER
 from .tools import TOOL_HANDLERS, TOOLS
+
+_console = Console()
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
 
@@ -28,6 +36,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
     max_tokens = get_max_output_tokens(model) or 1024
 
     while True:
+        status = _console.status("Thinking")
+        status.start()
+        thinking_started = False
+        text_started = False
+
         try:
             with client.messages.stream(
                 model=model,
@@ -37,30 +50,41 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 max_tokens=max_tokens,
                 thinking={"type": "enabled", "budget_tokens": 6000},
             ) as stream:
+                for event in stream:
+                    if isinstance(event, RawContentBlockDeltaEvent):
+                        if (
+                            isinstance(event.delta, ThinkingDelta)
+                            and event.delta.thinking
+                        ):
+                            if not thinking_started:
+                                status.stop()
+                                thinking_started = True
+                            print(event.delta.thinking.rstrip(), end="", flush=True)
+                        elif isinstance(event.delta, TextDelta) and event.delta.text:
+                            if not text_started:
+                                status.stop()
+                                if thinking_started:
+                                    print("\n", flush=True)
+                                text_started = True
+                            print(event.delta.text, end="", flush=True)
                 response = stream.get_final_message()
-        except TypeError as e:
-            if "Could not resolve authentication method" in str(e):
-                print(f"Error: {APIKeyMissingError()}\n")
-            else:
-                print(f"Error: {e}\n")
+        except (TypeError, anthropic.APIStatusError) as e:
+            status.stop()
+            print(f"Unexpected {e=}\n")
             messages.pop()
             return
-        except anthropic.APIStatusError as e:
-            print(f"Error: {e}\n")
-            messages.pop()
-            return
+
+        if text_started or thinking_started:
+            print("\n")
+        else:
+            status.stop()
+
         messages.append({"role": "assistant", "content": response.content})
         token.update(response.usage.input_tokens, response.usage.output_tokens)
 
         used_todo = False
         results = []
         for block in response.content:
-            if isinstance(block, ThinkingBlock) and block.type == "thinking":
-                if block.thinking:
-                    print(f"{block.thinking}\n")
-                else:
-                    print("Thinking: [omitted]\n")
-
             if isinstance(block, ToolUseBlock):
                 handler = TOOL_HANDLERS.get(block.name)
                 output = (
