@@ -8,7 +8,7 @@ A minimal agent running in your terminal.
 
 ```bash
 uv tool install git+https://github.com/kowyo/mini-agent.git@main
-export ANTHOPIC_API_KEY=<your_anthropic_api_key>
+export ANTHROPIC_API_KEY=<your_anthropic_api_key>
 mini-agent
 ```
 
@@ -16,6 +16,6 @@ mini-agent
 
 ```bash
 make prepare
-export ANTHOPIC_API_KEY=<your_anthropic_api_key>
+export ANTHROPIC_API_KEY=<your_anthropic_api_key>
 uv run mini-agent
 ```
