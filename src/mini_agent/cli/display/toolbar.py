@@ -4,7 +4,7 @@ from prompt_toolkit.formatted_text import FormattedText
 
 from ...config import get_model
 from ..models import get_max_context_tokens
-from ..token import token
+from ..token import token_tracker
 from .picker import LIGHT_HINT_STYLE
 
 
@@ -26,7 +26,7 @@ def _pad_toolbar(left: str, right: str) -> str:
 
 def get_status_toolbar() -> FormattedText:
     left = f"  {get_model()}"
-    usage = token.get()
+    usage = token_tracker.get()
     if usage is not None:
         right = _format_token_right(usage)
         return FormattedText([(LIGHT_HINT_STYLE, _pad_toolbar(left, right))])

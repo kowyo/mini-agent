@@ -46,4 +46,4 @@ class TodoManager:
         return "\n".join(lines)
 
 
-TODO = TodoManager()
+todo = TodoManager()

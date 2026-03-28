@@ -54,4 +54,4 @@ class SkillLoader:
         return f'<skill name="{name}">\n{skill["body"]}\n</skill>'
 
 
-SKILL_LOADER = SkillLoader(SKILLS_DIR)
+skill_loader = SkillLoader(SKILLS_DIR)

@@ -1,4 +1,4 @@
-class Token:
+class TokenTracker:
     def __init__(self) -> None:
         self._last_usage: tuple[int, int] | None = None
 
@@ -12,4 +12,4 @@ class Token:
         return self._last_usage
 
 
-token = Token()
+token_tracker = TokenTracker()

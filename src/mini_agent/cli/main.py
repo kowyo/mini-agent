@@ -17,7 +17,7 @@ from .display.theme import PROMPT_ACCENT_COLOR
 from .display.toolbar import get_status_toolbar
 from .models import prompt_model
 from .sessions import prompt_resume, save_session_history
-from .token import token
+from .token import token_tracker
 
 
 def build_session() -> PromptSession:
@@ -67,7 +67,7 @@ def main() -> None:
         if command == "/new":
             history.clear()
             current_session_id = uuid.uuid4().hex
-            token.reset()
+            token_tracker.reset()
             clear_terminal()
             continue
         if command == "/resume":
@@ -84,4 +84,4 @@ def main() -> None:
         if len(history) <= history_len:
             continue
 
-        save_session_history(current_session_id, history, token.get())
+        save_session_history(current_session_id, history, token_tracker.get())

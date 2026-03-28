@@ -10,9 +10,9 @@ from rich.console import Console
 
 from ..cli.display import print_tool_result
 from ..cli.models import get_max_output_tokens
-from ..cli.token import token
+from ..cli.token import token_tracker
 from ..config import WORKDIR, client, get_model
-from .skills import SKILL_LOADER
+from .skills import skill_loader
 from .tools import TOOL_HANDLERS, TOOLS
 
 _console = Console()
@@ -26,7 +26,7 @@ Available tools:
 {TOOLS_LIST}
 
 Available skills:
-{SKILL_LOADER.get_descriptions()}
+{skill_loader.get_descriptions()}
 """
 
 
@@ -80,7 +80,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             status.stop()
 
         messages.append({"role": "assistant", "content": response.content})
-        token.update(response.usage.input_tokens, response.usage.output_tokens)
+        token_tracker.update(response.usage.input_tokens, response.usage.output_tokens)
 
         used_todo = False
         results = []
