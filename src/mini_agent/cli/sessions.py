@@ -193,5 +193,5 @@ def prompt_resume(
     clear_terminal()
     print_session_history(chosen.history)
     if chosen.last_usage is not None:
-        token_tracker.update(*chosen.last_usage)
+        token_tracker.restore(chosen.last_usage)
     return chosen.session_id, chosen.history.copy()

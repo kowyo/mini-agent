@@ -13,6 +13,10 @@ class TokenTracker:
                 self._total_usage[1] + output_tokens,
             )
 
+    def restore(self, total_usage: tuple[int, int]) -> None:
+        self._total_usage = total_usage
+        self._last_round = None
+
     def reset(self) -> None:
         self._total_usage = None
         self._last_round = None
