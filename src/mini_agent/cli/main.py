@@ -54,12 +54,21 @@ def _run_non_interactive(prompt: str) -> None:
     agent_loop(history)
 
 
-def _run_interactive() -> None:
+def _run_interactive(initial_prompt: str | None = None) -> None:
     """Run the interactive TUI session."""
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
     session = build_session()
+
+    # If initial prompt provided, process it first before entering the loop
+    if initial_prompt is not None:
+        print()
+        history.append({"role": "user", "content": initial_prompt})
+        history_len = len(history)
+        agent_loop(history)
+        if len(history) > history_len:
+            save_session_history(current_session_id, history, token_tracker.get())
 
     while True:
         try:
@@ -110,13 +119,21 @@ def main() -> None:
         type=str,
         help="Run a single prompt non-interactively and exit",
     )
+    parser.add_argument(
+        "initial_prompt",
+        nargs="?",
+        type=str,
+        help="Initial prompt to start the interactive session with",
+    )
     args = parser.parse_args()
 
     if args.model:
         config.set_session_model(args.model)
 
+    # -p flag takes precedence for non-interactive mode
     if args.prompt:
         _run_non_interactive(args.prompt)
         return
 
-    _run_interactive()
+    # Positional argument or no argument starts interactive mode
+    _run_interactive(args.initial_prompt)
