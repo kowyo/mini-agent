@@ -1,11 +1,13 @@
 import argparse
 import uuid
+from html import escape
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
+from prompt_toolkit.shortcuts import print_formatted_text
 
 from ..agent.agent import agent_loop
 from ..config import config
@@ -48,23 +50,33 @@ def build_session() -> PromptSession:
     )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="A minimal agent.")
-    parser.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        help="Model for the current session",
-    )
-    args = parser.parse_args()
+def _run_non_interactive(prompt: str) -> None:
+    """Run the agent on a single prompt and exit (non-interactive mode)."""
+    history: list[MessageParam] = [{"role": "user", "content": prompt}]
+    current_session_id = uuid.uuid4().hex
+    history_len = len(history)
+    agent_loop(history)
+    if len(history) > history_len:
+        save_session_history(current_session_id, history, token_tracker.get())
 
-    if args.model:
-        config.set_session_model(args.model)
 
+def _run_interactive(prompt: str | None = None) -> None:
+    """Run the interactive TUI session."""
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
     session = build_session()
+
+    if prompt is not None:
+        print_formatted_text(
+            HTML(f'<style color="{PROMPT_ACCENT_COLOR}">&gt; </style>{escape(prompt)}')
+        )
+        print()
+        history.append({"role": "user", "content": prompt})
+        history_len = len(history)
+        agent_loop(history)
+        if len(history) > history_len:
+            save_session_history(current_session_id, history, token_tracker.get())
 
     while True:
         try:
@@ -99,3 +111,36 @@ def main() -> None:
             continue
 
         save_session_history(current_session_id, history, token_tracker.get())
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="A minimal agent.")
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        help="Model for the current session",
+    )
+    parser.add_argument(
+        "-p",
+        "--prompt",
+        dest="non_interactive_prompt",
+        type=str,
+        help="Run a single prompt non-interactively and exit",
+    )
+    parser.add_argument(
+        "prompt",
+        nargs="?",
+        type=str,
+        help="Start interactive session with initial prompt",
+    )
+    args = parser.parse_args()
+
+    if args.model:
+        config.set_session_model(args.model)
+
+    if args.non_interactive_prompt:
+        _run_non_interactive(args.non_interactive_prompt)
+        return
+
+    _run_interactive(args.prompt)
