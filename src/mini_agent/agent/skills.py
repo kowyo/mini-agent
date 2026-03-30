@@ -2,23 +2,24 @@ import re
 from pathlib import Path
 from typing import Any
 
-from ..config import SKILLS_DIR
+from ..config import SKILLS_DIRS
 
 
 class SkillLoader:
-    def __init__(self, skills_dir: Path) -> None:
-        self.skills_dir = skills_dir
+    def __init__(self, skills_dirs: list[Path]) -> None:
+        self.skills_dirs = skills_dirs
         self.skills: dict[str, dict[str, Any]] = {}
         self._load_all()
 
     def _load_all(self) -> None:
-        if not self.skills_dir.exists():
-            return
-        for f in sorted(self.skills_dir.rglob("SKILL.md")):
-            text = f.read_text()
-            meta, body = self._parse_frontmatter(text)
-            name = meta.get("name", f.parent.name)
-            self.skills[name] = {"meta": meta, "body": body, "path": str(f)}
+        for skills_dir in self.skills_dirs:
+            if not skills_dir.exists():
+                continue
+            for f in sorted(skills_dir.rglob("SKILL.md")):
+                text = f.read_text()
+                meta, body = self._parse_frontmatter(text)
+                name = meta.get("name", f.parent.name)
+                self.skills[name] = {"meta": meta, "body": body, "path": str(f)}
 
     def _parse_frontmatter(self, text: str) -> tuple:
         """Parse YAML frontmatter between --- delimiters."""
@@ -54,4 +55,4 @@ class SkillLoader:
         return f'<skill name="{name}">\n{skill["body"]}\n</skill>'
 
 
-skill_loader = SkillLoader(SKILLS_DIR)
+skill_loader = SkillLoader(SKILLS_DIRS)

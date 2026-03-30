@@ -14,7 +14,9 @@ SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 
 WORKDIR = Path.cwd()
-SKILLS_DIR = WORKDIR / ".agents" / "skills"
+HOME_SKILLS_DIR = Path.home() / ".agents" / "skills"
+PROJECT_SKILLS_DIR = WORKDIR / ".agents" / "skills"
+SKILLS_DIRS = [HOME_SKILLS_DIR, PROJECT_SKILLS_DIR]
 
 load_dotenv(CONFIG_DIR / ".env")
 
