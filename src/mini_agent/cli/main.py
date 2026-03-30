@@ -51,7 +51,11 @@ def build_session() -> PromptSession:
 def _run_non_interactive(prompt: str) -> None:
     """Run the agent on a single prompt and exit (non-interactive mode)."""
     history: list[MessageParam] = [{"role": "user", "content": prompt}]
+    current_session_id = uuid.uuid4().hex
+    history_len = len(history)
     agent_loop(history)
+    if len(history) > history_len:
+        save_session_history(current_session_id, history, token_tracker.get())
 
 
 def _run_interactive(prompt: str | None = None) -> None:
