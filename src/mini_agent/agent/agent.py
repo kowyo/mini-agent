@@ -11,7 +11,7 @@ from rich.console import Console
 from ..cli.display import print_tool_result
 from ..cli.models import get_max_output_tokens
 from ..cli.token import token_tracker
-from ..config import WORKDIR, client, get_model
+from ..config import WORKDIR, client, config
 from .skills import skill_loader
 from .tools import TOOL_HANDLERS, TOOLS
 
@@ -32,7 +32,7 @@ Available skills:
 
 def agent_loop(messages: list[MessageParam]) -> None:
     rounds_since_todo = 0
-    model = get_model()
+    model = config.get_model()
     max_tokens = get_max_output_tokens(model) or 1024
 
     while True:

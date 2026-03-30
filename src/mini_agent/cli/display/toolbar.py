@@ -2,7 +2,7 @@ import shutil
 
 from prompt_toolkit.formatted_text import FormattedText
 
-from ...config import get_model
+from ...config import config
 from ..models import get_max_context_tokens
 from ..token import token_tracker
 from .picker import LIGHT_HINT_STYLE
@@ -12,7 +12,7 @@ def _format_token_right(
     total: tuple[int, int], last_round: tuple[int, int] | None
 ) -> str:
     right = f"↑{total[0]} ↓{total[1]}"
-    context_limit = get_max_context_tokens(get_model())
+    context_limit = get_max_context_tokens(config.get_model())
     if context_limit and last_round is not None:
         used_tokens = last_round[0] + last_round[1]
         percent = min(100.0, (used_tokens / context_limit) * 100)
@@ -27,7 +27,7 @@ def _pad_toolbar(left: str, right: str) -> str:
 
 
 def get_status_toolbar() -> FormattedText:
-    left = f"  {get_model()}"
+    left = f"  {config.get_model()}"
     usage = token_tracker.get()
     if usage is not None:
         right = _format_token_right(usage, token_tracker.get_last_round())

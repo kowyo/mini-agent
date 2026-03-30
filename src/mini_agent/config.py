@@ -25,15 +25,6 @@ if os.getenv("ANTHROPIC_BASE_URL"):
 
 client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
 
-_model: str | None = None
-_session_model_override: str | None = None
-
-
-def set_session_model(model_id: str | None) -> None:
-    """Set a model override for the current session only."""
-    global _session_model_override
-    _session_model_override = model_id
-
 
 def _load_config() -> dict[str, object]:
     if CONFIG_FILE.exists():
@@ -41,24 +32,32 @@ def _load_config() -> dict[str, object]:
     return {}
 
 
-def get_model() -> str:
-    global _model
-    if _session_model_override is not None:
-        return _session_model_override
-    if _model is None:
-        config = _load_config()
-        _model = str(config.get("model_id", DEFAULT_MODEL))
-    return _model
+class Config:
+    def __init__(self) -> None:
+        self._model: str | None = None
+        self._session_model_override: str | None = None
+
+    def set_session_model(self, model_id: str) -> None:
+        self._session_model_override = model_id
+
+    def get_model(self) -> str:
+        if self._session_model_override is not None:
+            return self._session_model_override
+        if self._model is None:
+            cfg = _load_config()
+            self._model = str(cfg.get("model_id", DEFAULT_MODEL))
+        return self._model
+
+    def save_model(self, model_id: str) -> None:
+        self._session_model_override = None
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        cfg = _load_config()
+        cfg["model_id"] = model_id
+        CONFIG_FILE.write_text(tomli_w.dumps(cfg))
+        self._model = model_id
 
 
-def save_model(model_id: str) -> None:
-    global _model, _session_model_override
-    _session_model_override = None
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    config = _load_config()
-    config["model_id"] = model_id
-    CONFIG_FILE.write_text(tomli_w.dumps(config))
-    _model = model_id
+config = Config()
 
 
 CLI_NAME = "mini-agent"
