@@ -58,7 +58,6 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Set the session model override if provided
     if args.model:
         set_session_model(args.model)
 
