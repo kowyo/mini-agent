@@ -1,11 +1,13 @@
 import argparse
 import uuid
+from html import escape
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
+from prompt_toolkit.shortcuts import print_formatted_text
 
 from ..agent.agent import agent_loop
 from ..config import config
@@ -66,6 +68,9 @@ def _run_interactive(prompt: str | None = None) -> None:
     session = build_session()
 
     if prompt is not None:
+        print_formatted_text(
+            HTML(f'<style color="{PROMPT_ACCENT_COLOR}">&gt; </style>{escape(prompt)}')
+        )
         print()
         history.append({"role": "user", "content": prompt})
         history_len = len(history)
