@@ -43,7 +43,6 @@ def _load_config() -> dict[str, object]:
 
 def get_model() -> str:
     global _model
-    # Check session override first
     if _session_model_override is not None:
         return _session_model_override
     if _model is None:
@@ -54,7 +53,6 @@ def get_model() -> str:
 
 def save_model(model_id: str) -> None:
     global _model, _session_model_override
-    # Clear session override when explicitly saving a model via /model command
     _session_model_override = None
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     config = _load_config()
