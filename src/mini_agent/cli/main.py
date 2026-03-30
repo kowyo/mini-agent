@@ -119,6 +119,7 @@ def main() -> None:
     parser.add_argument(
         "-p",
         "--prompt",
+        dest="non_interactive_prompt",
         type=str,
         help="Run a single prompt non-interactively and exit",
     )
@@ -133,8 +134,8 @@ def main() -> None:
     if args.model:
         config.set_session_model(args.model)
 
-    if args.prompt:
-        _run_non_interactive(args.prompt)
+    if args.non_interactive_prompt:
+        _run_non_interactive(args.non_interactive_prompt)
         return
 
     _run_interactive(args.prompt)
