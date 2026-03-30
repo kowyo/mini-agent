@@ -8,7 +8,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from ..agent.agent import agent_loop
-from ..config import set_session_model
+from ..config import config
 from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
@@ -59,7 +59,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.model:
-        set_session_model(args.model)
+        config.set_session_model(args.model)
 
     print_welcome_banner()
     history: list[MessageParam] = []
