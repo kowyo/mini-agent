@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from anthropic.types import ModelInfo
 
-from ..config import client, get_model, save_model
+from ..config import client, config
 from .display.picker import select_from_list
 
 
@@ -72,7 +72,7 @@ def format_model(model: ModelInfo) -> str:
 
 
 def select_model(models: list[ModelInfo]) -> ModelInfo | None:
-    current = get_model()
+    current = config.get_model()
     ids = [m.id for m in models]
     selected_index = ids.index(current) if current in ids else 0
     return select_from_list(
@@ -97,5 +97,5 @@ def prompt_model() -> None:
     if result is None:
         return
 
-    save_model(result.id)
+    config.save_model(result.id)
     print(f"Model set to {result.id}\n")

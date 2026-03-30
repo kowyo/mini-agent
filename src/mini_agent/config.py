@@ -25,30 +25,38 @@ if os.getenv("ANTHROPIC_BASE_URL"):
 
 client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
 
-_model: str | None = None
+
+class Config:
+    def __init__(self) -> None:
+        self._model: str | None = None
+        self._session_model_override: str | None = None
+
+    def _load_config(self) -> dict[str, object]:
+        if CONFIG_FILE.exists():
+            return tomllib.loads(CONFIG_FILE.read_text())
+        return {}
+
+    def set_session_model(self, model_id: str) -> None:
+        self._session_model_override = model_id
+
+    def get_model(self) -> str:
+        if self._session_model_override is not None:
+            return self._session_model_override
+        if self._model is None:
+            cfg = self._load_config()
+            self._model = str(cfg.get("model_id", DEFAULT_MODEL))
+        return self._model
+
+    def save_model(self, model_id: str) -> None:
+        self._session_model_override = None
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        cfg = self._load_config()
+        cfg["model_id"] = model_id
+        CONFIG_FILE.write_text(tomli_w.dumps(cfg))
+        self._model = model_id
 
 
-def _load_config() -> dict[str, object]:
-    if CONFIG_FILE.exists():
-        return tomllib.loads(CONFIG_FILE.read_text())
-    return {}
-
-
-def get_model() -> str:
-    global _model
-    if _model is None:
-        config = _load_config()
-        _model = str(config.get("model_id", DEFAULT_MODEL))
-    return _model
-
-
-def save_model(model_id: str) -> None:
-    global _model
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    config = _load_config()
-    config["model_id"] = model_id
-    CONFIG_FILE.write_text(tomli_w.dumps(config))
-    _model = model_id
+config = Config()
 
 
 CLI_NAME = "mini-agent"

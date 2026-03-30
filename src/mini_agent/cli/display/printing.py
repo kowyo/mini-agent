@@ -8,7 +8,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
 
 from ...agent.tools import safe_path
-from ...config import CLI_NAME, CLI_VERSION, get_model
+from ...config import CLI_NAME, CLI_VERSION, config
 from .diff import format_edit_diff
 from .theme import LIGHT_TEXT, PROMPT_ACCENT_COLOR, RESET
 
@@ -25,7 +25,7 @@ def print_welcome_banner() -> None:
     lines = [
         f" >_ {CLI_NAME} (v{CLI_VERSION})",
         "",
-        f" model: {get_model()}",
+        f" model: {config.get_model()}",
     ]
     width = max(len(line) for line in lines)
 

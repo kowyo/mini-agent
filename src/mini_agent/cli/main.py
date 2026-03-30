@@ -1,3 +1,4 @@
+import argparse
 import uuid
 
 from anthropic.types import MessageParam
@@ -7,6 +8,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from ..agent.agent import agent_loop
+from ..config import config
 from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
@@ -47,6 +49,18 @@ def build_session() -> PromptSession:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="A minimal agent.")
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        help="Model for the current session",
+    )
+    args = parser.parse_args()
+
+    if args.model:
+        config.set_session_model(args.model)
+
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
