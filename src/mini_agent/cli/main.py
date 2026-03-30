@@ -54,7 +54,7 @@ def main() -> None:
         "-m",
         "--model",
         type=str,
-        help="Override the model for this session (does not persist to config)",
+        help="Model for the current session.",
     )
     args = parser.parse_args()
 
