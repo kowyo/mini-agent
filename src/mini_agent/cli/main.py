@@ -48,19 +48,14 @@ def build_session() -> PromptSession:
     )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="A minimal agent.")
-    parser.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        help="Model for the current session",
-    )
-    args = parser.parse_args()
+def _run_non_interactive(prompt: str) -> None:
+    """Run the agent on a single prompt and exit (non-interactive mode)."""
+    history: list[MessageParam] = [{"role": "user", "content": prompt}]
+    agent_loop(history)
 
-    if args.model:
-        config.set_session_model(args.model)
 
+def _run_interactive() -> None:
+    """Run the interactive TUI session."""
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
@@ -99,3 +94,29 @@ def main() -> None:
             continue
 
         save_session_history(current_session_id, history, token_tracker.get())
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="A minimal agent.")
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        help="Model for the current session",
+    )
+    parser.add_argument(
+        "-p",
+        "--prompt",
+        type=str,
+        help="Run a single prompt non-interactively and exit",
+    )
+    args = parser.parse_args()
+
+    if args.model:
+        config.set_session_model(args.model)
+
+    if args.prompt:
+        _run_non_interactive(args.prompt)
+        return
+
+    _run_interactive()
