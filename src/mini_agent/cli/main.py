@@ -86,7 +86,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             have_saved_session = True
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
-        except Exception:
+        except StopIteration:
             print("Can't find the session id you want to resume.\n")
 
     if prompt is not None:
