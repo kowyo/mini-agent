@@ -108,18 +108,10 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         except KeyboardInterrupt:
             continue
         except EOFError:
-            if current_session_id and have_saved_session:
-                print(
-                    f"\nResume the session with mini-agent --resume {current_session_id}\n"
-                )
             break
 
         command = query.strip().lower()
         if command in {"", "q", "/exit"}:
-            if current_session_id and have_saved_session:
-                print(
-                    f"\nResume the session with mini-agent --resume {current_session_id}\n"
-                )
             break
         if command == "/new":
             history.clear()
@@ -145,6 +137,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
         save_session_history(current_session_id, history, token_tracker.get())
         have_saved_session = True
+
+    if current_session_id and have_saved_session:
+        print(f"\nResume the session with mini-agent --resume {current_session_id}\n")
 
 
 def main() -> None:
