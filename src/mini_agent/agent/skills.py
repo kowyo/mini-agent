@@ -20,7 +20,10 @@ class SkillLoader:
             for f in sorted(skills_dir.rglob("SKILL.md")):
                 text = f.read_text()
                 meta, body = self._parse_frontmatter(text)
-                name = meta.get("name", f.parent.name)
+                name = str(meta.get("name", "")).strip()
+                description = str(meta.get("description", "")).strip()
+                if not name or not description:
+                    continue
                 self.skills[name] = {"meta": meta, "body": body, "path": str(f)}
 
     def _parse_frontmatter(self, text: str) -> tuple[dict[str, Any], str]:
@@ -43,7 +46,7 @@ class SkillLoader:
             return "(no skills available)"
         lines = []
         for name, skill in self.skills.items():
-            desc = skill["meta"].get("description", "No description")
+            desc = skill["meta"]["description"]
             lines.append(f"- {name}: {desc}")
         return "\n".join(lines)
 
