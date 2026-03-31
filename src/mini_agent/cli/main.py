@@ -122,7 +122,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/resume":
             current_session_id, history = prompt_resume(current_session_id, history)
-            have_saved_session = True
             continue
         if command == "/model":
             prompt_model()
