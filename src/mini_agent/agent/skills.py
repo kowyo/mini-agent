@@ -44,11 +44,7 @@ class SkillLoader:
         lines = []
         for name, skill in self.skills.items():
             desc = skill["meta"].get("description", "No description")
-            tags = skill["meta"].get("tags", "")
-            line = f"- {name}: {desc}"
-            if tags:
-                line += f" [{tags}]"
-            lines.append(line)
+            lines.append(f"- {name}: {desc}")
         return "\n".join(lines)
 
     def get_content(self, name: str) -> str:
