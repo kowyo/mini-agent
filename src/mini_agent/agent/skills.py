@@ -2,6 +2,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from ..config import SKILLS_DIRS
 
 
@@ -18,19 +20,24 @@ class SkillLoader:
             for f in sorted(skills_dir.rglob("SKILL.md")):
                 text = f.read_text()
                 meta, body = self._parse_frontmatter(text)
-                name = meta.get("name", f.parent.name)
+                name = str(meta.get("name", "")).strip()
+                description = str(meta.get("description", "")).strip()
+                if not name or not description:
+                    continue
                 self.skills[name] = {"meta": meta, "body": body, "path": str(f)}
 
-    def _parse_frontmatter(self, text: str) -> tuple:
+    def _parse_frontmatter(self, text: str) -> tuple[dict[str, Any], str]:
         """Parse YAML frontmatter between --- delimiters."""
-        match = re.match(r"^---\n(.*?)\n---\n(.*)", text, re.DOTALL)
+        match = re.match(r"^---\n(.*?)\n---\n?(.*)", text, re.DOTALL)
         if not match:
             return {}, text
-        meta = {}
-        for line in match.group(1).strip().splitlines():
-            if ":" in line:
-                key, val = line.split(":", 1)
-                meta[key.strip()] = val.strip()
+
+        try:
+            meta = yaml.safe_load(match.group(1)) or {}
+        except yaml.YAMLError:
+            meta = {}
+        if not isinstance(meta, dict):
+            meta = {}
         return meta, match.group(2).strip()
 
     def get_descriptions(self) -> str:
@@ -39,12 +46,8 @@ class SkillLoader:
             return "(no skills available)"
         lines = []
         for name, skill in self.skills.items():
-            desc = skill["meta"].get("description", "No description")
-            tags = skill["meta"].get("tags", "")
-            line = f"- {name}: {desc}"
-            if tags:
-                line += f" [{tags}]"
-            lines.append(line)
+            desc = skill["meta"]["description"]
+            lines.append(f"- {name}: {desc}")
         return "\n".join(lines)
 
     def get_content(self, name: str) -> str:
