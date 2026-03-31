@@ -72,17 +72,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     current_session_id = uuid.uuid4().hex
     session = build_session()
 
-    if prompt is not None:
-        print_formatted_text(
-            HTML(f'<style color="{PROMPT_ACCENT_COLOR}">&gt; </style>{escape(prompt)}')
-        )
-        print()
-        history.append({"role": "user", "content": prompt})
-        history_len = len(history)
-        agent_loop(history)
-        if len(history) > history_len:
-            save_session_history(current_session_id, history, token_tracker.get())
-
     if session_id is not None:
         current_session_id = session_id
         sessions = list_sessions()
@@ -97,6 +86,17 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
                 token_tracker.restore(chosen.last_usage)
         except Exception:
             print("Can't find the session id you want to resume.\n")
+
+    if prompt is not None:
+        print_formatted_text(
+            HTML(f'<style color="{PROMPT_ACCENT_COLOR}">&gt; </style>{escape(prompt)}')
+        )
+        print()
+        history.append({"role": "user", "content": prompt})
+        history_len = len(history)
+        agent_loop(history)
+        if len(history) > history_len:
+            save_session_history(current_session_id, history, token_tracker.get())
 
     while True:
         try:
