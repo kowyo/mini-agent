@@ -322,6 +322,7 @@ dependencies = [
     { name = "anthropic" },
     { name = "prompt-toolkit" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "rich" },
     { name = "tomli-w" },
 ]
@@ -339,6 +340,7 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.86.0" },
     { name = "prompt-toolkit", specifier = ">=3.0.51" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich", specifier = ">=14.3.3" },
     { name = "tomli-w", specifier = ">=1.2.0" },
 ]
