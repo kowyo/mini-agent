@@ -83,6 +83,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             history = chosen.history.copy()
             clear_terminal()
             print_session_history(chosen.history)
+            have_saved_session = True
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
         except Exception:
@@ -129,6 +130,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/resume":
             current_session_id, history = prompt_resume(current_session_id, history)
+            have_saved_session = True
             continue
         if command == "/model":
             prompt_model()
