@@ -122,6 +122,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             break
         if command == "/new":
             history.clear()
+            have_saved_session = False
             current_session_id = uuid.uuid4().hex
             token_tracker.reset()
             clear_terminal()
