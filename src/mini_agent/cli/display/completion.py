@@ -13,6 +13,7 @@ COMMANDS = {
     "/new": "Start a new session",
     "/resume": "Resume a previous session",
     "/model": "Select a model",
+    "/exit": "exit the session",
 }
 
 

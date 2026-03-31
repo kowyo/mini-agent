@@ -20,7 +20,12 @@ from .display import (
 from .display.theme import PROMPT_ACCENT_COLOR
 from .display.toolbar import get_status_toolbar
 from .models import prompt_model
-from .sessions import prompt_resume, save_session_history
+from .sessions import (
+    list_sessions,
+    print_session_history,
+    prompt_resume,
+    save_session_history,
+)
 from .token import token_tracker
 
 
@@ -60,12 +65,29 @@ def _run_non_interactive(prompt: str) -> None:
         save_session_history(current_session_id, history, token_tracker.get())
 
 
-def _run_interactive(prompt: str | None = None) -> None:
+def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     """Run the interactive TUI session."""
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
     session = build_session()
+    have_saved_session = False
+
+    if session_id is not None:
+        current_session_id = session_id
+        sessions = list_sessions()
+        try:
+            chosen = next(
+                stored for stored in sessions if stored.session_id == current_session_id
+            )
+            history = chosen.history.copy()
+            clear_terminal()
+            print_session_history(chosen.history)
+            have_saved_session = True
+            if chosen.last_usage is not None:
+                token_tracker.restore(chosen.last_usage)
+        except StopIteration:
+            print("Can't find the session id you want to resume.\n")
 
     if prompt is not None:
         print_formatted_text(
@@ -77,6 +99,7 @@ def _run_interactive(prompt: str | None = None) -> None:
         agent_loop(history)
         if len(history) > history_len:
             save_session_history(current_session_id, history, token_tracker.get())
+            have_saved_session = True
 
     while True:
         try:
@@ -88,10 +111,11 @@ def _run_interactive(prompt: str | None = None) -> None:
             break
 
         command = query.strip().lower()
-        if command in {"", "q", "exit"}:
+        if command in {"", "q", "/exit"}:
             break
         if command == "/new":
             history.clear()
+            have_saved_session = False
             current_session_id = uuid.uuid4().hex
             token_tracker.reset()
             clear_terminal()
@@ -111,6 +135,10 @@ def _run_interactive(prompt: str | None = None) -> None:
             continue
 
         save_session_history(current_session_id, history, token_tracker.get())
+        have_saved_session = True
+
+    if current_session_id and have_saved_session:
+        print(f"\nResume the session with mini-agent --resume {current_session_id}\n")
 
 
 def main() -> None:
@@ -129,6 +157,13 @@ def main() -> None:
         help="Run a single prompt non-interactively and exit",
     )
     parser.add_argument(
+        "-r",
+        "--resume",
+        dest="session_id",
+        type=str,
+        help="Resume a specific session by ID ",
+    )
+    parser.add_argument(
         "prompt",
         nargs="?",
         type=str,
@@ -143,4 +178,4 @@ def main() -> None:
         _run_non_interactive(args.non_interactive_prompt)
         return
 
-    _run_interactive(args.prompt)
+    _run_interactive(args.prompt, args.session_id)
