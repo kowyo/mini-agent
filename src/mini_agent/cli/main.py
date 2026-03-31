@@ -86,11 +86,16 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     if session_id is not None:
         current_session_id = session_id
         sessions = list_sessions()
-        chosen = next(stored for stored in sessions if stored.session_id == session_id)
-        clear_terminal()
-        print_session_history(chosen.history)
-        if chosen.last_usage is not None:
-            token_tracker.restore(chosen.last_usage)
+        try:
+            chosen = next(
+                stored for stored in sessions if stored.session_id == current_session_id
+            )
+            clear_terminal()
+            print_session_history(chosen.history)
+            if chosen.last_usage is not None:
+                token_tracker.restore(chosen.last_usage)
+        except Exception:
+            print("Can't find the session id you want to resume.\n")
 
     while True:
         try:
