@@ -29,7 +29,10 @@ class SkillLoader:
         if not match:
             return {}, text
 
-        meta = yaml.safe_load(match.group(1)) or {}
+        try:
+            meta = yaml.safe_load(match.group(1)) or {}
+        except yaml.YAMLError:
+            meta = {}
         if not isinstance(meta, dict):
             meta = {}
         return meta, match.group(2).strip()
