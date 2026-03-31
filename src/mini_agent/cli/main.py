@@ -25,6 +25,7 @@ from .sessions import (
     print_session_history,
     prompt_resume,
     save_session_history,
+    session_saved,
 )
 from .token import token_tracker
 
@@ -71,7 +72,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
     session = build_session()
-    have_saved_session = False
 
     if session_id is not None:
         current_session_id = session_id
@@ -83,7 +83,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             history = chosen.history.copy()
             clear_terminal()
             print_session_history(chosen.history)
-            have_saved_session = True
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
         except StopIteration:
@@ -99,7 +98,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         agent_loop(history)
         if len(history) > history_len:
             save_session_history(current_session_id, history, token_tracker.get())
-            have_saved_session = True
 
     while True:
         try:
@@ -115,13 +113,12 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             break
         if command == "/new":
             history.clear()
-            have_saved_session = False
             current_session_id = uuid.uuid4().hex
             token_tracker.reset()
             clear_terminal()
             continue
         if command == "/resume":
-            current_session_id, history = prompt_resume(current_session_id, history)
+            current_session_id, history, _ = prompt_resume(current_session_id, history)
             continue
         if command == "/model":
             prompt_model()
@@ -135,10 +132,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
 
         save_session_history(current_session_id, history, token_tracker.get())
-        have_saved_session = True
 
-    if current_session_id and have_saved_session:
-        print(f"\nResume the session with mini-agent --resume {current_session_id}\n")
+    if session_saved(current_session_id):
+        print(f"\nResume the session with:\nmini-agent --resume {current_session_id}\n")
 
 
 def main() -> None:

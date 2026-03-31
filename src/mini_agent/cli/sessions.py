@@ -27,6 +27,10 @@ def session_path(session_id: str) -> Path:
     return SESSION_DIR / f"{session_id}.jsonl"
 
 
+def session_saved(session_id: str) -> bool:
+    return session_path(session_id).exists()
+
+
 def ensure_session_dir() -> None:
     SESSION_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -173,12 +177,12 @@ def select_session(sessions: list[StoredSession]) -> str | None:
 def prompt_resume(
     current_session_id: str,
     history: list[MessageParam],
-) -> tuple[str, list[MessageParam]]:
+) -> tuple[str, list[MessageParam], bool]:
     clear_terminal()
     sessions = list_sessions()
     if not sessions:
         print("No saved sessions found.\n")
-        return current_session_id, history
+        return current_session_id, history, False
 
     result = select_session(sessions)
     print()
@@ -186,7 +190,7 @@ def prompt_resume(
     if result is None:
         clear_terminal()
         print_session_history(history)
-        return current_session_id, history
+        return current_session_id, history, False
 
     chosen = next(stored for stored in sessions if stored.session_id == result)
 
@@ -194,4 +198,4 @@ def prompt_resume(
     print_session_history(chosen.history)
     if chosen.last_usage is not None:
         token_tracker.restore(chosen.last_usage)
-    return chosen.session_id, chosen.history.copy()
+    return chosen.session_id, chosen.history.copy(), True
