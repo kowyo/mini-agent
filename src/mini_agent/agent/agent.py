@@ -8,7 +8,7 @@ from anthropic.types import (
 )
 from rich.console import Console
 
-from ..cli.display import print_tool_result
+from ..cli.display import print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
 from ..cli.token import token_tracker
 from ..config import WORKDIR, client, config
@@ -87,6 +87,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
         for block in response.content:
             if isinstance(block, ToolUseBlock):
                 handler = TOOL_HANDLERS.get(block.name)
+                print_tool_start(block.name, block.input)
                 output = (
                     handler(**block.input) if handler else f"Unknown tool: {block.name}"
                 )

@@ -4,6 +4,7 @@ from .printing import (
     clear_terminal,
     print_session_history,
     print_tool_result,
+    print_tool_start,
     print_welcome_banner,
 )
 from .theme import (
@@ -31,6 +32,7 @@ __all__ = [
     "get_status_toolbar",
     "print_session_history",
     "print_tool_result",
+    "print_tool_start",
     "print_welcome_banner",
     "clear_terminal",
 ]
