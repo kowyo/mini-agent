@@ -1,4 +1,5 @@
 import json
+import sys
 import urllib.request
 from functools import lru_cache
 
@@ -105,12 +106,20 @@ def prompt_model() -> None:
         print("No models available.\n")
         return
 
+    sys.stdout.write("\0337")
+    sys.stdout.flush()
+
     model_result = select_model(models)
 
     if model_result is None:
+        sys.stdout.write("\0338\033[0J")
+        sys.stdout.flush()
         return
 
     effort_result = select_reasoning_effort()
+
+    sys.stdout.write("\0338\033[0J")
+    sys.stdout.flush()
 
     config.save_model(model_result.id)
     if effort_result is not None:
