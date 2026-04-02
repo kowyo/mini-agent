@@ -84,10 +84,12 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
         used_todo = False
         results = []
+        working_status = None
         for block in response.content:
             if isinstance(block, ToolUseBlock):
-                status = _console.status("Working")
-                status.start()
+                if working_status is None:
+                    working_status = _console.status("Working")
+                    working_status.start()
                 handler = TOOL_HANDLERS.get(block.name)
                 print_tool_start(block.name, block.input)
                 output = (
@@ -100,7 +102,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 if block.name == "todo":
                     used_todo = True
 
-        status.stop()
+        if working_status is not None:
+            working_status.stop()
 
         if response.stop_reason != "tool_use":
             return
