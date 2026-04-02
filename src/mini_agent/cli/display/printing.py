@@ -36,6 +36,8 @@ def print_welcome_banner() -> None:
 
 
 def print_session_history(history: list[MessageParam]) -> None:
+    clear_terminal()
+    print_welcome_banner()
     for message in history:
         content = message["content"]
 

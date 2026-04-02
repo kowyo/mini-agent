@@ -9,7 +9,7 @@ from anthropic.types import MessageParam
 from pydantic import BaseModel
 
 from ..config import SESSION_DIR
-from .display import clear_terminal, print_session_history, print_welcome_banner
+from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
 from .token import token_tracker
 
@@ -188,14 +188,10 @@ def prompt_resume(
     print()
 
     if result is None:
-        clear_terminal()
         print_session_history(history)
         return current_session_id, history, False
 
     chosen = next(stored for stored in sessions if stored.session_id == result)
-
-    clear_terminal()
-    print_welcome_banner()
     print_session_history(chosen.history)
     if chosen.last_usage is not None:
         token_tracker.restore(chosen.last_usage)
