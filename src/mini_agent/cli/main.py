@@ -1,13 +1,14 @@
 import argparse
 import uuid
-from html import escape
+from collections.abc import Callable
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
+from prompt_toolkit.application import get_app
+from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
-from prompt_toolkit.shortcuts import print_formatted_text
 
 from ..agent.agent import agent_loop
 from ..config import REASONING_EFFORT_LEVELS, config
@@ -30,7 +31,9 @@ from .sessions import (
 from .token import token_tracker
 
 
-def build_session() -> PromptSession:
+def build_session(
+    prompt: str | None = None,
+) -> tuple[PromptSession, Callable[[], None] | None]:
     bindings = KeyBindings()
 
     @bindings.add("c-c")
@@ -45,7 +48,7 @@ def build_session() -> PromptSession:
     def insert_newline(event: KeyPressEvent) -> None:
         event.current_buffer.insert_text("\n")
 
-    return PromptSession(
+    session = PromptSession(
         HTML(f'<style color="{PROMPT_ACCENT_COLOR}">> </style>'),
         multiline=True,
         key_bindings=bindings,
@@ -54,6 +57,16 @@ def build_session() -> PromptSession:
         style=COMPLETION_STYLE,
         bottom_toolbar=get_status_toolbar,
     )
+
+    pre_run: Callable[[], None] | None = None
+    if prompt:
+
+        def pre_run() -> None:
+            app = get_app()
+            app.current_buffer.set_document(Document(prompt), bypass_readonly=True)
+            app.current_buffer.validate_and_handle()
+
+    return session, pre_run
 
 
 def _run_non_interactive(prompt: str) -> None:
@@ -71,7 +84,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session = build_session()
+    session, _pre_run = build_session(prompt)
 
     if session_id is not None:
         current_session_id = session_id
@@ -87,20 +100,10 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         except StopIteration:
             print("Can't find the session id you want to resume.\n")
 
-    if prompt is not None:
-        print_formatted_text(
-            HTML(f'<style color="{PROMPT_ACCENT_COLOR}">&gt; </style>{escape(prompt)}')
-        )
-        print()
-        history.append({"role": "user", "content": prompt})
-        history_len = len(history)
-        agent_loop(history)
-        if len(history) > history_len:
-            save_session_history(current_session_id, history, token_tracker.get())
-
     while True:
         try:
-            query = session.prompt()
+            query = session.prompt(pre_run=_pre_run)
+            _pre_run = None
             print()
         except KeyboardInterrupt:
             continue
