@@ -18,6 +18,7 @@ def select_from_list[T](
     format_item: Callable[[T], str] = str,
     *,
     selected_index: int = 0,
+    clear_after: bool = False,
 ) -> T | None:
     if not items:
         return None
@@ -77,5 +78,6 @@ def select_from_list[T](
     application = Application(
         layout=Layout(Window(FormattedTextControl(render), always_hide_cursor=True)),
         key_bindings=bindings,
+        erase_when_done=clear_after,
     )
     return application.run()
