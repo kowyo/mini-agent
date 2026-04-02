@@ -106,13 +106,11 @@ def prompt_model() -> None:
         return
 
     model_result = select_model(models)
-    print()
 
     if model_result is None:
         return
 
     effort_result = select_reasoning_effort()
-    print()
 
     config.save_model(model_result.id)
     print(f"Model set to {model_result.id}")
