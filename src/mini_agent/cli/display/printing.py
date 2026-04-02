@@ -25,7 +25,7 @@ def print_welcome_banner() -> None:
     lines = [
         f" >_ {CLI_NAME} (v{CLI_VERSION})",
         "",
-        f" model: {config.get_model()}",
+        f" model: {config.get_model()} {config.get_reasoning_effort()}",
     ]
     width = max(len(line) for line in lines)
 
@@ -36,6 +36,8 @@ def print_welcome_banner() -> None:
 
 
 def print_session_history(history: list[MessageParam]) -> None:
+    clear_terminal()
+    print_welcome_banner()
     for message in history:
         content = message["content"]
 
@@ -94,13 +96,13 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
 def print_tool_result(name: str, input_data: dict[str, object], output: str) -> None:
     """Print tool output after execution."""
     if name == "bash":
-        print(f"\n{LIGHT_TEXT}{output[:200]}{RESET}\n")
+        print(f"{LIGHT_TEXT}{output[:200]}{RESET}\n")
         return
 
     if name == "edit_file":
         path = cast(str, input_data["path"])
         if output.startswith("Error"):
-            print(f"\n{output}\n")
+            print(f"{output}\n")
             return
         old_text = cast(str, input_data["old_text"])
         new_text = cast(str, input_data["new_text"])
@@ -108,14 +110,15 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
         pos = edited_content.find(new_text)
         start_line = edited_content[:pos].count("\n") + 1 if pos != -1 else 1
         diff = format_edit_diff(old_text, new_text, start_line)
-        print(f"\n{diff}\n")
+        print(f"{diff}\n")
         return
 
     if name == "todo":
-        print(f"\n{output[:200]}\n")
+        print(f"{output[:200]}\n")
         return
 
     if name in ("read_file", "write_file", "load_skill"):
+        print()
         return
 
-    print(f"\n{output[:200]}\n")
+    print(f"{output[:200]}\n")

@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 
 DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
 DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_REASONING_EFFORT = "medium"
+REASONING_EFFORT_LEVELS = ["disabled", "adaptive", "low", "medium", "high"]
 CONFIG_DIR = DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
@@ -30,6 +32,8 @@ class Config:
     def __init__(self) -> None:
         self._model: str | None = None
         self._session_model_override: str | None = None
+        self._reasoning_effort: str | None = None
+        self._session_reasoning_effort_override: str | None = None
 
     def _load_config(self) -> dict[str, object]:
         if CONFIG_FILE.exists():
@@ -54,6 +58,27 @@ class Config:
         cfg["model_id"] = model_id
         CONFIG_FILE.write_text(tomli_w.dumps(cfg))
         self._model = model_id
+
+    def set_session_reasoning_effort(self, effort: str) -> None:
+        self._session_reasoning_effort_override = effort
+
+    def get_reasoning_effort(self) -> str:
+        if self._session_reasoning_effort_override is not None:
+            return self._session_reasoning_effort_override
+        if self._reasoning_effort is None:
+            cfg = self._load_config()
+            self._reasoning_effort = str(
+                cfg.get("reasoning_effort", DEFAULT_REASONING_EFFORT)
+            )
+        return self._reasoning_effort
+
+    def save_reasoning_effort(self, effort: str) -> None:
+        self._session_reasoning_effort_override = None
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        cfg = self._load_config()
+        cfg["reasoning_effort"] = effort
+        CONFIG_FILE.write_text(tomli_w.dumps(cfg))
+        self._reasoning_effort = effort
 
 
 config = Config()

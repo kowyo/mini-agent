@@ -41,15 +41,30 @@ def agent_loop(messages: list[MessageParam]) -> None:
         thinking_started = False
         text_started = False
 
+        effort = config.get_reasoning_effort()
+        if effort == "disabled":
+            thinking_param = None
+            output_config = None
+        elif effort == "adaptive":
+            thinking_param = {"type": "adaptive"}
+            output_config = None
+        else:
+            thinking_param = {"type": "adaptive"}
+            output_config = {"effort": effort}
+
         try:
-            with client.messages.stream(
-                model=model,
-                system=SYSTEM,
-                messages=messages,
-                tools=TOOLS,
-                max_tokens=max_tokens,
-                thinking={"type": "enabled", "budget_tokens": 6000},
-            ) as stream:
+            stream_kwargs: dict = {
+                "model": model,
+                "system": SYSTEM,
+                "messages": messages,
+                "tools": TOOLS,
+                "max_tokens": max_tokens,
+            }
+            if thinking_param is not None:
+                stream_kwargs["thinking"] = thinking_param
+                if output_config is not None:
+                    stream_kwargs["output_config"] = output_config
+            with client.messages.stream(**stream_kwargs) as stream:
                 for event in stream:
                     if isinstance(event, RawContentBlockDeltaEvent):
                         if (
@@ -59,7 +74,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             if not thinking_started:
                                 status.stop()
                                 thinking_started = True
-                            print(event.delta.thinking.rstrip(), end="", flush=True)
+                            print(event.delta.thinking, end="", flush=True)
                         elif isinstance(event.delta, TextDelta) and event.delta.text:
                             if not text_started:
                                 status.stop()

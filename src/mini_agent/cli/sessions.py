@@ -188,13 +188,10 @@ def prompt_resume(
     print()
 
     if result is None:
-        clear_terminal()
         print_session_history(history)
         return current_session_id, history, False
 
     chosen = next(stored for stored in sessions if stored.session_id == result)
-
-    clear_terminal()
     print_session_history(chosen.history)
     if chosen.last_usage is not None:
         token_tracker.restore(chosen.last_usage)

@@ -27,7 +27,7 @@ def _pad_toolbar(left: str, right: str) -> str:
 
 
 def get_status_toolbar() -> FormattedText:
-    left = f"  {config.get_model()}"
+    left = f"  {config.get_model()} {config.get_reasoning_effort()}"
     usage = token_tracker.get()
     if usage is not None:
         right = _format_token_right(usage, token_tracker.get_last_round())

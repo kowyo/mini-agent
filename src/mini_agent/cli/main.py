@@ -10,7 +10,7 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.shortcuts import print_formatted_text
 
 from ..agent.agent import agent_loop
-from ..config import config
+from ..config import REASONING_EFFORT_LEVELS, config
 from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
@@ -81,7 +81,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
                 stored for stored in sessions if stored.session_id == current_session_id
             )
             history = chosen.history.copy()
-            clear_terminal()
             print_session_history(chosen.history)
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
@@ -116,6 +115,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             current_session_id = uuid.uuid4().hex
             token_tracker.reset()
             clear_terminal()
+            print_welcome_banner()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(current_session_id, history)
@@ -146,18 +146,25 @@ def main() -> None:
         help="Model for the current session",
     )
     parser.add_argument(
-        "-p",
-        "--prompt",
-        dest="non_interactive_prompt",
+        "-e",
+        "--effort",
         type=str,
-        help="Run a single prompt non-interactively and exit",
+        choices=REASONING_EFFORT_LEVELS,
+        help="Set the effort level for the current session",
+    )
+    parser.add_argument(
+        "-p",
+        "--print",
+        dest="print_prompt",
+        type=str,
+        help="Print response without interactive mode",
     )
     parser.add_argument(
         "-r",
         "--resume",
         dest="session_id",
         type=str,
-        help="Resume a specific session by ID ",
+        help="Resume a specific session by ID",
     )
     parser.add_argument(
         "prompt",
@@ -170,8 +177,11 @@ def main() -> None:
     if args.model:
         config.set_session_model(args.model)
 
-    if args.non_interactive_prompt:
-        _run_non_interactive(args.non_interactive_prompt)
+    if args.effort:
+        config.set_session_reasoning_effort(args.effort)
+
+    if args.print_prompt:
+        _run_non_interactive(args.print_prompt)
         return
 
     _run_interactive(args.prompt, args.session_id)
