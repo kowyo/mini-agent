@@ -121,4 +121,4 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
         print()
         return
 
-    print(f"\n{output[:200]}\n")
+    print(f"{output[:200]}\n")
