@@ -11,7 +11,7 @@ from rich.console import Console
 from ..cli.display import print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
 from ..cli.token import token_tracker
-from ..config import REASONING_BUDGET_TOKENS, WORKDIR, client, config
+from ..config import WORKDIR, client, config
 from .skills import skill_loader
 from .tools import TOOL_HANDLERS, TOOLS
 
@@ -42,10 +42,15 @@ def agent_loop(messages: list[MessageParam]) -> None:
         text_started = False
 
         effort = config.get_reasoning_effort()
-        budget = REASONING_BUDGET_TOKENS.get(effort)
-        thinking_param = (
-            {"type": "enabled", "budget_tokens": budget} if budget is not None else None
-        )
+        if effort == "disabled":
+            thinking_param = None
+            output_config = None
+        elif effort == "adaptive":
+            thinking_param = {"type": "adaptive"}
+            output_config = None
+        else:
+            thinking_param = {"type": "adaptive"}
+            output_config = {"effort": effort}
 
         try:
             stream_kwargs: dict = {
@@ -57,6 +62,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
             }
             if thinking_param is not None:
                 stream_kwargs["thinking"] = thinking_param
+                if output_config is not None:
+                    stream_kwargs["output_config"] = output_config
             with client.messages.stream(**stream_kwargs) as stream:
                 for event in stream:
                     if isinstance(event, RawContentBlockDeltaEvent):

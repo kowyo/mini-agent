@@ -10,13 +10,7 @@ from dotenv import load_dotenv
 DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
 DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_REASONING_EFFORT = "medium"
-REASONING_EFFORT_LEVELS = ["none", "low", "medium", "high"]
-REASONING_BUDGET_TOKENS: dict[str, int | None] = {
-    "none": None,
-    "low": 1024,
-    "medium": 6000,
-    "high": 16000,
-}
+REASONING_EFFORT_LEVELS = ["disabled", "adaptive", "low", "medium", "high"]
 CONFIG_DIR = DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
