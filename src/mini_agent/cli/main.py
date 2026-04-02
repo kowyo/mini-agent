@@ -150,7 +150,7 @@ def main() -> None:
         "--effort",
         type=str,
         choices=REASONING_EFFORT_LEVELS,
-        help="Reasoning effort for the current session (disabled, adaptive, low, medium, high)",
+        help="Set the effort level for the current session",
     )
     parser.add_argument(
         "-p",
@@ -164,7 +164,7 @@ def main() -> None:
         "--resume",
         dest="session_id",
         type=str,
-        help="Resume a specific session by ID ",
+        help="Resume a specific session by ID",
     )
     parser.add_argument(
         "prompt",
