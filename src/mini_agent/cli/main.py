@@ -84,7 +84,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session, _pre_run = build_session(prompt)
+    session, pre_run = build_session(prompt)
 
     if session_id is not None:
         current_session_id = session_id
@@ -102,8 +102,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
     while True:
         try:
-            query = session.prompt(pre_run=_pre_run)
-            _pre_run = None
+            query = session.prompt(pre_run=pre_run)
+            pre_run = None
             print()
         except KeyboardInterrupt:
             continue
