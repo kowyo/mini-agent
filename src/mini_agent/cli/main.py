@@ -82,6 +82,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             )
             history = chosen.history.copy()
             clear_terminal()
+            print_welcome_banner()
             print_session_history(chosen.history)
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
@@ -116,6 +117,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             current_session_id = uuid.uuid4().hex
             token_tracker.reset()
             clear_terminal()
+            print_welcome_banner()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(current_session_id, history)
