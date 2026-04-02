@@ -10,7 +10,7 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.shortcuts import print_formatted_text
 
 from ..agent.agent import agent_loop
-from ..config import config
+from ..config import REASONING_EFFORT_LEVELS, config
 from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
@@ -149,7 +149,8 @@ def main() -> None:
         "-e",
         "--effort",
         type=str,
-        help="Reasoning effort for the current session (none, low, medium, high)",
+        choices=REASONING_EFFORT_LEVELS,
+        help="Reasoning effort for the current session (disabled, adaptive, low, medium, high)",
     )
     parser.add_argument(
         "-p",
