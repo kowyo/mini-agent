@@ -116,6 +116,7 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
         return
 
     if name in ("read_file", "write_file", "load_skill"):
+        print()
         return
 
     print(f"\n{output[:200]}\n")
