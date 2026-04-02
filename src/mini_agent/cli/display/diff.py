@@ -1,12 +1,18 @@
 import difflib
 import shutil
+import unicodedata
 
 from .theme import GREEN_BG, RED_BG, RESET
 
 
+def _display_width(text: str) -> int:
+    text = text.expandtabs()
+    return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in text)
+
+
 def color_full_line(text: str, color: str) -> str:
     width = shutil.get_terminal_size(fallback=(80, 24)).columns
-    padding = max(width - len(text), 0)
+    padding = max(width - _display_width(text), 0)
     return f"{color}{text}{' ' * padding}{RESET}"
 
 
