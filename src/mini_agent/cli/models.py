@@ -113,10 +113,7 @@ def prompt_model() -> None:
     effort_result = select_reasoning_effort()
 
     config.save_model(model_result.id)
-    print(f"Model set to {model_result.id}")
-
     if effort_result is not None:
         config.save_reasoning_effort(effort_result)
-        print(f"Reasoning effort set to {effort_result}")
-
-    print()
+    effort = config.get_reasoning_effort()
+    print(f"Model set to {model_result.id} {effort}\n")
