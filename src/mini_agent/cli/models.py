@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from anthropic.types import ModelInfo
 
-from ..config import client, config
+from ..config import REASONING_EFFORT_LEVELS, client, config
 from .display.picker import select_from_list
 
 
@@ -80,6 +80,20 @@ def select_model(models: list[ModelInfo]) -> ModelInfo | None:
     )
 
 
+def select_reasoning_effort() -> str | None:
+    current = config.get_reasoning_effort()
+    selected_index = (
+        REASONING_EFFORT_LEVELS.index(current)
+        if current in REASONING_EFFORT_LEVELS
+        else 0
+    )
+    return select_from_list(
+        REASONING_EFFORT_LEVELS,
+        "Select reasoning effort",
+        selected_index=selected_index,
+    )
+
+
 def prompt_model() -> None:
     try:
         models = fetch_models()
@@ -91,11 +105,15 @@ def prompt_model() -> None:
         print("No models available.\n")
         return
 
-    result = select_model(models)
+    model_result = select_model(models)
     print()
 
-    if result is None:
+    if model_result is None:
         return
 
-    config.save_model(result.id)
-    print(f"Model set to {result.id}\n")
+    effort_result = select_reasoning_effort()
+
+    config.save_model(model_result.id)
+
+    if effort_result is not None:
+        config.save_reasoning_effort(effort_result)

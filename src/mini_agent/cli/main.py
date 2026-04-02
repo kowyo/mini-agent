@@ -146,11 +146,17 @@ def main() -> None:
         help="Model for the current session",
     )
     parser.add_argument(
-        "-p",
-        "--prompt",
-        dest="non_interactive_prompt",
+        "-e",
+        "--effort",
         type=str,
-        help="Run a single prompt non-interactively and exit",
+        help="Reasoning effort for the current session (none, low, medium, high)",
+    )
+    parser.add_argument(
+        "-p",
+        "--print",
+        dest="print_prompt",
+        type=str,
+        help="Print response without interactive mode",
     )
     parser.add_argument(
         "-r",
@@ -170,8 +176,11 @@ def main() -> None:
     if args.model:
         config.set_session_model(args.model)
 
-    if args.non_interactive_prompt:
-        _run_non_interactive(args.non_interactive_prompt)
+    if args.effort:
+        config.set_session_reasoning_effort(args.effort)
+
+    if args.print_prompt:
+        _run_non_interactive(args.print_prompt)
         return
 
     _run_interactive(args.prompt, args.session_id)
