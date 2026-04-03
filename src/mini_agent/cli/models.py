@@ -71,17 +71,29 @@ def format_model(model: ModelInfo) -> str:
     return "  ".join(parts)
 
 
-def select_model(models: list[ModelInfo]) -> ModelInfo | None:
+_ENTER_MANUALLY = "Enter model ID manually..."
+
+
+def select_model(models: list[ModelInfo]) -> str | None:
     current = config.get_model()
     ids = [m.id for m in models]
     selected_index = ids.index(current) if current in ids else 0
-    return select_from_list(
-        models,
-        "Select model",
-        format_model,
-        selected_index=selected_index,
-        clear_after=True,
+
+    items: list[ModelInfo | str] = [*models, _ENTER_MANUALLY]
+
+    def fmt(item: ModelInfo | str) -> str:
+        return item if isinstance(item, str) else format_model(item)
+
+    result = select_from_list(
+        items, "Select model", fmt, selected_index=selected_index, clear_after=True
     )
+    if result is None:
+        return None
+    if isinstance(result, str):
+        model_id = input("Model ID: ").strip()
+        print("\033[1A\033[2K", end="", flush=True)
+        return model_id or None
+    return result.id
 
 
 def select_reasoning_effort() -> str | None:
@@ -107,12 +119,22 @@ def prompt_model() -> None:
         return
 
     if not models:
-        print("No models available.\n")
+        print("No models available from API. Enter a model ID manually.")
+        model_id = input("Model ID: ").strip()
+        if not model_id:
+            return
+        effort_result = select_reasoning_effort()
+        if effort_result is None:
+            return
+        config.save_model(model_id)
+        config.save_reasoning_effort(effort_result)
+        effort = config.get_reasoning_effort()
+        print(f"Model set to {model_id} {effort}\n")
         return
 
-    model_result = select_model(models)
+    model_id = select_model(models)
 
-    if model_result is None:
+    if model_id is None:
         return
 
     effort_result = select_reasoning_effort()
@@ -120,7 +142,7 @@ def prompt_model() -> None:
     if effort_result is None:
         return
 
-    config.save_model(model_result.id)
+    config.save_model(model_id)
     config.save_reasoning_effort(effort_result)
     effort = config.get_reasoning_effort()
-    print(f"Model set to {model_result.id} {effort}\n")
+    print(f"Model set to {model_id} {effort}\n")
