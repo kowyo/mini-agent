@@ -6,5 +6,4 @@ LIGHT_HINT_STYLE = "fg:#888888"
 
 RED_BG = "\x1b[48;5;224m\x1b[30m"
 GREEN_BG = "\x1b[48;5;194m\x1b[30m"
-LIGHT_TEXT = "\x1b[37m"
 RESET = "\x1b[0m"
