@@ -108,6 +108,7 @@ def select_reasoning_effort() -> str | None:
         "Select reasoning effort",
         selected_index=selected_index,
         clear_after=True,
+        enable_search=False,
     )
 
 

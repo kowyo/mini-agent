@@ -18,6 +18,7 @@ def select_from_list[T](
     *,
     selected_index: int = 0,
     clear_after: bool = False,
+    enable_search: bool = True,
 ) -> T | None:
     if not items:
         return None
@@ -60,10 +61,11 @@ def select_from_list[T](
         fragments: list[tuple[str, str]] = [("", f"{title}\n")]
 
         # Show search box status
-        if search_text:
-            fragments.append(("", f"Search: {search_text}\n\n"))
-        else:
-            fragments.append(("", "Type to search...\n\n"))
+        if enable_search:
+            if search_text:
+                fragments.append(("", f"Search: {search_text}\n\n"))
+            else:
+                fragments.append(("", "Type to search...\n\n"))
 
         if not filtered:
             fragments.append((LIGHT_HINT_STYLE, "  No matches found\n"))
@@ -76,13 +78,13 @@ def select_from_list[T](
                 else:
                     fragments.append(("", f"  {label}\n"))
 
-        if show_hint or search_text:
+        if show_hint or (enable_search and search_text):
             fragments.append(("", "\n"))
             hints = []
             if show_hint:
                 hints.append("↑/↓ to browse")
-            if search_text:
-                hints.append(f"Showing {len(filtered)}/{len(items)} models")
+            if enable_search and search_text:
+                hints.append(f"Showing {len(filtered)}/{len(items)}")
                 hints.append("Ctrl+U to clear search")
             fragments.append((LIGHT_HINT_STYLE, "  ".join(hints)))
 
@@ -143,42 +145,44 @@ def select_from_list[T](
     def cancel(event: KeyPressEvent) -> None:
         event.app.exit(result=None)
 
-    @bindings.add("c-u")
-    def clear_search(event: KeyPressEvent) -> None:
-        nonlocal search_text
-        search_text = ""
-        event.app.invalidate()
+    if enable_search:
 
-    @bindings.add("backspace")
-    @bindings.add("c-h")
-    def handle_backspace(event: KeyPressEvent) -> None:
-        nonlocal search_text, selected_index
-        if search_text:
-            search_text = search_text[:-1]
-            filtered = get_filtered_items()
-            if filtered:
-                # Try to keep current selection if still in filtered list
-                for orig_idx, _ in filtered:
-                    if orig_idx == selected_index:
-                        break
-                else:
+        @bindings.add("c-u")
+        def clear_search(event: KeyPressEvent) -> None:
+            nonlocal search_text
+            search_text = ""
+            event.app.invalidate()
+
+        @bindings.add("backspace")
+        @bindings.add("c-h")
+        def handle_backspace(event: KeyPressEvent) -> None:
+            nonlocal search_text, selected_index
+            if search_text:
+                search_text = search_text[:-1]
+                filtered = get_filtered_items()
+                if filtered:
+                    # Try to keep current selection if still in filtered list
+                    for orig_idx, _ in filtered:
+                        if orig_idx == selected_index:
+                            break
+                    else:
+                        selected_index = filtered[0][0]
+                event.app.invalidate()
+
+        # Handle text input for search
+        @bindings.add("<any>")
+        def handle_text(event: KeyPressEvent) -> None:
+            nonlocal search_text, selected_index
+            key = event.key_sequence[0].key
+
+            # Handle printable characters
+            if len(key) == 1 and key.isprintable():
+                search_text += key
+                # Reset selection to first filtered item when searching
+                filtered = get_filtered_items()
+                if filtered:
                     selected_index = filtered[0][0]
-            event.app.invalidate()
-
-    # Handle text input for search
-    @bindings.add("<any>")
-    def handle_text(event: KeyPressEvent) -> None:
-        nonlocal search_text, selected_index
-        key = event.key_sequence[0].key
-
-        # Handle printable characters
-        if len(key) == 1 and key.isprintable():
-            search_text += key
-            # Reset selection to first filtered item when searching
-            filtered = get_filtered_items()
-            if filtered:
-                selected_index = filtered[0][0]
-            event.app.invalidate()
+                event.app.invalidate()
 
     application = Application(
         layout=Layout(Window(FormattedTextControl(render), always_hide_cursor=True)),
