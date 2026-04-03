@@ -10,7 +10,6 @@ from .printing import (
 from .theme import (
     GREEN_BG,
     LIGHT_HINT_STYLE,
-    LIGHT_TEXT,
     PROMPT_ACCENT_COLOR,
     RED_BG,
     RESET,
@@ -23,7 +22,6 @@ __all__ = [
     "CommandCompleter",
     "GREEN_BG",
     "LIGHT_HINT_STYLE",
-    "LIGHT_TEXT",
     "PROMPT_ACCENT_COLOR",
     "RED_BG",
     "RESET",

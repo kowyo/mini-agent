@@ -108,6 +108,9 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 output = (
                     handler(**block.input) if handler else f"Unknown tool: {block.name}"
                 )
+                if working_status is not None:
+                    working_status.stop()
+                    working_status = None
                 print_tool_result(block.name, block.input, output)
                 results.append(
                     {"type": "tool_result", "tool_use_id": block.id, "content": output}

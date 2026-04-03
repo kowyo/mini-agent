@@ -6,11 +6,15 @@ from typing import cast
 from anthropic.types import MessageParam
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
+from rich.console import Console
+from rich.text import Text
 
 from ...agent.tools import safe_path
 from ...config import CLI_NAME, CLI_VERSION, config
 from .diff import format_edit_diff
-from .theme import LIGHT_TEXT, PROMPT_ACCENT_COLOR, RESET
+from .theme import PROMPT_ACCENT_COLOR
+
+_console = Console()
 
 
 def clear_terminal() -> None:
@@ -92,7 +96,10 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
 def print_tool_result(name: str, input_data: dict[str, object], output: str) -> None:
     """Print tool output after execution."""
     if name == "bash":
-        print(f"{LIGHT_TEXT}{output[:200]}{RESET}\n")
+        text = Text.from_ansi(output[:200])
+        text.stylize("dim")
+        _console.print(text)
+        print()
         return
 
     if name == "edit_file":
