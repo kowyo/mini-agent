@@ -84,7 +84,7 @@ def select_from_list[T](
             if show_hint:
                 hints.append("↑/↓ to browse")
             if enable_search and search_text:
-                hints.append(f"Showing {len(filtered)}/{len(items)}")
+                hints.append(f"Showing {len(filtered)}/{len(items)} results")
                 hints.append("Ctrl+U to clear search")
             fragments.append((LIGHT_HINT_STYLE, "  ".join(hints)))
 
