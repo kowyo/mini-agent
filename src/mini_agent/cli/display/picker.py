@@ -37,6 +37,13 @@ def select_from_list[T](
             if query in format_item(item).replace("\n", " ").lower()
         ]
 
+    def find_position_in_filtered(filtered: list[tuple[int, T]]) -> int:
+        """Find the index of selected_index within the filtered list. Returns 0 if not found."""
+        for idx, (orig_idx, _) in enumerate(filtered):
+            if orig_idx == selected_index:
+                return idx
+        return 0
+
     def render() -> FormattedText:
         _, terminal_height = shutil.get_terminal_size(fallback=(80, 24))
         base_rows = max(terminal_height - 5, 1)  # -5 for title, search box, and hints
@@ -48,11 +55,7 @@ def select_from_list[T](
         filtered = get_filtered_items()
 
         # Find current position in filtered list
-        current_filtered_index = 0
-        for idx, (orig_idx, _) in enumerate(filtered):
-            if orig_idx == selected_index:
-                current_filtered_index = idx
-                break
+        current_filtered_index = find_position_in_filtered(filtered)
 
         start_index = max(0, current_filtered_index - available_rows // 2)
         end_index = min(len(filtered), start_index + available_rows)
@@ -99,11 +102,7 @@ def select_from_list[T](
         if not filtered:
             return
         # Find current position in filtered list
-        current_pos = 0
-        for idx, (orig_idx, _) in enumerate(filtered):
-            if orig_idx == selected_index:
-                current_pos = idx
-                break
+        current_pos = find_position_in_filtered(filtered)
         # Move to previous filtered item
         current_pos = (current_pos - 1) % len(filtered)
         selected_index = filtered[current_pos][0]
@@ -116,11 +115,7 @@ def select_from_list[T](
         if not filtered:
             return
         # Find current position in filtered list
-        current_pos = 0
-        for idx, (orig_idx, _) in enumerate(filtered):
-            if orig_idx == selected_index:
-                current_pos = idx
-                break
+        current_pos = find_position_in_filtered(filtered)
         # Move to next filtered item
         current_pos = (current_pos + 1) % len(filtered)
         selected_index = filtered[current_pos][0]
