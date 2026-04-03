@@ -4,18 +4,18 @@
 
 A minimal agent running in your terminal.
 
-## Quick Start
+## Installation
 
 ```bash
 uv tool install git+https://github.com/kowyo/mini-agent.git@main
-export ANTHROPIC_API_KEY=<your_anthropic_api_key>
 mini-agent
 ```
 
 ## Development
 
 ```bash
+git clone https://github.com/kowyo/mini-agent
+cd mini-agent
 make prepare
-export ANTHROPIC_API_KEY=<your_anthropic_api_key>
 uv run mini-agent
 ```
