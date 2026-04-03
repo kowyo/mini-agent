@@ -68,7 +68,7 @@ def select_from_list[T](
             if search_text:
                 fragments.append(("", f"Search: {search_text}\n\n"))
             else:
-                fragments.append(("", "Type to search...\n\n"))
+                fragments.append((LIGHT_HINT_STYLE, "Type to search...\n\n"))
 
         if not filtered:
             fragments.append((LIGHT_HINT_STYLE, "  No matches found\n"))
