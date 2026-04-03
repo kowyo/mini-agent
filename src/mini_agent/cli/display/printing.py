@@ -82,10 +82,6 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
         print(f"> {name} - {input_data['path']}")
         return
 
-    if name == "todo":
-        print(f"> {name}")
-        return
-
     if name == "load_skill":
         print(f"> {name} - {input_data['name']}")
         return
@@ -111,10 +107,6 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
         start_line = edited_content[:pos].count("\n") + 1 if pos != -1 else 1
         diff = format_edit_diff(old_text, new_text, start_line)
         print(f"{diff}\n")
-        return
-
-    if name == "todo":
-        print(f"{output[:200]}\n")
         return
 
     if name in ("read_file", "write_file", "load_skill"):
