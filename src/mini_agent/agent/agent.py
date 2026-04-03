@@ -31,7 +31,6 @@ Available skills:
 
 
 def agent_loop(messages: list[MessageParam]) -> None:
-    rounds_since_todo = 0
     model = config.get_model()
     max_tokens = get_max_output_tokens(model) or 1024
 
@@ -97,7 +96,6 @@ def agent_loop(messages: list[MessageParam]) -> None:
         messages.append({"role": "assistant", "content": response.content})
         token_tracker.update(response.usage.input_tokens, response.usage.output_tokens)
 
-        used_todo = False
         results = []
         working_status = None
         for block in response.content:
@@ -114,20 +112,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 results.append(
                     {"type": "tool_result", "tool_use_id": block.id, "content": output}
                 )
-                if block.name == "todo":
-                    used_todo = True
 
         if working_status is not None:
             working_status.stop()
 
         if response.stop_reason != "tool_use":
             return
-
-        rounds_since_todo = 0 if used_todo else rounds_since_todo + 1
-        if rounds_since_todo >= 3:
-            results.insert(
-                0,
-                {"type": "text", "text": "<reminder>Update your todos.</reminder>"},
-            )
 
         messages.append({"role": "user", "content": results})
