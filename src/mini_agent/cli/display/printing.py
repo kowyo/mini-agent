@@ -12,7 +12,7 @@ from rich.text import Text
 from ...agent.tools import safe_path
 from ...config import CLI_NAME, CLI_VERSION, config
 from .diff import format_edit_diff
-from .theme import PROMPT_ACCENT_COLOR
+from .theme import LIGHT_HINT_STYLE_RICH, PROMPT_ACCENT_COLOR
 
 _console = Console()
 
@@ -97,7 +97,7 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
     """Print tool output after execution."""
     if name == "bash":
         text = Text.from_ansi(output[:200])
-        text.stylize("dim")
+        text.stylize(LIGHT_HINT_STYLE_RICH)
         _console.print(text)
         print()
         return

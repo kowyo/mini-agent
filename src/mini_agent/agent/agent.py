@@ -8,7 +8,7 @@ from anthropic.types import (
 )
 from rich.console import Console
 
-from ..cli.display import print_tool_result, print_tool_start
+from ..cli.display import LIGHT_HINT_STYLE_RICH, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
 from ..cli.token import token_tracker
 from ..config import WORKDIR, client, config
@@ -73,7 +73,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             if not thinking_started:
                                 status.stop()
                                 thinking_started = True
-                            print(event.delta.thinking, end="", flush=True)
+                            _console.print(
+                                event.delta.thinking,
+                                end="",
+                                style=LIGHT_HINT_STYLE_RICH,
+                            )
                         elif isinstance(event.delta, TextDelta) and event.delta.text:
                             if not text_started:
                                 status.stop()
