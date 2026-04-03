@@ -34,7 +34,7 @@ def select_from_list[T](
         return [
             (i, item)
             for i, item in enumerate(items)
-            if query in format_item(item).lower()
+            if query in format_item(item).replace("\n", " ").lower()
         ]
 
     def render() -> FormattedText:
