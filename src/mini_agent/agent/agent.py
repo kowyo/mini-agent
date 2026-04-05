@@ -1,10 +1,8 @@
 import anthropic
 from anthropic.types import (
     MessageParam,
-    RawContentBlockDeltaEvent,
-    RawContentBlockStopEvent,
-    TextDelta,
-    ThinkingDelta,
+    TextBlock,
+    ThinkingBlock,
     ToolUseBlock,
 )
 from rich.console import Console
@@ -39,8 +37,6 @@ def agent_loop(messages: list[MessageParam]) -> None:
     while True:
         status = console.status("Thinking")
         status.start()
-        full_text = ""
-        full_thinking_text = ""
 
         effort = config.get_reasoning_effort()
         if effort == "disabled":
@@ -66,31 +62,20 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 if output_config is not None:
                     stream_kwargs["output_config"] = output_config
             with client.messages.stream(**stream_kwargs) as stream:
-                for event in stream:
-                    if isinstance(event, RawContentBlockDeltaEvent):
-                        if (
-                            isinstance(event.delta, ThinkingDelta)
-                            and event.delta.thinking
-                        ):
-                            full_thinking_text += event.delta.thinking
-                        elif isinstance(event.delta, TextDelta) and event.delta.text:
-                            full_text += event.delta.text
-                    elif isinstance(event, RawContentBlockStopEvent):
-                        status.stop()
-                        if full_thinking_text:
-                            console.print(
-                                Markdown(full_thinking_text),
-                                end="",
-                                style=LIGHT_HINT_STYLE_RICH,
-                            )
-                            print()
-                            full_thinking_text = ""
-                        if full_text:
-                            console.print(Markdown(full_text))
-                            print()
-                            full_text = ""
                 response = stream.get_final_message()
                 status.stop()
+
+                for block in response.content:
+                    if isinstance(block, ThinkingBlock):
+                        console.print(
+                            Markdown(block.thinking),
+                            end="",
+                            style=LIGHT_HINT_STYLE_RICH,
+                        )
+                        print()
+                    elif isinstance(block, TextBlock):
+                        console.print(Markdown(block.text))
+                        print()
         except (TypeError, anthropic.APIStatusError) as e:
             status.stop()
             print(f"Unexpected {e=}\n")
