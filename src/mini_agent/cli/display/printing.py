@@ -7,6 +7,7 @@ from anthropic.types import MessageParam
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.text import Text
 
 from ...agent.tools import safe_path
@@ -14,7 +15,7 @@ from ...config import CLI_NAME, CLI_VERSION, config
 from .diff import format_edit_diff
 from .theme import LIGHT_HINT_STYLE_RICH, PROMPT_ACCENT_COLOR
 
-_console = Console()
+console = Console()
 
 
 def clear_terminal() -> None:
@@ -65,7 +66,8 @@ def print_session_history(history: list[MessageParam]) -> None:
                 if isinstance(block, dict) and block.get("type") == "text":
                     text = str(block.get("text", "")).strip()
                     if text:
-                        print(f"> {text}\n")
+                        md = Markdown(text)
+                        console.print(md)
 
 
 def print_tool_start(name: str, input_data: dict[str, object]) -> None:
@@ -98,7 +100,7 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
     if name == "bash":
         text = Text.from_ansi(output[:200])
         text.stylize(LIGHT_HINT_STYLE_RICH)
-        _console.print(text)
+        console.print(text)
         print()
         return
 

@@ -7,6 +7,7 @@ from anthropic.types import (
     ToolUseBlock,
 )
 from rich.console import Console
+from rich.markdown import Markdown
 
 from ..cli.display import LIGHT_HINT_STYLE_RICH, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
@@ -15,7 +16,7 @@ from ..config import WORKDIR, client, config
 from .skills import skill_loader
 from .tools import TOOL_HANDLERS, TOOLS
 
-_console = Console()
+console = Console()
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
 
@@ -35,10 +36,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
     max_tokens = get_max_output_tokens(model) or 1024
 
     while True:
-        status = _console.status("Thinking")
+        status = console.status("Thinking")
         status.start()
         thinking_started = False
         text_started = False
+        full_text = ""
 
         effort = config.get_reasoning_effort()
         if effort == "disabled":
@@ -73,7 +75,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             if not thinking_started:
                                 status.stop()
                                 thinking_started = True
-                            _console.print(
+                            console.print(
                                 event.delta.thinking,
                                 end="",
                                 style=LIGHT_HINT_STYLE_RICH,
@@ -84,8 +86,10 @@ def agent_loop(messages: list[MessageParam]) -> None:
                                 if thinking_started:
                                     print("\n", flush=True)
                                 text_started = True
-                            print(event.delta.text, end="", flush=True)
+                            full_text += f"{event.delta.text}"
                 response = stream.get_final_message()
+                md_full_text = Markdown(full_text)
+                console.print(md_full_text)
         except (TypeError, anthropic.APIStatusError) as e:
             status.stop()
             print(f"Unexpected {e=}\n")
@@ -105,7 +109,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
         for block in response.content:
             if isinstance(block, ToolUseBlock):
                 if working_status is None:
-                    working_status = _console.status("Working")
+                    working_status = console.status("Working")
                     working_status.start()
                 handler = TOOL_HANDLERS.get(block.name)
                 print_tool_start(block.name, block.input)
