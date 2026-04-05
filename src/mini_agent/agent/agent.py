@@ -2,6 +2,7 @@ import anthropic
 from anthropic.types import (
     MessageParam,
     RawContentBlockDeltaEvent,
+    RawContentBlockStopEvent,
     TextDelta,
     ThinkingDelta,
     ToolUseBlock,
@@ -74,18 +75,22 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             full_thinking_text += event.delta.thinking
                         elif isinstance(event.delta, TextDelta) and event.delta.text:
                             full_text += event.delta.text
+                    elif isinstance(event, RawContentBlockStopEvent):
+                        status.stop()
+                        if full_thinking_text:
+                            console.print(
+                                Markdown(full_thinking_text),
+                                end="",
+                                style=LIGHT_HINT_STYLE_RICH,
+                            )
+                            print()
+                            full_thinking_text = ""
+                        if full_text:
+                            console.print(Markdown(full_text))
+                            print()
+                            full_text = ""
                 response = stream.get_final_message()
                 status.stop()
-                if full_thinking_text != "":
-                    console.print(
-                        Markdown(full_thinking_text),
-                        end="",
-                        style=LIGHT_HINT_STYLE_RICH,
-                    )
-                    print()
-                if full_text != "":
-                    console.print(Markdown(full_text))
-                    print()
         except (TypeError, anthropic.APIStatusError) as e:
             status.stop()
             print(f"Unexpected {e=}\n")
