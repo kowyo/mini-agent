@@ -1,14 +1,15 @@
 import anthropic
+from anthropic.lib.streaming import ContentBlockStopEvent, TextEvent
+from anthropic.lib.streaming._types import ThinkingEvent
 from anthropic.types import (
     MessageParam,
-    RawContentBlockDeltaEvent,
-    RawContentBlockStopEvent,
-    TextDelta,
-    ThinkingDelta,
+    RawContentBlockStartEvent,
     ToolUseBlock,
 )
 from rich.console import Console
+from rich.live import Live
 from rich.markdown import Markdown
+from rich.styled import Styled
 
 from ..cli.display import LIGHT_HINT_STYLE_RICH, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
@@ -39,8 +40,6 @@ def agent_loop(messages: list[MessageParam]) -> None:
     while True:
         status = console.status("Thinking")
         status.start()
-        full_text = ""
-        full_thinking_text = ""
 
         effort = config.get_reasoning_effort()
         if effort == "disabled":
@@ -53,6 +52,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             thinking_param = {"type": "adaptive"}
             output_config = {"effort": effort}
 
+        live: Live | None = None
         try:
             stream_kwargs: dict = {
                 "model": model,
@@ -67,31 +67,27 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     stream_kwargs["output_config"] = output_config
             with client.messages.stream(**stream_kwargs) as stream:
                 for event in stream:
-                    if isinstance(event, RawContentBlockDeltaEvent):
-                        if (
-                            isinstance(event.delta, ThinkingDelta)
-                            and event.delta.thinking
-                        ):
-                            full_thinking_text += event.delta.thinking
-                        elif isinstance(event.delta, TextDelta) and event.delta.text:
-                            full_text += event.delta.text
-                    elif isinstance(event, RawContentBlockStopEvent):
-                        status.stop()
-                        if full_thinking_text:
-                            console.print(
-                                Markdown(full_thinking_text),
-                                end="",
-                                style=LIGHT_HINT_STYLE_RICH,
-                            )
+                    if isinstance(event, RawContentBlockStartEvent):
+                        if event.content_block.type in ("thinking", "text"):
+                            status.stop()
+                            live = Live(console=console, refresh_per_second=15, vertical_overflow="visible")
+                            live.start()
+                    elif isinstance(event, ThinkingEvent):
+                        if live:
+                            live.update(Styled(Markdown(event.snapshot), style=LIGHT_HINT_STYLE_RICH))
+                    elif isinstance(event, TextEvent):
+                        if live:
+                            live.update(Markdown(event.snapshot))
+                    elif isinstance(event, ContentBlockStopEvent):
+                        if live:
+                            live.stop()
+                            live = None
                             print()
-                            full_thinking_text = ""
-                        if full_text:
-                            console.print(Markdown(full_text))
-                            print()
-                            full_text = ""
                 response = stream.get_final_message()
                 status.stop()
         except (TypeError, anthropic.APIStatusError) as e:
+            if live:
+                live.stop()
             status.stop()
             print(f"Unexpected {e=}\n")
             messages.pop()
