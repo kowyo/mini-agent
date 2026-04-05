@@ -7,6 +7,7 @@ from anthropic.types import (
     ToolUseBlock,
 )
 from rich.console import Console
+from rich.markdown import Markdown
 
 from ..cli.display import LIGHT_HINT_STYLE_RICH, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
@@ -15,7 +16,7 @@ from ..config import WORKDIR, client, config
 from .skills import skill_loader
 from .tools import TOOL_HANDLERS, TOOLS
 
-_console = Console()
+console = Console()
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
 
@@ -35,10 +36,10 @@ def agent_loop(messages: list[MessageParam]) -> None:
     max_tokens = get_max_output_tokens(model) or 1024
 
     while True:
-        status = _console.status("Thinking")
+        status = console.status("Thinking")
         status.start()
-        thinking_started = False
-        text_started = False
+        full_text = ""
+        full_thinking_text = ""
 
         effort = config.get_reasoning_effort()
         if effort == "disabled":
@@ -70,32 +71,26 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             isinstance(event.delta, ThinkingDelta)
                             and event.delta.thinking
                         ):
-                            if not thinking_started:
-                                status.stop()
-                                thinking_started = True
-                            _console.print(
-                                event.delta.thinking,
-                                end="",
-                                style=LIGHT_HINT_STYLE_RICH,
-                            )
+                            full_thinking_text += event.delta.thinking
                         elif isinstance(event.delta, TextDelta) and event.delta.text:
-                            if not text_started:
-                                status.stop()
-                                if thinking_started:
-                                    print("\n", flush=True)
-                                text_started = True
-                            print(event.delta.text, end="", flush=True)
+                            full_text += event.delta.text
                 response = stream.get_final_message()
+                status.stop()
+                if full_thinking_text != "":
+                    console.print(
+                        Markdown(full_thinking_text),
+                        end="",
+                        style=LIGHT_HINT_STYLE_RICH,
+                    )
+                    print()
+                if full_text != "":
+                    console.print(Markdown(full_text))
+                    print()
         except (TypeError, anthropic.APIStatusError) as e:
             status.stop()
             print(f"Unexpected {e=}\n")
             messages.pop()
             return
-
-        if text_started or thinking_started:
-            print("\n")
-        else:
-            status.stop()
 
         messages.append({"role": "assistant", "content": response.content})
         token_tracker.update(response.usage.input_tokens, response.usage.output_tokens)
@@ -105,7 +100,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
         for block in response.content:
             if isinstance(block, ToolUseBlock):
                 if working_status is None:
-                    working_status = _console.status("Working")
+                    working_status = console.status("Working")
                     working_status.start()
                 handler = TOOL_HANDLERS.get(block.name)
                 print_tool_start(block.name, block.input)
