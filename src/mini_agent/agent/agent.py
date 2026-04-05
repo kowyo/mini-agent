@@ -70,19 +70,27 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     if isinstance(event, RawContentBlockStartEvent):
                         if event.content_block.type in ("thinking", "text"):
                             status.stop()
-                            live = Live(console=console, refresh_per_second=15, vertical_overflow="visible")
+                            live = Live(
+                                console=console,
+                                refresh_per_second=15,
+                                vertical_overflow="visible",
+                            )
                             live.start()
                     elif isinstance(event, ThinkingEvent):
                         if live:
-                            live.update(Styled(Markdown(event.snapshot), style=LIGHT_HINT_STYLE_RICH))
+                            live.update(
+                                Styled(
+                                    Markdown(event.snapshot),
+                                    style=LIGHT_HINT_STYLE_RICH,
+                                )
+                            )
                     elif isinstance(event, TextEvent):
                         if live:
                             live.update(Markdown(event.snapshot))
-                    elif isinstance(event, ContentBlockStopEvent):
-                        if live:
-                            live.stop()
-                            live = None
-                            print()
+                    elif isinstance(event, ContentBlockStopEvent) and live:
+                        live.stop()
+                        live = None
+                        print()
                 response = stream.get_final_message()
                 status.stop()
         except (TypeError, anthropic.APIStatusError) as e:
