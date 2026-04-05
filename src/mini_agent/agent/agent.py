@@ -38,9 +38,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
     while True:
         status = console.status("Thinking")
         status.start()
-        thinking_started = False
-        text_started = False
         full_text = ""
+        full_thinking_text = ""
 
         effort = config.get_reasoning_effort()
         if effort == "disabled":
@@ -72,34 +71,22 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             isinstance(event.delta, ThinkingDelta)
                             and event.delta.thinking
                         ):
-                            if not thinking_started:
-                                status.stop()
-                                thinking_started = True
-                            console.print(
-                                event.delta.thinking,
-                                end="",
-                                style=LIGHT_HINT_STYLE_RICH,
-                            )
+                            full_thinking_text += f"{event.delta.thinking}"
                         elif isinstance(event.delta, TextDelta) and event.delta.text:
-                            if not text_started:
-                                status.stop()
-                                if thinking_started:
-                                    print("\n", flush=True)
-                                text_started = True
                             full_text += f"{event.delta.text}"
                 response = stream.get_final_message()
-                md_full_text = Markdown(full_text)
-                console.print(md_full_text)
+                status.stop()
+                console.print(
+                    Markdown(full_thinking_text), end="", style=LIGHT_HINT_STYLE_RICH
+                )
+                print()
+                console.print(Markdown(full_text))
+                print()
         except (TypeError, anthropic.APIStatusError) as e:
             status.stop()
             print(f"Unexpected {e=}\n")
             messages.pop()
             return
-
-        if text_started or thinking_started:
-            print("\n")
-        else:
-            status.stop()
 
         messages.append({"role": "assistant", "content": response.content})
         token_tracker.update(response.usage.input_tokens, response.usage.output_tokens)
