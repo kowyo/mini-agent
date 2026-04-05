@@ -71,9 +71,9 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             isinstance(event.delta, ThinkingDelta)
                             and event.delta.thinking
                         ):
-                            full_thinking_text += f"{event.delta.thinking}"
+                            full_thinking_text += event.delta.thinking
                         elif isinstance(event.delta, TextDelta) and event.delta.text:
-                            full_text += f"{event.delta.text}"
+                            full_text += event.delta.text
                 response = stream.get_final_message()
                 status.stop()
                 if full_thinking_text != "":
