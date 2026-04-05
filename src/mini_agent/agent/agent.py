@@ -76,12 +76,16 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             full_text += f"{event.delta.text}"
                 response = stream.get_final_message()
                 status.stop()
-                console.print(
-                    Markdown(full_thinking_text), end="", style=LIGHT_HINT_STYLE_RICH
-                )
-                print()
-                console.print(Markdown(full_text))
-                print()
+                if full_thinking_text != "":
+                    console.print(
+                        Markdown(full_thinking_text),
+                        end="",
+                        style=LIGHT_HINT_STYLE_RICH,
+                    )
+                    print()
+                if full_text != "":
+                    console.print(Markdown(full_text))
+                    print()
         except (TypeError, anthropic.APIStatusError) as e:
             status.stop()
             print(f"Unexpected {e=}\n")
