@@ -66,8 +66,8 @@ def print_session_history(history: list[MessageParam]) -> None:
                 if isinstance(block, dict) and block.get("type") == "text":
                     text = str(block.get("text", "")).strip()
                     if text:
-                        md = Markdown(text)
-                        console.print(md)
+                        console.print(Markdown(text))
+                        print()
 
 
 def print_tool_start(name: str, input_data: dict[str, object]) -> None:
