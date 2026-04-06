@@ -36,6 +36,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
     try:
         while True:
+            working_status = None
             status = console.status("Thinking")
             status.start()
 
@@ -89,7 +90,6 @@ def agent_loop(messages: list[MessageParam]) -> None:
             )
 
             results = []
-            working_status = None
             for block in response.content:
                 if isinstance(block, ToolUseBlock):
                     if working_status is None:
