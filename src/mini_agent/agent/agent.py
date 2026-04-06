@@ -34,81 +34,99 @@ def agent_loop(messages: list[MessageParam]) -> None:
     model = config.get_model()
     max_tokens = get_max_output_tokens(model) or 1024
 
-    while True:
-        status = console.status("Thinking")
-        status.start()
+    try:
+        while True:
+            status = console.status("Thinking")
+            status.start()
 
-        effort = config.get_reasoning_effort()
-        if effort == "disabled":
-            thinking_param = None
-            output_config = None
-        elif effort == "adaptive":
-            thinking_param = {"type": "adaptive"}
-            output_config = None
-        else:
-            thinking_param = {"type": "adaptive"}
-            output_config = {"effort": effort}
+            effort = config.get_reasoning_effort()
+            if effort == "disabled":
+                thinking_param = None
+                output_config = None
+            elif effort == "adaptive":
+                thinking_param = {"type": "adaptive"}
+                output_config = None
+            else:
+                thinking_param = {"type": "adaptive"}
+                output_config = {"effort": effort}
 
-        try:
-            stream_kwargs: dict = {
-                "model": model,
-                "system": SYSTEM,
-                "messages": messages,
-                "tools": TOOLS,
-                "max_tokens": max_tokens,
-            }
-            if thinking_param is not None:
-                stream_kwargs["thinking"] = thinking_param
-                if output_config is not None:
-                    stream_kwargs["output_config"] = output_config
-            with client.messages.stream(**stream_kwargs) as stream:
-                response = stream.get_final_message()
+            try:
+                stream_kwargs: dict = {
+                    "model": model,
+                    "system": SYSTEM,
+                    "messages": messages,
+                    "tools": TOOLS,
+                    "max_tokens": max_tokens,
+                }
+                if thinking_param is not None:
+                    stream_kwargs["thinking"] = thinking_param
+                    if output_config is not None:
+                        stream_kwargs["output_config"] = output_config
+                with client.messages.stream(**stream_kwargs) as stream:
+                    response = stream.get_final_message()
+                    status.stop()
+
+                    for block in response.content:
+                        if isinstance(block, ThinkingBlock):
+                            console.print(
+                                Markdown(block.thinking),
+                                end="",
+                                style=LIGHT_HINT_STYLE_RICH,
+                            )
+                            print()
+                        elif isinstance(block, TextBlock):
+                            console.print(Markdown(block.text))
+                            print()
+            except (TypeError, anthropic.APIStatusError) as e:
                 status.stop()
+                print(f"Unexpected {e=}\n")
+                messages.pop()
+                return
 
-                for block in response.content:
-                    if isinstance(block, ThinkingBlock):
-                        console.print(
-                            Markdown(block.thinking),
-                            end="",
-                            style=LIGHT_HINT_STYLE_RICH,
-                        )
-                        print()
-                    elif isinstance(block, TextBlock):
-                        console.print(Markdown(block.text))
-                        print()
-        except (TypeError, anthropic.APIStatusError) as e:
-            status.stop()
-            print(f"Unexpected {e=}\n")
-            messages.pop()
-            return
+            messages.append({"role": "assistant", "content": response.content})
+            token_tracker.update(
+                response.usage.input_tokens, response.usage.output_tokens
+            )
 
-        messages.append({"role": "assistant", "content": response.content})
-        token_tracker.update(response.usage.input_tokens, response.usage.output_tokens)
+            results = []
+            working_status = None
+            for block in response.content:
+                if isinstance(block, ToolUseBlock):
+                    if working_status is None:
+                        working_status = console.status("Working")
+                        working_status.start()
+                    handler = TOOL_HANDLERS.get(block.name)
+                    print_tool_start(block.name, block.input)
+                    output = (
+                        handler(**block.input)
+                        if handler
+                        else f"Unknown tool: {block.name}"
+                    )
+                    if working_status is not None:
+                        working_status.stop()
+                        working_status = None
+                    print_tool_result(block.name, block.input, output)
+                    results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": output,
+                        }
+                    )
 
-        results = []
-        working_status = None
-        for block in response.content:
-            if isinstance(block, ToolUseBlock):
-                if working_status is None:
-                    working_status = console.status("Working")
-                    working_status.start()
-                handler = TOOL_HANDLERS.get(block.name)
-                print_tool_start(block.name, block.input)
-                output = (
-                    handler(**block.input) if handler else f"Unknown tool: {block.name}"
-                )
-                if working_status is not None:
-                    working_status.stop()
-                    working_status = None
-                print_tool_result(block.name, block.input, output)
-                results.append(
-                    {"type": "tool_result", "tool_use_id": block.id, "content": output}
-                )
+            if working_status is not None:
+                working_status.stop()
 
+            if response.stop_reason != "tool_use":
+                return
+
+            messages.append({"role": "user", "content": results})
+
+    except KeyboardInterrupt:
+        console.print(
+            "[bold yellow]■ Conversation interrupted - tell the model [/bold yellow]"
+        )
+        status.stop()
         if working_status is not None:
             working_status.stop()
-
-        if response.stop_reason != "tool_use":
-            return
-
-        messages.append({"role": "user", "content": results})
+        print()
