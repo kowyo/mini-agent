@@ -34,6 +34,9 @@ def agent_loop(messages: list[MessageParam]) -> None:
     model = config.get_model()
     max_tokens = get_max_output_tokens(model) or 1024
 
+    working_status = None
+    thinking_status = None
+
     try:
         while True:
             working_status = None
@@ -126,7 +129,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
         console.print(
             "[bold yellow]■ Conversation interrupted - tell the model [/bold yellow]"
         )
-        thinking_status.stop()
+        if thinking_status is not None:
+            thinking_status.stop()
         if working_status is not None:
             working_status.stop()
         print()
