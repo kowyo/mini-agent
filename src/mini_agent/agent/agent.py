@@ -37,8 +37,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
     try:
         while True:
             working_status = None
-            status = console.status("Thinking")
-            status.start()
+            thinking_status = console.status("Thinking")
+            thinking_status.start()
 
             effort = config.get_reasoning_effort()
             if effort == "disabled":
@@ -65,7 +65,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                         stream_kwargs["output_config"] = output_config
                 with client.messages.stream(**stream_kwargs) as stream:
                     response = stream.get_final_message()
-                    status.stop()
+                    thinking_status.stop()
 
                     for block in response.content:
                         if isinstance(block, ThinkingBlock):
@@ -79,7 +79,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             console.print(Markdown(block.text))
                             print()
             except (TypeError, anthropic.APIStatusError) as e:
-                status.stop()
+                thinking_status.stop()
                 print(f"Unexpected {e=}\n")
                 messages.pop()
                 return
@@ -126,7 +126,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
         console.print(
             "[bold yellow]■ Conversation interrupted - tell the model [/bold yellow]"
         )
-        status.stop()
+        thinking_status.stop()
         if working_status is not None:
             working_status.stop()
         print()
