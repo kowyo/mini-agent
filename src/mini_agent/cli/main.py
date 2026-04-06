@@ -1,6 +1,7 @@
 import argparse
 import uuid
 from collections.abc import Callable
+from importlib.metadata import version
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
@@ -142,6 +143,12 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="A minimal agent.")
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {version('mini-agent')}",
+    )
     parser.add_argument(
         "-m",
         "--model",
