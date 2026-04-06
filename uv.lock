@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.14"
 
 [options]
-exclude-newer = "2026-03-26T14:18:33.219935Z"
+exclude-newer = "2026-03-30T09:27:52.818775Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -320,7 +320,7 @@ wheels = [
 
 [[package]]
 name = "mini-agent"
-version = "0.8.0"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
