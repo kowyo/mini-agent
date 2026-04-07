@@ -90,8 +90,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
             messages.append({"role": "assistant", "content": response.content})
             usage = response.usage
-            cache_create = getattr(usage, "cache_creation_input_tokens", 0)
-            cache_read = getattr(usage, "cache_read_input_tokens", 0)
+            cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
+            cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
             total_input_tokens = cache_create + cache_read + usage.input_tokens
             token_tracker.update(total_input_tokens, usage.output_tokens)
 
