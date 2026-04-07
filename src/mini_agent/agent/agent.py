@@ -57,10 +57,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
             try:
                 stream_kwargs: dict = {
                     "model": model,
+                    "max_tokens": max_tokens,
+                    "cache_control": {"type": "ephemeral"},
                     "system": SYSTEM,
                     "messages": messages,
                     "tools": TOOLS,
-                    "max_tokens": max_tokens,
                 }
                 if thinking_param is not None:
                     stream_kwargs["thinking"] = thinking_param
@@ -88,9 +89,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 return
 
             messages.append({"role": "assistant", "content": response.content})
-            token_tracker.update(
-                response.usage.input_tokens, response.usage.output_tokens
-            )
+            usage = response.usage
+            cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
+            cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+            total_input_tokens = cache_create + cache_read + usage.input_tokens
+            token_tracker.update(total_input_tokens, usage.output_tokens)
 
             results = []
             for block in response.content:
