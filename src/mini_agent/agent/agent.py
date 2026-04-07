@@ -57,10 +57,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
             try:
                 stream_kwargs: dict = {
                     "model": model,
+                    "max_tokens": max_tokens,
+                    "cache_control": {"type": "ephemeral"},
                     "system": SYSTEM,
                     "messages": messages,
                     "tools": TOOLS,
-                    "max_tokens": max_tokens,
                 }
                 if thinking_param is not None:
                     stream_kwargs["thinking"] = thinking_param
