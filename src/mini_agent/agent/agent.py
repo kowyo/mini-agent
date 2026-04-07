@@ -58,11 +58,12 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 stream_kwargs: dict = {
                     "model": model,
                     "max_tokens": max_tokens,
-                    "cache_control": {"type": "ephemeral"},
                     "system": SYSTEM,
                     "messages": messages,
                     "tools": TOOLS,
                 }
+                if "claude" in model.lower():
+                    stream_kwargs["cache_control"] = {"type": "ephemeral"}
                 if thinking_param is not None:
                     stream_kwargs["thinking"] = thinking_param
                     if output_config is not None:
