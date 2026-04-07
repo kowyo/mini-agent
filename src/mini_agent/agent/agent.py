@@ -131,7 +131,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
     except KeyboardInterrupt:
         console.print(
-            "[bold yellow]■ Conversation interrupted - tell the model [/bold yellow]"
+            "[bold yellow]■ Conversation interrupted - tell the model what to do differently[/bold yellow]"
         )
         if thinking_status is not None:
             thinking_status.stop()
