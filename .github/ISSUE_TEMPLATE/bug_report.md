@@ -26,8 +26,7 @@ assignees: ""
 
 ## Environment
 - OS: [e.g. macOS, Windows, Linux]
-- Browser: [e.g. Chrome, Safari, Firefox]
-- Version: [e.g. 22]
+- CLI Version: [e.g. 1.2.3]
 
 ## Additional Context
 <!-- Add any other context about the problem here. -->
