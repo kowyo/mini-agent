@@ -99,7 +99,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
         except StopIteration:
-            print("Can't find the session id you want to resume.\n")
+            print("Session ID not found.\n")
 
     while True:
         try:
@@ -173,8 +173,10 @@ def main() -> None:
         "-r",
         "--resume",
         dest="session_id",
+        nargs="?",
+        const="__LATEST__",
         type=str,
-        help="Resume a specific session by ID",
+        help="Resume a session by ID, or resume the most recent session if no ID provided",
     )
     parser.add_argument(
         "prompt",
@@ -194,4 +196,13 @@ def main() -> None:
         _run_non_interactive(args.print_prompt)
         return
 
-    _run_interactive(args.prompt, args.session_id)
+    session_id: str | None = args.session_id
+    if session_id == "__LATEST__":
+        sessions = list_sessions()
+        if sessions:
+            session_id = sessions[0].session_id
+        else:
+            print("No saved sessions found.")
+            return
+
+    _run_interactive(args.prompt, session_id)
