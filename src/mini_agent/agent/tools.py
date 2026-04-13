@@ -80,7 +80,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     "read_file": lambda **kw: run_read(kw["path"], kw.get("limit")),
     "write_file": lambda **kw: run_write(kw["path"], kw["content"]),
     "edit_file": lambda **kw: run_edit(kw["path"], kw["old_text"], kw["new_text"]),
-    "load_skill": lambda **kw: skill_loader.get_content(kw["name"]),
+    "activate_skill": lambda **kw: skill_loader.get_content(kw["name"]),
 }
 
 TOOLS: list[ToolParam] = [
@@ -104,7 +104,7 @@ TOOLS: list[ToolParam] = [
     },
     {
         "name": "write_file",
-        "description": "Write content to file.",
+        "description": "Write content to a file.",
         "input_schema": {
             "type": "object",
             "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
@@ -113,7 +113,7 @@ TOOLS: list[ToolParam] = [
     },
     {
         "name": "edit_file",
-        "description": "Replace exact text in file.",
+        "description": "Replace exact text in a file.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -125,7 +125,7 @@ TOOLS: list[ToolParam] = [
         },
     },
     {
-        "name": "load_skill",
+        "name": "activate_skill",
         "description": "Load specialized knowledge by name.",
         "input_schema": {
             "type": "object",

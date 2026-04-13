@@ -88,7 +88,7 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
         print(f"> {name} - {input_data['path']}")
         return
 
-    if name == "load_skill":
+    if name == "activate_skill":
         print(f"> {name} - {input_data['name']}")
         return
 
@@ -118,7 +118,7 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
         print(f"{diff}\n")
         return
 
-    if name in ("read_file", "write_file", "load_skill"):
+    if name in ("read_file", "write_file", "activate_skill"):
         print()
         return
 
