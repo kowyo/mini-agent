@@ -1,3 +1,5 @@
+from datetime import date
+
 import anthropic
 from anthropic.types import (
     MessageParam,
@@ -19,7 +21,7 @@ console = Console()
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
 
-_SYSTEM_BASE = f"""You are an expert coding assistant at {WORKDIR}. You help users by reading files, executing commands, editing code, and writing new files.
+_SYSTEM_BASE = f"""You are an expert coding assistant. You help users by reading files, executing commands, editing code, and writing new files.
 
 Available tools:
 {TOOLS_LIST}
@@ -28,6 +30,9 @@ Available tools:
 SYSTEM = _SYSTEM_BASE
 if skill_loader.skills:
     SYSTEM += f"\nAvailable skills:\n{skill_loader.get_descriptions()}\n"
+SYSTEM += (
+    f"\nCurrent date: {date.today().isoformat()}\nCurrent working directory: {WORKDIR}"
+)
 
 
 def agent_loop(messages: list[MessageParam]) -> None:
