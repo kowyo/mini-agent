@@ -49,8 +49,35 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Generate categorized release notes with installation
+        run: |
+          # Generate auto-categorized notes using .github/release.yml
+          gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="${{ github.ref_name }}" \
+            -f target_commitish="${{ github.sha }}" \
+            -q .body > release_notes.md
+
+          # Append installation section
+          cat >> release_notes.md << EOF
+
+          ## Installation
+
+          Install this version using uv:
+
+          \`\`\`bash
+          uv tool install git+https://github.com/kowyo/mini-agent.git@${{ github.ref_name }}
+          \`\`\`
+          EOF
+
+          cat release_notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Create release and upload artifacts
-        run: gh release create ${{ github.ref_name }} dist/* --generate-notes --latest
+        run: |
+          gh release create ${{ github.ref_name }} dist/* \
+            --latest \
+            --notes-file release_notes.md
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
