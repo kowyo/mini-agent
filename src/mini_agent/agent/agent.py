@@ -53,10 +53,10 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 thinking_param = None
                 output_config = None
             elif effort == "adaptive":
-                thinking_param = {"type": "adaptive"}
+                thinking_param = {"type": "adaptive", "display": "summarized"}
                 output_config = None
             else:
-                thinking_param = {"type": "adaptive"}
+                thinking_param = {"type": "adaptive", "display": "summarized"}
                 output_config = {"effort": effort}
 
             try:
