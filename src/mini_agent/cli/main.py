@@ -2,6 +2,7 @@ import argparse
 import uuid
 from collections.abc import Callable
 from importlib.metadata import version
+from typing import Any
 
 from anthropic.types import MessageParam
 from prompt_toolkit import PromptSession
@@ -10,9 +11,11 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
+from rich.console import Console
 
 from ..agent.agent import agent_loop
 from ..config import REASONING_EFFORT_LEVELS, config
+from .clipboard import create_image_content_block, get_clipboard_image
 from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
@@ -31,9 +34,12 @@ from .sessions import (
 )
 from .token import token_tracker
 
+console = Console()
+
 
 def build_session(
     prompt: str | None = None,
+    attached_images: list[dict] | None = None,
 ) -> tuple[PromptSession, Callable[[], None] | None]:
     bindings = KeyBindings()
 
@@ -48,6 +54,22 @@ def build_session(
     @bindings.add("escape", "enter")
     def insert_newline(event: KeyPressEvent) -> None:
         event.current_buffer.insert_text("\n")
+
+    @bindings.add("c-v")
+    def paste_image(event: KeyPressEvent) -> None:
+        """Paste image from clipboard."""
+        img = get_clipboard_image()
+        if img is not None:
+            if attached_images is not None:
+                attached_images.append(create_image_content_block(img))
+                # Show feedback that image was attached
+                console.print(
+                    f"[dim]📎 Image attached ({img.width}x{img.height})[/dim]"
+                )
+        else:
+            # No image in clipboard, try normal paste behavior
+            # by letting the default handler process it
+            event.app.clipboard.get_data()
 
     session = PromptSession(
         HTML(f'<style color="{PROMPT_ACCENT_COLOR}">> </style>'),
@@ -70,6 +92,19 @@ def build_session(
     return session, pre_run
 
 
+def create_user_message(query: str, images: list[dict]) -> MessageParam:
+    """Create a user message with optional image content."""
+    if images:
+        # Multimodal message with text and images
+        content: list[dict[str, Any]] = []
+        if query.strip():
+            content.append({"type": "text", "text": query})
+        content.extend(images)
+        return {"role": "user", "content": content}
+    # Text-only message
+    return {"role": "user", "content": query}
+
+
 def _run_non_interactive(prompt: str) -> None:
     """Run the agent on a single prompt and exit (non-interactive mode)."""
     history: list[MessageParam] = [{"role": "user", "content": prompt}]
@@ -85,7 +120,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session, pre_run = build_session(prompt)
+    # Track images attached via Ctrl+V for the next message
+    attached_images: list[dict] = []
+    session, pre_run = build_session(prompt, attached_images)
 
     if session_id is not None:
         current_session_id = session_id
@@ -118,17 +155,24 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             history.clear()
             current_session_id = uuid.uuid4().hex
             token_tracker.reset()
+            attached_images.clear()
             clear_terminal()
             print_welcome_banner()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(current_session_id, history)
+            attached_images.clear()
             continue
         if command == "/model":
             prompt_model()
             continue
 
-        history.append({"role": "user", "content": query})
+        # Create message with attached images and add to history
+        message = create_user_message(query, attached_images)
+        history.append(message)
+        # Clear attached images after sending
+        attached_images.clear()
+
         history_len = len(history)
         agent_loop(history)
 

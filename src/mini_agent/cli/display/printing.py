@@ -40,14 +40,41 @@ def print_welcome_banner() -> None:
     print(f"╰{'─' * (width + 2)}╯\n")
 
 
+def _extract_text_from_content(content: str | list[object]) -> str:
+    """Extract text content from string or multimodal content blocks."""
+    if isinstance(content, str):
+        return content
+
+    texts: list[str] = []
+    image_count = 0
+    for block in content:
+        if isinstance(block, dict):
+            if block.get("type") == "text":
+                text = str(block.get("text", "")).strip()
+                if text:
+                    texts.append(text)
+            elif block.get("type") == "image":
+                image_count += 1
+
+    # Add image indicator if images are present
+    if image_count > 0:
+        indicator = f"📎 {image_count} image{'s' if image_count > 1 else ''}"
+        if texts:
+            texts.append(f"[{indicator}]")
+        else:
+            return f"[{indicator}]"
+
+    return " ".join(texts)
+
+
 def print_session_history(history: list[MessageParam]) -> None:
     clear_terminal()
     print_welcome_banner()
     for message in history:
         content = message["content"]
 
-        if message["role"] == "user" and isinstance(content, str):
-            text = content.strip()
+        if message["role"] == "user":
+            text = _extract_text_from_content(content).strip()
             if text:
                 lines = text.splitlines()
                 print_formatted_text(
