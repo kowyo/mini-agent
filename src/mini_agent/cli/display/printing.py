@@ -31,6 +31,8 @@ def print_welcome_banner() -> None:
         f" >_ {CLI_NAME} (v{CLI_VERSION})",
         "",
         f" model: {config.get_model()} {config.get_reasoning_effort()}",
+        "",
+        " Tips: Ctrl+V to paste image | Esc+Enter for new line",
     ]
     width = max(len(line) for line in lines)
 
@@ -40,14 +42,37 @@ def print_welcome_banner() -> None:
     print(f"╰{'─' * (width + 2)}╯\n")
 
 
+def _format_user_content(content: str | list[object]) -> str:
+    """Format user message content for display, extracting text from blocks."""
+    if isinstance(content, str):
+        return content.strip()
+
+    parts = []
+    has_image = False
+    for block in content:
+        if isinstance(block, dict):
+            block_type = block.get("type")
+            if block_type == "image":
+                has_image = True
+            elif block_type == "text":
+                text = str(block.get("text", "")).strip()
+                if text:
+                    parts.append(text)
+
+    if has_image:
+        parts.insert(0, "[Image attached]")
+
+    return "\n".join(parts)
+
+
 def print_session_history(history: list[MessageParam]) -> None:
     clear_terminal()
     print_welcome_banner()
     for message in history:
         content = message["content"]
 
-        if message["role"] == "user" and isinstance(content, str):
-            text = content.strip()
+        if message["role"] == "user":
+            text = _format_user_content(content)
             if text:
                 lines = text.splitlines()
                 print_formatted_text(

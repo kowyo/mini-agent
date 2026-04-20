@@ -13,6 +13,7 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from ..agent.agent import agent_loop
 from ..config import REASONING_EFFORT_LEVELS, config
+from .clipboard import get_clipboard_image
 from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
@@ -34,12 +35,14 @@ from .token import token_tracker
 
 def build_session(
     prompt: str | None = None,
-) -> tuple[PromptSession, Callable[[], None] | None]:
+) -> tuple[PromptSession, Callable[[], None] | None, list[dict]]:
     bindings = KeyBindings()
+    attached_images: list[dict] = []
 
     @bindings.add("c-c")
     def clear_buffer(event: KeyPressEvent) -> None:
         event.current_buffer.reset()
+        attached_images.clear()
 
     @bindings.add("enter")
     def submit(event: KeyPressEvent) -> None:
@@ -48,6 +51,27 @@ def build_session(
     @bindings.add("escape", "enter")
     def insert_newline(event: KeyPressEvent) -> None:
         event.current_buffer.insert_text("\n")
+
+    @bindings.add("c-v")
+    def paste_clipboard_image(event: KeyPressEvent) -> None:
+        """Paste image from clipboard with Ctrl+V."""
+        image = get_clipboard_image()
+        if image is None:
+            # No image in clipboard, let the default paste handler work
+            return
+
+        from .clipboard import create_image_content
+
+        image_block = create_image_content(image)
+        attached_images.append(image_block)
+
+        # Show visual feedback in the buffer
+        current_text = event.current_buffer.text
+        indicator = "[Image attached]"
+        if indicator not in current_text:
+            if current_text and not current_text.endswith("\n"):
+                event.current_buffer.insert_text("\n")
+            event.current_buffer.insert_text(f"{indicator}\n")
 
     session = PromptSession(
         HTML(f'<style color="{PROMPT_ACCENT_COLOR}">> </style>'),
@@ -67,7 +91,7 @@ def build_session(
             app.current_buffer.set_document(Document(prompt), bypass_readonly=True)
             app.current_buffer.validate_and_handle()
 
-    return session, pre_run
+    return session, pre_run, attached_images
 
 
 def _run_non_interactive(prompt: str) -> None:
@@ -85,7 +109,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session, pre_run = build_session(prompt)
+    session, pre_run, attached_images = build_session(prompt)
 
     if session_id is not None:
         current_session_id = session_id
@@ -107,6 +131,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             pre_run = None
             print()
         except KeyboardInterrupt:
+            attached_images.clear()
             continue
         except EOFError:
             break
@@ -118,17 +143,35 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             history.clear()
             current_session_id = uuid.uuid4().hex
             token_tracker.reset()
+            attached_images.clear()
             clear_terminal()
             print_welcome_banner()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(current_session_id, history)
+            attached_images.clear()
             continue
         if command == "/model":
             prompt_model()
+            attached_images.clear()
             continue
 
-        history.append({"role": "user", "content": query})
+        # Build content with attached images
+        content: str | list[dict]
+        if attached_images:
+            # Remove the indicator text from query
+            clean_query = query.replace("[Image attached]", "").strip()
+            content = []
+            # Add all attached images
+            content.extend(attached_images)
+            # Add text content if not empty
+            if clean_query:
+                content.append({"type": "text", "text": clean_query})
+            attached_images.clear()
+        else:
+            content = query
+
+        history.append({"role": "user", "content": content})
         history_len = len(history)
         agent_loop(history)
 
