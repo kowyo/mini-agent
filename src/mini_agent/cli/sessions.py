@@ -98,12 +98,19 @@ def summarize_content(content: str | Iterable[object]) -> str:
     if isinstance(content, str):
         return content.strip()
     texts: list[str] = []
+    has_image = False
     for block in content:
         if not isinstance(block, dict):
             continue
-        text = cast(dict[str, object], block).get("text")
-        if isinstance(text, str):
-            texts.append(text.strip())
+        block_type = cast(dict[str, object], block).get("type")
+        if block_type == "image":
+            has_image = True
+        elif block_type == "text":
+            text = cast(dict[str, object], block).get("text")
+            if isinstance(text, str):
+                texts.append(text.strip())
+    if has_image:
+        texts.insert(0, "[Image]")
     return " ".join(texts).strip()
 
 
