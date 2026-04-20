@@ -2,8 +2,10 @@
 
 import base64
 import io
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from typing import cast
 
+from anthropic.types import ImageBlockParam, TextBlockParam
 from PIL import Image, ImageGrab
 
 
@@ -48,7 +50,7 @@ def image_to_base64(image: Image.Image, format: str = "PNG") -> str:
     return base64.b64encode(buffer.read()).decode("utf-8")
 
 
-def create_image_content(image: Image.Image) -> dict:
+def create_image_content(image: Image.Image) -> ImageBlockParam:
     """Create Claude API image content block from PIL Image.
 
     Args:
@@ -83,8 +85,8 @@ def has_clipboard_image() -> bool:
 
 
 def attach_clipboard_image(
-    content: str | Sequence[object],
-) -> list[dict] | str:
+    content: str | Sequence[ImageBlockParam | TextBlockParam],
+) -> list[ImageBlockParam | TextBlockParam] | str:
     """Attach clipboard image to message content.
 
     If clipboard contains an image, converts it to Claude API format
@@ -101,34 +103,30 @@ def attach_clipboard_image(
     if image is None:
         if isinstance(content, str):
             return content
-        return list(content)  # type: ignore[arg-type]
+        return list(content)
 
     # Create image content block
     image_block = create_image_content(image)
 
     # Build content list with image and text
-    result: list[dict] = [image_block]
+    result: list[ImageBlockParam | TextBlockParam] = [image_block]
 
     # Add existing content
     if isinstance(content, str):
         if content.strip():
-            result.append({"type": "text", "text": content})
+            text_block: TextBlockParam = {"type": "text", "text": content}
+            result.append(text_block)
     else:
-        for block in content:
-            if isinstance(block, dict):
-                result.append(block)
-            else:
-                # Handle BaseModel types from anthropic
-                result.append(block.model_dump(mode="json"))  # type: ignore[union-attr]
+        result.extend(content)
 
     return result
 
 
-def format_content_with_image_indicator(content: list[dict] | str) -> str:
+def format_content_with_image_indicator(content: Iterable[object] | str) -> str:
     """Format content for display with image indicator.
 
     Args:
-        content: Message content (string or list of blocks)
+        content: Message content (string or iterable of blocks)
 
     Returns:
         Formatted string with image indicator if present
@@ -136,23 +134,19 @@ def format_content_with_image_indicator(content: list[dict] | str) -> str:
     if isinstance(content, str):
         return content
 
-    has_image = any(
-        block.get("type") == "image" for block in content if isinstance(block, dict)
-    )
+    blocks = [cast("dict[str, object]", b) for b in content if isinstance(b, dict)]
+
+    has_image = any(b.get("type") == "image" for b in blocks)
 
     if not has_image:
-        # Extract text content
-        texts = []
-        for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                texts.append(block.get("text", ""))
-        return "\n".join(texts)
+        return "\n".join(
+            cast(str, b.get("text", "")) for b in blocks if b.get("type") == "text"
+        )
 
-    # Build display string with image indicator
     parts = ["[Image attached]"]
-    for block in content:
-        if isinstance(block, dict) and block.get("type") == "text":
-            text = block.get("text", "").strip()
+    for b in blocks:
+        if b.get("type") == "text":
+            text = cast(str, b.get("text", "")).strip()
             if text:
                 parts.append(text)
 

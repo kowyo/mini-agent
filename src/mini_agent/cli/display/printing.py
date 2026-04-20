@@ -1,5 +1,6 @@
 import os
 import subprocess
+from collections.abc import Iterable
 from html import escape
 from typing import cast
 
@@ -42,7 +43,7 @@ def print_welcome_banner() -> None:
     print(f"╰{'─' * (width + 2)}╯\n")
 
 
-def _format_user_content(content: str | list[object]) -> str:
+def _format_user_content(content: str | Iterable[object]) -> str:
     """Format user message content for display, extracting text from blocks."""
     if isinstance(content, str):
         return content.strip()
@@ -51,11 +52,12 @@ def _format_user_content(content: str | list[object]) -> str:
     has_image = False
     for block in content:
         if isinstance(block, dict):
-            block_type = block.get("type")
+            d = cast("dict[str, object]", block)
+            block_type = d.get("type")
             if block_type == "image":
                 has_image = True
             elif block_type == "text":
-                text = str(block.get("text", "")).strip()
+                text = cast(str, d.get("text", "")).strip()
                 if text:
                     parts.append(text)
 

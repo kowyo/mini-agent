@@ -3,7 +3,7 @@ import uuid
 from collections.abc import Callable
 from importlib.metadata import version
 
-from anthropic.types import MessageParam
+from anthropic.types import ImageBlockParam, MessageParam, TextBlockParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import get_app
 from prompt_toolkit.document import Document
@@ -35,9 +35,9 @@ from .token import token_tracker
 
 def build_session(
     prompt: str | None = None,
-) -> tuple[PromptSession, Callable[[], None] | None, list[dict]]:
+) -> tuple[PromptSession, Callable[[], None] | None, list[ImageBlockParam]]:
     bindings = KeyBindings()
-    attached_images: list[dict] = []
+    attached_images: list[ImageBlockParam] = []
 
     @bindings.add("c-c")
     def clear_buffer(event: KeyPressEvent) -> None:
@@ -157,7 +157,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
 
         # Build content with attached images
-        content: str | list[dict]
+        content: str | list[ImageBlockParam | TextBlockParam]
         if attached_images:
             # Remove the indicator text from query
             clean_query = query.replace("[Image attached]", "").strip()
@@ -166,7 +166,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             content.extend(attached_images)
             # Add text content if not empty
             if clean_query:
-                content.append({"type": "text", "text": clean_query})
+                text_block: TextBlockParam = {"type": "text", "text": clean_query}
+                content.append(text_block)
             attached_images.clear()
         else:
             content = query
