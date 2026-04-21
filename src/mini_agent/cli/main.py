@@ -1,4 +1,5 @@
 import argparse
+import re
 import uuid
 from collections.abc import Callable
 from importlib.metadata import version
@@ -40,6 +41,18 @@ def build_session(
     attached_images: list[ImageBlockParam] = []
     sent_image_count = [0]
 
+    def sync_attached_images_with_buffer(buffer_text: str) -> None:
+        if not attached_images:
+            return
+
+        kept_images: list[ImageBlockParam] = []
+        for i, image_block in enumerate(attached_images, start=1):
+            indicator = format_image_indicator(sent_image_count[0] + i)
+            if indicator in buffer_text:
+                kept_images.append(image_block)
+
+        attached_images[:] = kept_images
+
     @bindings.add("c-c")
     def clear_buffer(event: KeyPressEvent) -> None:
         event.current_buffer.reset()
@@ -52,6 +65,19 @@ def build_session(
     @bindings.add("escape", "enter")
     def insert_newline(event: KeyPressEvent) -> None:
         event.current_buffer.insert_text("\n")
+
+    @bindings.add("backspace")
+    def delete_backwards(event: KeyPressEvent) -> None:
+        buffer = event.current_buffer
+        text_before_cursor = buffer.document.text_before_cursor
+        indicator_match = re.search(r"\[Image #\d+\]$", text_before_cursor)
+
+        if indicator_match is not None:
+            buffer.delete_before_cursor(count=len(indicator_match.group(0)))
+        else:
+            buffer.delete_before_cursor(count=1)
+
+        sync_attached_images_with_buffer(event.current_buffer.text)
 
     @bindings.add("c-v")
     def paste_clipboard_image(event: KeyPressEvent) -> None:
@@ -171,6 +197,14 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
         # Build content with attached images
         content: str | list[ImageBlockParam | TextBlockParam]
+        if attached_images:
+            # If indicator text was edited away, don't send orphaned images.
+            attached_images[:] = [
+                image_block
+                for i, image_block in enumerate(attached_images, start=1)
+                if format_image_indicator(sent_image_count[0] + i) in query
+            ]
+
         if attached_images:
             content = []
             # Add all attached images
