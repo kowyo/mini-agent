@@ -63,10 +63,6 @@ def create_image_content(image: Image.Image) -> ImageBlockParam:
     Returns:
         Claude API image content block dictionary
     """
-    # Convert to RGB if necessary (for images with alpha channel)
-    if image.mode in ("RGBA", "P"):
-        image = image.convert("RGB")
-
     base64_data = image_to_base64(image, "PNG")
 
     return {
