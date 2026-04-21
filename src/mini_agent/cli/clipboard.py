@@ -10,7 +10,7 @@ from PIL import Image, ImageGrab
 
 
 def format_image_indicator(index: int) -> str:
-    return f"Image #{index}"
+    return f"[Image #{index}]"
 
 
 def get_clipboard_image() -> Image.Image | None:

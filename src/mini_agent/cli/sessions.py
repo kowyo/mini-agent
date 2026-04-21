@@ -9,6 +9,7 @@ from anthropic.types import MessageParam
 from pydantic import BaseModel
 
 from ..config import SESSION_DIR
+from .clipboard import format_image_indicator
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
 from .token import token_tracker
@@ -115,7 +116,9 @@ def summarize_content(content: str | Iterable[object]) -> str:
         if isinstance(block, dict) and block.get("type") == "image"
     )
     if image_count:
-        return " ".join(f"Image #{index}" for index in range(1, image_count + 1))
+        return " ".join(
+            format_image_indicator(index) for index in range(1, image_count + 1)
+        )
     return ""
 
 

@@ -69,9 +69,7 @@ def build_session(
         current_text = event.current_buffer.text
         indicator = format_image_indicator(len(attached_images))
         if indicator not in current_text:
-            if current_text and not current_text.endswith("\n"):
-                event.current_buffer.insert_text("\n")
-            event.current_buffer.insert_text(f"{indicator}\n")
+            event.current_buffer.insert_text(indicator)
 
     session = PromptSession(
         HTML(f'<style color="{PROMPT_ACCENT_COLOR}">> </style>'),
