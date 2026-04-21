@@ -16,29 +16,28 @@ def count_images_in_history(history: list[MessageParam]) -> int:
 
 def prune_attached_images(
     query: str,
-    attached_images: list[ImageBlockParam],
-    sent_image_count: int,
+    attached_images: list[tuple[int, ImageBlockParam]],
 ) -> None:
     attached_images[:] = [
-        image_block
-        for i, image_block in enumerate(attached_images, start=1)
-        if format_image_indicator(sent_image_count + i) in query
+        (num, image_block)
+        for num, image_block in attached_images
+        if format_image_indicator(num) in query
     ]
 
 
 def build_user_content(
     query: str,
-    attached_images: list[ImageBlockParam],
+    attached_images: list[tuple[int, ImageBlockParam]],
     sent_image_count: list[int],
 ) -> str | list[ImageBlockParam | TextBlockParam]:
     if attached_images:
-        prune_attached_images(query, attached_images, sent_image_count[0])
+        prune_attached_images(query, attached_images)
 
     if not attached_images:
         return query
 
     content: list[ImageBlockParam | TextBlockParam] = []
-    content.extend(attached_images)
+    content.extend(image_block for _, image_block in attached_images)
     if query.strip():
         text_block: TextBlockParam = {"type": "text", "text": query}
         content.append(text_block)

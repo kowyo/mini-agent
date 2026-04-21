@@ -17,26 +17,28 @@ from .display.toolbar import get_status_toolbar
 
 def _sync_attached_images_with_buffer(
     buffer_text: str,
-    attached_images: list[ImageBlockParam],
-    sent_image_count: int,
+    attached_images: list[tuple[int, ImageBlockParam]],
 ) -> None:
     if not attached_images:
         return
 
-    kept_images: list[ImageBlockParam] = []
-    for i, image_block in enumerate(attached_images, start=1):
-        indicator = format_image_indicator(sent_image_count + i)
-        if indicator in buffer_text:
-            kept_images.append(image_block)
-
-    attached_images[:] = kept_images
+    attached_images[:] = [
+        (num, image_block)
+        for num, image_block in attached_images
+        if format_image_indicator(num) in buffer_text
+    ]
 
 
 def build_session(
     prompt: str | None = None,
-) -> tuple[PromptSession, Callable[[], None] | None, list[ImageBlockParam], list[int]]:
+) -> tuple[
+    PromptSession,
+    Callable[[], None] | None,
+    list[tuple[int, ImageBlockParam]],
+    list[int],
+]:
     bindings = KeyBindings()
-    attached_images: list[ImageBlockParam] = []
+    attached_images: list[tuple[int, ImageBlockParam]] = []
     sent_image_count = [0]
 
     @bindings.add("c-c")
@@ -66,7 +68,6 @@ def build_session(
         _sync_attached_images_with_buffer(
             event.current_buffer.text,
             attached_images,
-            sent_image_count[0],
         )
 
     @bindings.add("c-v")
@@ -79,10 +80,11 @@ def build_session(
         from .clipboard import create_image_content
 
         image_block = create_image_content(image)
-        attached_images.append(image_block)
+        indicator_num = sent_image_count[0] + len(attached_images) + 1
+        attached_images.append((indicator_num, image_block))
 
         current_text = event.current_buffer.text
-        indicator = format_image_indicator(sent_image_count[0] + len(attached_images))
+        indicator = format_image_indicator(indicator_num)
         if indicator not in current_text:
             event.current_buffer.insert_text(indicator)
 
