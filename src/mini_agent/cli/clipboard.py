@@ -1,7 +1,6 @@
-"""Clipboard image handling for mini-agent."""
-
 import base64
 import io
+import sys
 from collections.abc import Iterable
 from typing import cast
 
@@ -13,12 +12,32 @@ def format_image_indicator(index: int) -> str:
     return f"[Image #{index}]"
 
 
-def get_clipboard_image() -> Image.Image | None:
-    """Get image from clipboard using PIL.ImageGrab.grabclipboard().
+def _get_macos_clipboard_file_image() -> Image.Image | None:
+    try:
+        import AppKit
 
-    Returns:
-        PIL.Image.Image if an image is available, None otherwise.
-    """
+        pb = AppKit.NSPasteboard.generalPasteboard()  # ty: ignore[unresolved-attribute]
+        paths = pb.propertyListForType_(AppKit.NSFilenamesPboardType)  # ty: ignore[unresolved-attribute]
+        if not paths:
+            return None
+        for path in paths:
+            try:
+                img = Image.open(path)
+                img.load()
+                return img
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
+
+
+def get_clipboard_image() -> Image.Image | None:
+    if sys.platform == "darwin":
+        file_image = _get_macos_clipboard_file_image()
+        if file_image is not None:
+            return file_image
+
     try:
         clipboard_content = ImageGrab.grabclipboard()
     except Exception:
@@ -27,11 +46,17 @@ def get_clipboard_image() -> Image.Image | None:
     if clipboard_content is None:
         return None
 
-    # On Windows, grabclipboard() can return a list of filenames
     if isinstance(clipboard_content, list):
+        for item in clipboard_content:
+            if isinstance(item, str):
+                try:
+                    img = Image.open(item)
+                    img.load()
+                    return img
+                except Exception:
+                    continue
         return None
 
-    # On macOS and Linux, it returns an Image or None
     if isinstance(clipboard_content, Image.Image):
         return clipboard_content
 
@@ -39,15 +64,6 @@ def get_clipboard_image() -> Image.Image | None:
 
 
 def image_to_base64(image: Image.Image, format: str = "PNG") -> str:
-    """Convert PIL Image to base64-encoded string.
-
-    Args:
-        image: PIL Image object
-        format: Image format for encoding (default: PNG)
-
-    Returns:
-        Base64-encoded image string
-    """
     buffer = io.BytesIO()
     image.save(buffer, format=format)
     buffer.seek(0)
@@ -55,14 +71,6 @@ def image_to_base64(image: Image.Image, format: str = "PNG") -> str:
 
 
 def create_image_content(image: Image.Image) -> ImageBlockParam:
-    """Create Claude API image content block from PIL Image.
-
-    Args:
-        image: PIL Image object
-
-    Returns:
-        Claude API image content block dictionary
-    """
     base64_data = image_to_base64(image, "PNG")
 
     return {
@@ -76,14 +84,6 @@ def create_image_content(image: Image.Image) -> ImageBlockParam:
 
 
 def extract_text_content(content: Iterable[object] | str) -> str:
-    """Extract displayable text content from a message payload.
-
-    Args:
-        content: Message content (string or iterable of blocks)
-
-    Returns:
-        Text content for display. Image blocks are ignored.
-    """
     if isinstance(content, str):
         return content
 
