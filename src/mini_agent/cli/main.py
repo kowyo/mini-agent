@@ -13,7 +13,7 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from ..agent.agent import agent_loop
 from ..config import REASONING_EFFORT_LEVELS, config
-from .clipboard import get_clipboard_image
+from .clipboard import format_image_indicator, get_clipboard_image
 from .display import (
     COMPLETION_STYLE,
     CommandCompleter,
@@ -67,7 +67,7 @@ def build_session(
 
         # Show visual feedback in the buffer
         current_text = event.current_buffer.text
-        indicator = "[Image attached]"
+        indicator = format_image_indicator(len(attached_images))
         if indicator not in current_text:
             if current_text and not current_text.endswith("\n"):
                 event.current_buffer.insert_text("\n")
@@ -159,14 +159,12 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         # Build content with attached images
         content: str | list[ImageBlockParam | TextBlockParam]
         if attached_images:
-            # Remove the indicator text from query
-            clean_query = query.replace("[Image attached]", "").strip()
             content = []
             # Add all attached images
             content.extend(attached_images)
             # Add text content if not empty
-            if clean_query:
-                text_block: TextBlockParam = {"type": "text", "text": clean_query}
+            if query.strip():
+                text_block: TextBlockParam = {"type": "text", "text": query}
                 content.append(text_block)
             attached_images.clear()
         else:

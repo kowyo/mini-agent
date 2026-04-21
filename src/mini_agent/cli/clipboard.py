@@ -9,6 +9,10 @@ from anthropic.types import ImageBlockParam, TextBlockParam
 from PIL import Image, ImageGrab
 
 
+def format_image_indicator(index: int) -> str:
+    return f"Image #{index}"
+
+
 def get_clipboard_image() -> Image.Image | None:
     """Get image from clipboard using PIL.ImageGrab.grabclipboard().
 
@@ -137,17 +141,19 @@ def format_content_with_image_indicator(content: Iterable[object] | str) -> str:
     blocks = [cast("dict[str, object]", b) for b in content if isinstance(b, dict)]
 
     has_image = any(b.get("type") == "image" for b in blocks)
+    texts = [
+        cast(str, b.get("text", "")).strip()
+        for b in blocks
+        if b.get("type") == "text" and isinstance(b.get("text", ""), str)
+    ]
+
+    if texts:
+        return "\n".join(text for text in texts if text)
 
     if not has_image:
-        return "\n".join(
-            cast(str, b.get("text", "")) for b in blocks if b.get("type") == "text"
-        )
+        return ""
 
-    parts = ["[Image attached]"]
-    for b in blocks:
-        if b.get("type") == "text":
-            text = cast(str, b.get("text", "")).strip()
-            if text:
-                parts.append(text)
-
-    return "\n".join(parts)
+    image_count = sum(1 for b in blocks if b.get("type") == "image")
+    return "\n".join(
+        format_image_indicator(index) for index in range(1, image_count + 1)
+    )

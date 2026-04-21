@@ -47,22 +47,31 @@ def _format_user_content(content: str | Iterable[object]) -> str:
         return content.strip()
 
     parts = []
-    has_image = False
     for block in content:
         if isinstance(block, dict):
             d = cast("dict[str, object]", block)
             block_type = d.get("type")
-            if block_type == "image":
-                has_image = True
-            elif block_type == "text":
+            if block_type == "text":
                 text = cast(str, d.get("text", "")).strip()
                 if text:
                     parts.append(text)
 
-    if has_image:
-        parts.insert(0, "[Image attached]")
+    if parts:
+        return "\n".join(parts)
 
-    return "\n".join(parts)
+    image_count = sum(
+        1
+        for block in content
+        if isinstance(block, dict) and block.get("type") == "image"
+    )
+    if image_count:
+        from ..clipboard import format_image_indicator
+
+        return "\n".join(
+            format_image_indicator(index) for index in range(1, image_count + 1)
+        )
+
+    return ""
 
 
 def print_session_history(history: list[MessageParam]) -> None:

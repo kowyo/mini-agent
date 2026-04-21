@@ -98,20 +98,25 @@ def summarize_content(content: str | Iterable[object]) -> str:
     if isinstance(content, str):
         return content.strip()
     texts: list[str] = []
-    has_image = False
     for block in content:
         if not isinstance(block, dict):
             continue
         block_type = cast(dict[str, object], block).get("type")
-        if block_type == "image":
-            has_image = True
-        elif block_type == "text":
+        if block_type == "text":
             text = cast(dict[str, object], block).get("text")
             if isinstance(text, str):
                 texts.append(text.strip())
-    if has_image:
-        texts.insert(0, "[Image]")
-    return " ".join(texts).strip()
+    if texts:
+        return " ".join(texts).strip()
+
+    image_count = sum(
+        1
+        for block in content
+        if isinstance(block, dict) and block.get("type") == "image"
+    )
+    if image_count:
+        return " ".join(f"Image #{index}" for index in range(1, image_count + 1))
+    return ""
 
 
 def session_title(history: list[MessageParam]) -> str:
