@@ -2,10 +2,10 @@
 
 import base64
 import io
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from typing import cast
 
-from anthropic.types import ImageBlockParam, TextBlockParam
+from anthropic.types import ImageBlockParam
 from PIL import Image, ImageGrab
 
 
@@ -77,53 +77,6 @@ def create_image_content(image: Image.Image) -> ImageBlockParam:
             "data": base64_data,
         },
     }
-
-
-def has_clipboard_image() -> bool:
-    """Check if clipboard contains an image.
-
-    Returns:
-        True if clipboard contains an image, False otherwise.
-    """
-    return get_clipboard_image() is not None
-
-
-def attach_clipboard_image(
-    content: str | Sequence[ImageBlockParam | TextBlockParam],
-) -> list[ImageBlockParam | TextBlockParam] | str:
-    """Attach clipboard image to message content.
-
-    If clipboard contains an image, converts it to Claude API format
-    and prepends it to text content. If no image is found, returns
-    original content unchanged.
-
-    Args:
-        content: Original message content (string or sequence of blocks)
-
-    Returns:
-        List of content blocks including image if available
-    """
-    image = get_clipboard_image()
-    if image is None:
-        if isinstance(content, str):
-            return content
-        return list(content)
-
-    # Create image content block
-    image_block = create_image_content(image)
-
-    # Build content list with image and text
-    result: list[ImageBlockParam | TextBlockParam] = [image_block]
-
-    # Add existing content
-    if isinstance(content, str):
-        if content.strip():
-            text_block: TextBlockParam = {"type": "text", "text": content}
-            result.append(text_block)
-    else:
-        result.extend(content)
-
-    return result
 
 
 def format_content_with_image_indicator(content: Iterable[object] | str) -> str:

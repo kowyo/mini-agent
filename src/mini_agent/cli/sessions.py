@@ -3,13 +3,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
 
 from anthropic.types import MessageParam
 from pydantic import BaseModel
 
 from ..config import SESSION_DIR
-from .clipboard import format_image_indicator
+from .clipboard import format_content_with_image_indicator
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
 from .token import token_tracker
@@ -96,31 +95,8 @@ def load_session_history(
 
 
 def summarize_content(content: str | Iterable[object]) -> str:
-    if isinstance(content, str):
-        return content.strip()
-    texts: list[str] = []
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        block_type = cast(dict[str, object], block).get("type")
-        if block_type == "text":
-            text = cast(dict[str, object], block).get("text")
-            if isinstance(text, str):
-                texts.append(text.strip())
-    if texts:
-        return " ".join(texts).strip()
-
-    image_count = 0
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        if cast(dict[str, object], block).get("type") == "image":
-            image_count += 1
-    if image_count:
-        return " ".join(
-            format_image_indicator(index) for index in range(1, image_count + 1)
-        )
-    return ""
+    summary = format_content_with_image_indicator(content)
+    return " ".join(summary.splitlines()).strip()
 
 
 def session_title(history: list[MessageParam]) -> str:

@@ -1,6 +1,5 @@
 import os
 import subprocess
-from collections.abc import Iterable
 from html import escape
 from typing import cast
 
@@ -13,6 +12,7 @@ from rich.text import Text
 
 from ...agent.tools import safe_path
 from ...config import CLI_NAME, CLI_VERSION, config
+from ..clipboard import format_content_with_image_indicator
 from .diff import format_edit_diff
 from .theme import LIGHT_HINT_STYLE_RICH, PROMPT_ACCENT_COLOR
 
@@ -41,40 +41,6 @@ def print_welcome_banner() -> None:
     print(f"╰{'─' * (width + 2)}╯\n")
 
 
-def _format_user_content(content: str | Iterable[object]) -> str:
-    """Format user message content for display, extracting text from blocks."""
-    if isinstance(content, str):
-        return content.strip()
-
-    parts = []
-    for block in content:
-        if isinstance(block, dict):
-            d = cast("dict[str, object]", block)
-            block_type = d.get("type")
-            if block_type == "text":
-                text = cast(str, d.get("text", "")).strip()
-                if text:
-                    parts.append(text)
-
-    if parts:
-        return "\n".join(parts)
-
-    image_count = 0
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        if cast("dict[str, object]", block).get("type") == "image":
-            image_count += 1
-    if image_count:
-        from ..clipboard import format_image_indicator
-
-        return "\n".join(
-            format_image_indicator(index) for index in range(1, image_count + 1)
-        )
-
-    return ""
-
-
 def print_session_history(history: list[MessageParam]) -> None:
     clear_terminal()
     print_welcome_banner()
@@ -82,7 +48,7 @@ def print_session_history(history: list[MessageParam]) -> None:
         content = message["content"]
 
         if message["role"] == "user":
-            text = _format_user_content(content)
+            text = format_content_with_image_indicator(content)
             if text:
                 lines = text.splitlines()
                 print_formatted_text(
