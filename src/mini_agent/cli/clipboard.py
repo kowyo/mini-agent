@@ -75,21 +75,20 @@ def create_image_content(image: Image.Image) -> ImageBlockParam:
     }
 
 
-def format_content_with_image_indicator(content: Iterable[object] | str) -> str:
-    """Format content for display with image indicator.
+def extract_text_content(content: Iterable[object] | str) -> str:
+    """Extract displayable text content from a message payload.
 
     Args:
         content: Message content (string or iterable of blocks)
 
     Returns:
-        Formatted string with image indicator if present
+        Text content for display. Image blocks are ignored.
     """
     if isinstance(content, str):
         return content
 
     blocks = [cast("dict[str, object]", b) for b in content if isinstance(b, dict)]
 
-    has_image = any(b.get("type") == "image" for b in blocks)
     texts = [
         cast(str, b.get("text", "")).strip()
         for b in blocks
@@ -99,10 +98,4 @@ def format_content_with_image_indicator(content: Iterable[object] | str) -> str:
     if texts:
         return "\n".join(text for text in texts if text)
 
-    if not has_image:
-        return ""
-
-    image_count = sum(1 for b in blocks if b.get("type") == "image")
-    return "\n".join(
-        format_image_indicator(index) for index in range(1, image_count + 1)
-    )
+    return ""

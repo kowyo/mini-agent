@@ -8,7 +8,7 @@ from anthropic.types import MessageParam
 from pydantic import BaseModel
 
 from ..config import SESSION_DIR
-from .clipboard import format_content_with_image_indicator
+from .clipboard import extract_text_content
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
 from .token import token_tracker
@@ -95,7 +95,7 @@ def load_session_history(
 
 
 def summarize_content(content: str | Iterable[object]) -> str:
-    summary = format_content_with_image_indicator(content)
+    summary = extract_text_content(content)
     return " ".join(summary.splitlines()).strip()
 
 
