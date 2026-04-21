@@ -59,11 +59,13 @@ def _format_user_content(content: str | Iterable[object]) -> str:
     if parts:
         return "\n".join(parts)
 
-    image_count = sum(
-        1
-        for block in content
-        if isinstance(block, dict) and block.get("type") == "image"
-    )
+    image_count = 0
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        d = cast("dict[str, object]", block)
+        if d.get("type") == "image":
+            image_count += 1
     if image_count:
         from ..clipboard import format_image_indicator
 

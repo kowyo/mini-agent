@@ -110,11 +110,13 @@ def summarize_content(content: str | Iterable[object]) -> str:
     if texts:
         return " ".join(texts).strip()
 
-    image_count = sum(
-        1
-        for block in content
-        if isinstance(block, dict) and block.get("type") == "image"
-    )
+    image_count = 0
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        d = cast(dict[str, object], block)
+        if d.get("type") == "image":
+            image_count += 1
     if image_count:
         return " ".join(
             format_image_indicator(index) for index in range(1, image_count + 1)
