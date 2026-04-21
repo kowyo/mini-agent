@@ -35,9 +35,10 @@ from .token import token_tracker
 
 def build_session(
     prompt: str | None = None,
-) -> tuple[PromptSession, Callable[[], None] | None, list[ImageBlockParam]]:
+) -> tuple[PromptSession, Callable[[], None] | None, list[ImageBlockParam], list[int]]:
     bindings = KeyBindings()
     attached_images: list[ImageBlockParam] = []
+    sent_image_count = [0]
 
     @bindings.add("c-c")
     def clear_buffer(event: KeyPressEvent) -> None:
@@ -67,7 +68,7 @@ def build_session(
 
         # Show visual feedback in the buffer
         current_text = event.current_buffer.text
-        indicator = format_image_indicator(len(attached_images))
+        indicator = format_image_indicator(sent_image_count[0] + len(attached_images))
         if indicator not in current_text:
             event.current_buffer.insert_text(indicator)
 
@@ -89,7 +90,18 @@ def build_session(
             app.current_buffer.set_document(Document(prompt), bypass_readonly=True)
             app.current_buffer.validate_and_handle()
 
-    return session, pre_run, attached_images
+    return session, pre_run, attached_images, sent_image_count
+
+
+def _count_images_in_history(history: list[MessageParam]) -> int:
+    image_count = 0
+    for message in history:
+        if message["role"] != "user" or not isinstance(message["content"], list):
+            continue
+        for block in message["content"]:
+            if isinstance(block, dict) and block.get("type") == "image":
+                image_count += 1
+    return image_count
 
 
 def _run_non_interactive(prompt: str) -> None:
@@ -107,7 +119,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session, pre_run, attached_images = build_session(prompt)
+    session, pre_run, attached_images, sent_image_count = build_session(prompt)
 
     if session_id is not None:
         current_session_id = session_id
@@ -117,6 +129,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
                 stored for stored in sessions if stored.session_id == current_session_id
             )
             history = chosen.history.copy()
+            sent_image_count[0] = _count_images_in_history(history)
             print_session_history(chosen.history)
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
@@ -140,6 +153,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if command == "/new":
             history.clear()
             current_session_id = uuid.uuid4().hex
+            sent_image_count[0] = 0
             token_tracker.reset()
             attached_images.clear()
             clear_terminal()
@@ -147,6 +161,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(current_session_id, history)
+            sent_image_count[0] = _count_images_in_history(history)
             attached_images.clear()
             continue
         if command == "/model":
@@ -164,6 +179,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             if query.strip():
                 text_block: TextBlockParam = {"type": "text", "text": query}
                 content.append(text_block)
+            sent_image_count[0] += len(attached_images)
             attached_images.clear()
         else:
             content = query
