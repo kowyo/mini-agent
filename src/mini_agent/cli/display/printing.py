@@ -12,6 +12,7 @@ from rich.text import Text
 
 from ...agent.tools import safe_path
 from ...config import CLI_NAME, CLI_VERSION, config
+from ..clipboard import extract_text_content
 from .diff import format_edit_diff
 from .theme import LIGHT_HINT_STYLE_RICH, PROMPT_ACCENT_COLOR
 
@@ -46,8 +47,8 @@ def print_session_history(history: list[MessageParam]) -> None:
     for message in history:
         content = message["content"]
 
-        if message["role"] == "user" and isinstance(content, str):
-            text = content.strip()
+        if message["role"] == "user":
+            text = extract_text_content(content)
             if text:
                 lines = text.splitlines()
                 print_formatted_text(

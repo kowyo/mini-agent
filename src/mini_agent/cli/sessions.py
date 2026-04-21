@@ -3,12 +3,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
 
 from anthropic.types import MessageParam
 from pydantic import BaseModel
 
 from ..config import SESSION_DIR
+from .clipboard import extract_text_content
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
 from .token import token_tracker
@@ -41,7 +41,9 @@ def serialize_content(content: str | Iterable[object]) -> str | list[object]:
     serialized_blocks: list[object] = []
     for block in content:
         if isinstance(block, BaseModel):
-            serialized_blocks.append(block.model_dump(mode="json"))
+            dumped = block.model_dump(mode="json", exclude_none=True)
+            dumped.pop("parsed_output", None)
+            serialized_blocks.append(dumped)
         else:
             serialized_blocks.append(block)
     return serialized_blocks
@@ -95,16 +97,8 @@ def load_session_history(
 
 
 def summarize_content(content: str | Iterable[object]) -> str:
-    if isinstance(content, str):
-        return content.strip()
-    texts: list[str] = []
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        text = cast(dict[str, object], block).get("text")
-        if isinstance(text, str):
-            texts.append(text.strip())
-    return " ".join(texts).strip()
+    summary = extract_text_content(content)
+    return " ".join(summary.splitlines()).strip()
 
 
 def session_title(history: list[MessageParam]) -> str:

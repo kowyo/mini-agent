@@ -1,27 +1,22 @@
 import argparse
 import uuid
-from collections.abc import Callable
 from importlib.metadata import version
 
 from anthropic.types import MessageParam
-from prompt_toolkit import PromptSession
-from prompt_toolkit.application import get_app
-from prompt_toolkit.document import Document
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from ..agent.agent import agent_loop
 from ..config import REASONING_EFFORT_LEVELS, config
 from .display import (
-    COMPLETION_STYLE,
-    CommandCompleter,
     clear_terminal,
     print_welcome_banner,
 )
-from .display.theme import PROMPT_ACCENT_COLOR
-from .display.toolbar import get_status_toolbar
+from .image_messages import (
+    build_user_content,
+    count_images_in_history,
+    max_indicator_in_history,
+)
 from .models import prompt_model
+from .prompt_session import build_session
 from .sessions import (
     list_sessions,
     print_session_history,
@@ -30,44 +25,6 @@ from .sessions import (
     session_saved,
 )
 from .token import token_tracker
-
-
-def build_session(
-    prompt: str | None = None,
-) -> tuple[PromptSession, Callable[[], None] | None]:
-    bindings = KeyBindings()
-
-    @bindings.add("c-c")
-    def clear_buffer(event: KeyPressEvent) -> None:
-        event.current_buffer.reset()
-
-    @bindings.add("enter")
-    def submit(event: KeyPressEvent) -> None:
-        event.current_buffer.validate_and_handle()
-
-    @bindings.add("escape", "enter")
-    def insert_newline(event: KeyPressEvent) -> None:
-        event.current_buffer.insert_text("\n")
-
-    session = PromptSession(
-        HTML(f'<style color="{PROMPT_ACCENT_COLOR}">> </style>'),
-        multiline=True,
-        key_bindings=bindings,
-        completer=CommandCompleter(),
-        complete_while_typing=True,
-        style=COMPLETION_STYLE,
-        bottom_toolbar=get_status_toolbar,
-    )
-
-    pre_run: Callable[[], None] | None = None
-    if prompt:
-
-        def pre_run() -> None:
-            app = get_app()
-            app.current_buffer.set_document(Document(prompt), bypass_readonly=True)
-            app.current_buffer.validate_and_handle()
-
-    return session, pre_run
 
 
 def _run_non_interactive(prompt: str) -> None:
@@ -85,7 +42,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session, pre_run = build_session(prompt)
+    session, pre_run, attached_images, sent_image_count, next_indicator = build_session(
+        prompt
+    )
 
     if session_id is not None:
         current_session_id = session_id
@@ -95,6 +54,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
                 stored for stored in sessions if stored.session_id == current_session_id
             )
             history = chosen.history.copy()
+            sent_image_count[0] = count_images_in_history(history)
+            next_indicator[0] = max_indicator_in_history(history) + 1
             print_session_history(chosen.history)
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
@@ -107,6 +68,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             pre_run = None
             print()
         except KeyboardInterrupt:
+            attached_images.clear()
             continue
         except EOFError:
             break
@@ -117,18 +79,27 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if command == "/new":
             history.clear()
             current_session_id = uuid.uuid4().hex
+            sent_image_count[0] = 0
+            next_indicator[0] = 1
             token_tracker.reset()
+            attached_images.clear()
             clear_terminal()
             print_welcome_banner()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(current_session_id, history)
+            sent_image_count[0] = count_images_in_history(history)
+            next_indicator[0] = max_indicator_in_history(history) + 1
+            attached_images.clear()
             continue
         if command == "/model":
             prompt_model()
+            attached_images.clear()
             continue
 
-        history.append({"role": "user", "content": query})
+        content = build_user_content(query, attached_images, sent_image_count)
+
+        history.append({"role": "user", "content": content})
         history_len = len(history)
         agent_loop(history)
 
