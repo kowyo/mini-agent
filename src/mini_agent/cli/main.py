@@ -51,6 +51,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             )
             history = chosen.history.copy()
             sent_image_count[0] = count_images_in_history(history)
+            next_indicator[0] = sent_image_count[0] + 1
             print_session_history(chosen.history)
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
