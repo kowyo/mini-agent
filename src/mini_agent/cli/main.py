@@ -10,7 +10,11 @@ from .display import (
     clear_terminal,
     print_welcome_banner,
 )
-from .image_messages import build_user_content, count_images_in_history
+from .image_messages import (
+    build_user_content,
+    count_images_in_history,
+    max_indicator_in_history,
+)
 from .models import prompt_model
 from .prompt_session import build_session
 from .sessions import (
@@ -51,7 +55,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             )
             history = chosen.history.copy()
             sent_image_count[0] = count_images_in_history(history)
-            next_indicator[0] = sent_image_count[0] + 1
+            next_indicator[0] = max_indicator_in_history(history) + 1
             print_session_history(chosen.history)
             if chosen.last_usage is not None:
                 token_tracker.restore(chosen.last_usage)
@@ -85,7 +89,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(current_session_id, history)
             sent_image_count[0] = count_images_in_history(history)
-            next_indicator[0] = sent_image_count[0] + 1
+            next_indicator[0] = max_indicator_in_history(history) + 1
             attached_images.clear()
             continue
         if command == "/model":
