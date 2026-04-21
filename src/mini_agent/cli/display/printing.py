@@ -32,8 +32,6 @@ def print_welcome_banner() -> None:
         f" >_ {CLI_NAME} (v{CLI_VERSION})",
         "",
         f" model: {config.get_model()} {config.get_reasoning_effort()}",
-        "",
-        " Tips: Ctrl+V to paste image | Esc+Enter for new line",
     ]
     width = max(len(line) for line in lines)
 
