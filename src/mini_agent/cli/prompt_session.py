@@ -36,10 +36,12 @@ def build_session(
     Callable[[], None] | None,
     list[tuple[int, ImageBlockParam]],
     list[int],
+    list[int],
 ]:
     bindings = KeyBindings()
     attached_images: list[tuple[int, ImageBlockParam]] = []
     sent_image_count = [0]
+    next_indicator = [1]
 
     @bindings.add("c-c")
     def clear_buffer(event: KeyPressEvent) -> None:
@@ -80,7 +82,8 @@ def build_session(
         from .clipboard import create_image_content
 
         image_block = create_image_content(image)
-        indicator_num = sent_image_count[0] + len(attached_images) + 1
+        indicator_num = next_indicator[0]
+        next_indicator[0] += 1
         attached_images.append((indicator_num, image_block))
 
         current_text = event.current_buffer.text
@@ -106,4 +109,4 @@ def build_session(
             app.current_buffer.set_document(Document(prompt), bypass_readonly=True)
             app.current_buffer.validate_and_handle()
 
-    return session, pre_run, attached_images, sent_image_count
+    return session, pre_run, attached_images, sent_image_count, next_indicator

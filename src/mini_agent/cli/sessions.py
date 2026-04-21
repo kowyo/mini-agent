@@ -41,7 +41,9 @@ def serialize_content(content: str | Iterable[object]) -> str | list[object]:
     serialized_blocks: list[object] = []
     for block in content:
         if isinstance(block, BaseModel):
-            serialized_blocks.append(block.model_dump(mode="json"))
+            dumped = block.model_dump(mode="json", exclude_none=True)
+            dumped.pop("parsed_output", None)
+            serialized_blocks.append(dumped)
         else:
             serialized_blocks.append(block)
     return serialized_blocks

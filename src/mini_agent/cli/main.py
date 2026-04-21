@@ -38,7 +38,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
-    session, pre_run, attached_images, sent_image_count = build_session(prompt)
+    session, pre_run, attached_images, sent_image_count, next_indicator = build_session(
+        prompt
+    )
 
     if session_id is not None:
         current_session_id = session_id
@@ -73,6 +75,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             history.clear()
             current_session_id = uuid.uuid4().hex
             sent_image_count[0] = 0
+            next_indicator[0] = 1
             token_tracker.reset()
             attached_images.clear()
             clear_terminal()
@@ -81,6 +84,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(current_session_id, history)
             sent_image_count[0] = count_images_in_history(history)
+            next_indicator[0] = sent_image_count[0] + 1
             attached_images.clear()
             continue
         if command == "/model":
