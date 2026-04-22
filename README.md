@@ -8,7 +8,7 @@ A minimal agent running in your terminal.
 
 ```bash
 uv tool install git+https://github.com/kowyo/mini-agent.git@main
-mini-agent
+mini
 ```
 
 ## Development
@@ -17,5 +17,5 @@ mini-agent
 git clone https://github.com/kowyo/mini-agent
 cd mini-agent
 make prepare
-uv run mini-agent
+uv run mini
 ```

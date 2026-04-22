@@ -7,6 +7,9 @@ import tomli_w
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
+DISTRIBUTION_NAME = "mini-agent"
+DISTRIBUTION_VERSION = importlib.metadata.version(DISTRIBUTION_NAME)
+
 DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
 DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_REASONING_EFFORT = "medium"
@@ -82,7 +85,3 @@ class Config:
 
 
 config = Config()
-
-
-CLI_NAME = "mini-agent"
-CLI_VERSION = importlib.metadata.version(CLI_NAME)
