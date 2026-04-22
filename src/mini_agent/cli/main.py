@@ -5,7 +5,7 @@ from importlib.metadata import version
 from anthropic.types import MessageParam
 
 from ..agent.agent import agent_loop
-from ..config import REASONING_EFFORT_LEVELS, config
+from ..config import CLI_NAME, REASONING_EFFORT_LEVELS, config
 from .display import (
     clear_terminal,
     print_welcome_banner,
@@ -118,7 +118,7 @@ def main() -> None:
         "-v",
         "--version",
         action="version",
-        version=f"%(prog)s {version('mini-agent')}",
+        version=f"{CLI_NAME} {version(CLI_NAME)}",
     )
     parser.add_argument(
         "-m",
