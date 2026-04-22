@@ -11,7 +11,7 @@ from rich.markdown import Markdown
 from rich.text import Text
 
 from ...agent.tools import safe_path
-from ...config import CLI_DISPLAY_NAME, CLI_VERSION, config
+from ...config import CLI_NAME, CLI_VERSION, config
 from ..clipboard import extract_text_content
 from .diff import format_edit_diff
 from .theme import LIGHT_HINT_STYLE_RICH, PROMPT_ACCENT_COLOR
@@ -29,7 +29,7 @@ def clear_terminal() -> None:
 
 def print_welcome_banner() -> None:
     lines = [
-        f" >_ {CLI_DISPLAY_NAME} (v{CLI_VERSION})",
+        f" >_ {CLI_NAME} (v{CLI_VERSION})",
         "",
         f" model: {config.get_model()} {config.get_reasoning_effort()}",
     ]

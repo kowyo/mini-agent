@@ -85,5 +85,4 @@ config = Config()
 
 
 CLI_NAME = "mini-agent"
-CLI_DISPLAY_NAME = "mini"
 CLI_VERSION = importlib.metadata.version(CLI_NAME)
