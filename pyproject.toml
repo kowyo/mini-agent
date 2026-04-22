@@ -25,7 +25,7 @@ dev = [
 ]
 
 [project.scripts]
-mini-agent = "mini_agent:main"
+mini = "mini_agent:main"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PTH", "ANN", "SIM"]
