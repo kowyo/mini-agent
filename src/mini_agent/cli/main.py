@@ -109,7 +109,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         save_session_history(current_session_id, history, token_tracker.get())
 
     if session_saved(current_session_id):
-        print(f"\nResume the session with:\nmini-agent --resume {current_session_id}\n")
+        print(f"\nResume the session with:\nmini --resume {current_session_id}\n")
 
 
 def main() -> None:
