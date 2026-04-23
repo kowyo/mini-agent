@@ -28,6 +28,7 @@ from .sessions import (
     save_session_history,
     session_saved,
 )
+from .status import format_status_report
 from .token import token_tracker
 
 
@@ -98,6 +99,10 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/model":
             prompt_model()
+            attached_images.clear()
+            continue
+        if command == "/status":
+            print(f"{format_status_report(current_session_id)}\n")
             attached_images.clear()
             continue
 
