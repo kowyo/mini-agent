@@ -87,10 +87,10 @@ def load_session_history(
     *message_lines, usage_line = lines
     record = json.loads(usage_line)
     last_usage = Usage(
-        input_tokens=record["input_tokens"],
-        cache_creation_input_tokens=record["cache_creation_input_tokens"],
-        cache_read_input_tokens=record["cache_read_input_tokens"],
-        output_tokens=record["output_tokens"],
+        input_tokens=record.get("input_tokens", 0),
+        cache_creation_input_tokens=record.get("cache_creation_input_tokens", 0),
+        cache_read_input_tokens=record.get("cache_read_input_tokens", 0),
+        output_tokens=record.get("output_tokens", 0),
     )
     history: list[MessageParam] = [
         {"role": r["role"], "content": r["content"]}
