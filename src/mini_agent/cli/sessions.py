@@ -11,7 +11,7 @@ from ..config import SESSION_DIR
 from .clipboard import extract_text_content
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
-from .token import token_tracker
+from .token import Usage, token_tracker
 
 
 @dataclass
@@ -20,7 +20,7 @@ class StoredSession:
     title: str
     updated_at: str
     history: list[MessageParam]
-    last_usage: tuple[int, int] | None = None
+    last_usage: Usage
 
 
 def session_path(session_id: str) -> Path:
@@ -52,7 +52,7 @@ def serialize_content(content: str | Iterable[object]) -> str | list[object]:
 def save_session_history(
     session_id: str,
     history: list[MessageParam],
-    last_usage: tuple[int, int] | None = None,
+    last_usage: Usage,
 ) -> None:
     ensure_session_dir()
     path = session_path(session_id)
@@ -66,33 +66,36 @@ def save_session_history(
                 }
             )
         )
-    if last_usage is not None:
-        lines.append(
-            json.dumps(
-                {
-                    "_meta": True,
-                    "input_tokens": last_usage[0],
-                    "output_tokens": last_usage[1],
-                }
-            )
+    lines.append(
+        json.dumps(
+            {
+                "input_tokens": last_usage.input_tokens,
+                "cache_creation_input_tokens": last_usage.cache_creation_input_tokens,
+                "cache_read_input_tokens": last_usage.cache_read_input_tokens,
+                "output_tokens": last_usage.output_tokens,
+            }
         )
-    path.write_text("\n".join(lines) + ("\n" if lines else ""))
+    )
+    path.write_text("\n".join(lines) + "\n")
 
 
 def load_session_history(
     session_id: str,
-) -> tuple[list[MessageParam], tuple[int, int] | None]:
+) -> tuple[list[MessageParam], Usage]:
     path = session_path(session_id)
-    history: list[MessageParam] = []
-    last_usage: tuple[int, int] | None = None
-    for line in path.read_text().splitlines():
-        if not line.strip():
-            continue
-        record = json.loads(line)
-        if record.get("_meta"):
-            last_usage = (record["input_tokens"], record["output_tokens"])
-        else:
-            history.append({"role": record["role"], "content": record["content"]})
+    lines = [line for line in path.read_text().splitlines() if line.strip()]
+    *message_lines, usage_line = lines
+    record = json.loads(usage_line)
+    last_usage = Usage(
+        input_tokens=record.get("input_tokens", 0),
+        cache_creation_input_tokens=record.get("cache_creation_input_tokens", 0),
+        cache_read_input_tokens=record.get("cache_read_input_tokens", 0),
+        output_tokens=record.get("output_tokens", 0),
+    )
+    history: list[MessageParam] = [
+        {"role": r["role"], "content": r["content"]}
+        for r in (json.loads(line) for line in message_lines)
+    ]
     return history, last_usage
 
 
@@ -116,9 +119,7 @@ def list_sessions() -> list[StoredSession]:
     for path in SESSION_DIR.glob("*.jsonl"):
         try:
             history, last_usage = load_session_history(path.stem)
-        except OSError:
-            continue
-        except json.JSONDecodeError:
+        except OSError, json.JSONDecodeError, ValueError, KeyError:
             continue
         updated_at = datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat()
         sessions.append(
@@ -187,6 +188,5 @@ def prompt_resume(
 
     chosen = next(stored for stored in sessions if stored.session_id == result)
     print_session_history(chosen.history)
-    if chosen.last_usage is not None:
-        token_tracker.restore(chosen.last_usage)
+    token_tracker.restore(chosen.last_usage)
     return chosen.session_id, chosen.history.copy(), True

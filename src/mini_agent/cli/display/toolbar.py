@@ -4,17 +4,15 @@ from prompt_toolkit.formatted_text import FormattedText
 
 from ...config import config
 from ..models import get_max_context_tokens
-from ..token import token_tracker
+from ..token import Usage, token_tracker
 from .picker import LIGHT_HINT_STYLE
 
 
-def _format_token_right(
-    total: tuple[int, int], last_round: tuple[int, int] | None
-) -> str:
-    right = f"↑{total[0]} ↓{total[1]}"
+def _format_token_right(total: Usage, last_round: Usage | None) -> str:
+    right = f"↑{total.total_input_tokens} ↓{total.output_tokens}"
     context_limit = get_max_context_tokens(config.get_model())
     if context_limit and last_round is not None:
-        used_tokens = last_round[0] + last_round[1]
+        used_tokens = last_round.total_input_tokens + last_round.output_tokens
         percent = min(100.0, (used_tokens / context_limit) * 100)
         right = f"{right} {percent:.1f}%"
     return f"{right}  "

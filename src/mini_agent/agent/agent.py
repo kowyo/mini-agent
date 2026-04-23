@@ -12,7 +12,7 @@ from rich.markdown import Markdown
 
 from ..cli.display import LIGHT_HINT_STYLE_RICH, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
-from ..cli.token import token_tracker
+from ..cli.token import Usage, token_tracker
 from ..config import WORKDIR, client, config
 from .skills import skill_loader
 from .tools import TOOL_HANDLERS, TOOLS
@@ -37,7 +37,7 @@ SYSTEM += (
 
 def agent_loop(messages: list[MessageParam]) -> None:
     model = config.get_model()
-    max_tokens = get_max_output_tokens(model) or 1024
+    max_tokens = get_max_output_tokens(model) or 32768
 
     working_status = None
     thinking_status = None
@@ -98,8 +98,14 @@ def agent_loop(messages: list[MessageParam]) -> None:
             usage = response.usage
             cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
             cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
-            total_input_tokens = cache_create + cache_read + usage.input_tokens
-            token_tracker.update(total_input_tokens, usage.output_tokens)
+            token_tracker.update(
+                Usage(
+                    input_tokens=usage.input_tokens,
+                    cache_creation_input_tokens=cache_create,
+                    cache_read_input_tokens=cache_read,
+                    output_tokens=usage.output_tokens,
+                )
+            )
 
             results = []
             for block in response.content:
