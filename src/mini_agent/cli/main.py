@@ -37,8 +37,9 @@ def _run_non_interactive(prompt: str) -> None:
     current_session_id = uuid.uuid4().hex
     history_len = len(history)
     agent_loop(history)
-    if len(history) > history_len:
-        save_session_history(current_session_id, history, token_tracker.get())
+    usage = token_tracker.get()
+    if len(history) > history_len and usage is not None:
+        save_session_history(current_session_id, history, usage)
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
@@ -61,8 +62,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             sent_image_count[0] = count_images_in_history(history)
             next_indicator[0] = max_indicator_in_history(history) + 1
             print_session_history(chosen.history)
-            if chosen.last_usage is not None:
-                token_tracker.restore(chosen.last_usage)
+            token_tracker.restore(chosen.last_usage)
         except StopIteration:
             print("Session ID not found.\n")
 
@@ -109,8 +109,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
         if len(history) <= history_len:
             continue
-
-        save_session_history(current_session_id, history, token_tracker.get())
+        usage = token_tracker.get()
+        if usage is not None:
+            save_session_history(current_session_id, history, usage)
 
     if session_saved(current_session_id):
         print(f"\nResume the session with:\nmini --resume {current_session_id}\n")
