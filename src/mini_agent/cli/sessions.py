@@ -119,9 +119,7 @@ def list_sessions() -> list[StoredSession]:
     for path in SESSION_DIR.glob("*.jsonl"):
         try:
             history, last_usage = load_session_history(path.stem)
-        except OSError:
-            continue
-        except json.JSONDecodeError:
+        except OSError, json.JSONDecodeError, ValueError, KeyError:
             continue
         updated_at = datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat()
         sessions.append(
