@@ -25,7 +25,7 @@ If you're using a custom base URL (e.g., OpenRouter, Azure, or other providers):
 
 ```bash
 export ANTHROPIC_BASE_URL="https://api.custom-provider.com/v1"
-export ANTHROPIC_AUTH_TOKEN="your-auth-token-here"
+export ANTHROPIC_API_KEY="your-api-key-here"
 ```
 
 ## Method 2: Configuration Directory (`~/.mini-agent/.env`)
@@ -46,7 +46,7 @@ echo 'ANTHROPIC_API_KEY="your-api-key-here"' > ~/.mini-agent/.env
 
 # For custom providers
 echo 'ANTHROPIC_BASE_URL="https://api.custom-provider.com/v1"' > ~/.mini-agent/.env
-echo 'ANTHROPIC_AUTH_TOKEN="your-auth-token-here"' >> ~/.mini-agent/.env
+echo 'ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.mini-agent/.env
 ```
 
 ## Priority Order
