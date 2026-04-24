@@ -11,7 +11,7 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from .clipboard import format_image_indicator, get_clipboard_image
 from .display import COMPLETION_STYLE, CommandCompleter
-from .display.theme import ACCENT_COLOR
+from .display.theme import PROMPT_TOOLKIT_ACCENT_COLOR
 from .display.toolbar import get_status_toolbar
 
 
@@ -92,7 +92,7 @@ def build_session(
             event.current_buffer.insert_text(indicator)
 
     session = PromptSession(
-        HTML(f'<style color="{ACCENT_COLOR}">> </style>'),
+        HTML(f'<style color="{PROMPT_TOOLKIT_ACCENT_COLOR}">> </style>'),
         multiline=True,
         key_bindings=bindings,
         completer=CommandCompleter(),

@@ -9,6 +9,8 @@ from prompt_toolkit.layout import controls as pt_controls
 from prompt_toolkit.layout import menus as pt_menus
 from prompt_toolkit.styles import Style
 
+from .theme import PROMPT_TOOLKIT_ACCENT_COLOR
+
 COMMANDS = {
     "/new": "Start a new session",
     "/resume": "Resume a previous session",
@@ -120,9 +122,13 @@ COMPLETION_STYLE = Style.from_dict(
     {
         "bottom-toolbar": "noinherit",
         "completion-menu.completion": "noinherit",
-        "completion-menu.completion.current": "noinherit bold",
+        "completion-menu.completion.current": (
+            f"noinherit fg:{PROMPT_TOOLKIT_ACCENT_COLOR} bold"
+        ),
         "completion-menu.meta.completion": "noinherit",
-        "completion-menu.meta.completion.current": "noinherit bold",
+        "completion-menu.meta.completion.current": (
+            f"noinherit fg:{PROMPT_TOOLKIT_ACCENT_COLOR} bold"
+        ),
         "scrollbar.background": "noinherit",
         "scrollbar.button": "noinherit",
         "scrollbar.arrow-up": "noinherit",

@@ -8,7 +8,7 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.layout import Layout, Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 
-from .theme import LIGHT_HINT_STYLE, SELECTED_STYLE
+from .theme import LIGHT_HINT_STYLE, PROMPT_TOOLKIT_ACCENT_COLOR, SELECTED_STYLE
 
 
 def select_from_list[T](
@@ -77,7 +77,12 @@ def select_from_list[T](
                 orig_idx, item = filtered[idx]
                 label = format_item(item).replace("\n", " ")
                 if orig_idx == selected_index:
-                    fragments.append((SELECTED_STYLE, f"> {label}\n"))
+                    fragments.append(
+                        (
+                            f"fg:{PROMPT_TOOLKIT_ACCENT_COLOR} {SELECTED_STYLE}",
+                            f"> {label}\n",
+                        )
+                    )
                 else:
                     fragments.append(("", f"  {label}\n"))
 
