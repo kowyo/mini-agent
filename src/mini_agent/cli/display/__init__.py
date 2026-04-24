@@ -1,6 +1,8 @@
+from .box import print_box
 from .completion import COMMANDS, COMPLETION_STYLE, CommandCompleter
 from .diff import color_full_line, format_edit_diff
 from .printing import (
+    clear_prompt_line,
     clear_terminal,
     print_session_history,
     print_tool_result,
@@ -30,6 +32,8 @@ __all__ = [
     "color_full_line",
     "format_edit_diff",
     "get_status_toolbar",
+    "print_box",
+    "clear_prompt_line",
     "print_session_history",
     "print_tool_result",
     "print_tool_start",

@@ -19,14 +19,14 @@ def format_usage_report(usage: Usage | None) -> str:
     )
 
 
-def format_status_report(session_id: str) -> str:
+def format_status_report(session_id: str) -> list[str]:
     usage_report = format_usage_report(token_tracker.get())
     lines = [
-        f"Model: {config.get_model()} {config.get_reasoning_effort()}",
-        f"Directory: {Path.cwd()}",
-        f"Session: {session_id}",
+        f"Model:          {config.get_model()} {config.get_reasoning_effort()}",
+        f"Directory:      {Path.cwd()}",
+        f"Session:        {session_id}",
         "",
     ]
     if usage_report:
-        lines.append(usage_report)
-    return "\n".join(lines)
+        lines.extend(usage_report.splitlines())
+    return lines

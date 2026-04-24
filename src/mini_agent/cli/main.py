@@ -13,7 +13,9 @@ from ..config import (
 )
 from .display import (
     ACCENT_COLOR,
+    clear_prompt_line,
     clear_terminal,
+    print_box,
     print_welcome_banner,
 )
 from .image_messages import (
@@ -78,16 +80,19 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         try:
             query = session.prompt(pre_run=pre_run)
             pre_run = None
-            print()
         except KeyboardInterrupt:
+            clear_prompt_line()
             attached_images.clear()
             continue
         except EOFError:
+            clear_prompt_line()
             break
 
         command = query.strip().lower()
         if command in {"", "q", "/exit"}:
+            clear_prompt_line()
             break
+        print()
         if command == "/new":
             history.clear()
             current_session_id = uuid.uuid4().hex
@@ -109,7 +114,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             continue
         if command == "/status":
-            print(f"{format_status_report(current_session_id)}\n")
+            print_box(console, format_status_report(current_session_id))
+            print()
             attached_images.clear()
             continue
 
@@ -128,7 +134,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     if session_saved(current_session_id):
         usage_report = format_usage_report(token_tracker.get())
         if usage_report:
-            print(f"{usage_report}\n")
+            console.print(usage_report)
+            print()
         print("Resume the session with:")
         console.print(f"mini --resume {current_session_id}", style=ACCENT_COLOR)
         print()

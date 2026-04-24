@@ -13,8 +13,9 @@ from rich.text import Text
 from ...agent.tools import safe_path
 from ...config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION, config
 from ..clipboard import extract_text_content
+from .box import print_box
 from .diff import format_edit_diff
-from .theme import ACCENT_COLOR, LIGHT_HINT_STYLE_RICH
+from .theme import LIGHT_HINT_STYLE_RICH, PROMPT_TOOLKIT_ACCENT_COLOR
 
 console = Console()
 
@@ -27,18 +28,22 @@ def clear_terminal() -> None:
     )
 
 
+def clear_prompt_line() -> None:
+    print("\r\033[2K\033[1A\033[2K\r", end="", flush=True)
+
+
 def print_welcome_banner() -> None:
+    version_line = Text.assemble(
+        f" >_ {DISTRIBUTION_NAME} ",
+        (f"(v{DISTRIBUTION_VERSION})", LIGHT_HINT_STYLE_RICH),
+    )
     lines = [
-        f" >_ {DISTRIBUTION_NAME} (v{DISTRIBUTION_VERSION})",
+        version_line,
         "",
         f" model: {config.get_model()} {config.get_reasoning_effort()}",
     ]
-    width = max(len(line) for line in lines)
-
-    print(f"╭{'─' * (width + 2)}╮")
-    for line in lines:
-        print(f"│ {line.ljust(width)} │")
-    print(f"╰{'─' * (width + 2)}╯\n")
+    print_box(console, lines)
+    print()
 
 
 def print_session_history(history: list[MessageParam]) -> None:
@@ -53,7 +58,7 @@ def print_session_history(history: list[MessageParam]) -> None:
                 lines = text.splitlines()
                 print_formatted_text(
                     HTML(
-                        f'<style color="{ACCENT_COLOR}">&gt; </style>{escape(lines[0])}'
+                        f'<style color="{PROMPT_TOOLKIT_ACCENT_COLOR}">&gt; </style>{escape(lines[0])}'
                     )
                 )
                 for line in lines[1:]:
