@@ -1,6 +1,8 @@
 import json
 import urllib.request
+from datetime import UTC, datetime
 from functools import lru_cache
+from urllib.parse import urlparse
 
 from anthropic.types import ModelInfo
 
@@ -46,7 +48,7 @@ def get_max_output_tokens(model_id: str) -> int | None:
         return None
 
 
-def fetch_models() -> list[ModelInfo]:
+def _fetch_models_sdk() -> list[ModelInfo]:
     models: list[ModelInfo] = []
     page = client.models.list(limit=100)
     models.extend(page.data)
@@ -54,6 +56,46 @@ def fetch_models() -> list[ModelInfo]:
         page = page.get_next_page()
         models.extend(page.data)
     return sorted(models, key=lambda m: m.id)
+
+
+def _fetch_models_manual() -> list[ModelInfo]:
+    parsed = urlparse(str(client.base_url))
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    url = f"{base_url}/v1/models"
+
+    api_key = client.api_key or ""
+    req = urllib.request.Request(
+        url,
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read())
+
+    models: list[ModelInfo] = []
+    for model_data in data.get("data", []):
+        models.append(
+            ModelInfo(
+                id=model_data["id"],
+                display_name=model_data.get("display_name") or model_data["id"],
+                created_at=datetime.min.replace(tzinfo=UTC),
+                type="model",
+            )
+        )
+    return sorted(models, key=lambda m: m.id)
+
+
+def fetch_models() -> list[ModelInfo]:
+    try:
+        return _fetch_models_sdk()
+    except Exception:
+        pass
+    try:
+        return _fetch_models_manual()
+    except Exception:
+        return []
 
 
 def format_model(model: ModelInfo) -> str:
@@ -90,7 +132,11 @@ def select_model(models: list[ModelInfo]) -> str | None:
     if result is None:
         return None
     if isinstance(result, str):
-        model_id = input("Model ID: ").strip()
+        try:
+            model_id = input("Model ID: ").strip()
+        except KeyboardInterrupt, EOFError:
+            print()
+            return None
         print("\033[1A\033[2K", end="", flush=True)
         return model_id or None
     return result.id
@@ -121,7 +167,11 @@ def prompt_model() -> None:
 
     if not models:
         print("No models available from API. Enter a model ID manually.")
-        model_id = input("Model ID: ").strip()
+        try:
+            model_id = input("Model ID: ").strip()
+        except KeyboardInterrupt, EOFError:
+            print()
+            return
         if not model_id:
             return
         effort_result = select_reasoning_effort()
