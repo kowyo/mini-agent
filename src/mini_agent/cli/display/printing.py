@@ -14,7 +14,7 @@ from ...agent.tools import safe_path
 from ...config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION, config
 from ..clipboard import extract_text_content
 from .diff import format_edit_diff
-from .theme import LIGHT_HINT_STYLE_RICH, PROMPT_ACCENT_COLOR
+from .theme import ACCENT_COLOR, LIGHT_HINT_STYLE_RICH
 
 console = Console()
 
@@ -53,8 +53,7 @@ def print_session_history(history: list[MessageParam]) -> None:
                 lines = text.splitlines()
                 print_formatted_text(
                     HTML(
-                        f'<style color="{PROMPT_ACCENT_COLOR}">&gt; </style>'
-                        f"{escape(lines[0])}"
+                        f'<style color="{ACCENT_COLOR}">&gt; </style>{escape(lines[0])}'
                     )
                 )
                 for line in lines[1:]:

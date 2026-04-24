@@ -8,10 +8,10 @@ from .printing import (
     print_welcome_banner,
 )
 from .theme import (
+    ACCENT_COLOR,
     GREEN_BG,
     LIGHT_HINT_STYLE,
     LIGHT_HINT_STYLE_RICH,
-    PROMPT_ACCENT_COLOR,
     RED_BG,
     RESET,
 )
@@ -24,7 +24,7 @@ __all__ = [
     "GREEN_BG",
     "LIGHT_HINT_STYLE",
     "LIGHT_HINT_STYLE_RICH",
-    "PROMPT_ACCENT_COLOR",
+    "ACCENT_COLOR",
     "RED_BG",
     "RESET",
     "color_full_line",

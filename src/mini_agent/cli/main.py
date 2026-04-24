@@ -2,6 +2,7 @@ import argparse
 import uuid
 
 from anthropic.types import MessageParam
+from rich.console import Console
 
 from ..agent.agent import agent_loop
 from ..config import (
@@ -11,6 +12,7 @@ from ..config import (
     config,
 )
 from .display import (
+    ACCENT_COLOR,
     clear_terminal,
     print_welcome_banner,
 )
@@ -28,8 +30,13 @@ from .sessions import (
     save_session_history,
     session_saved,
 )
-from .status import format_status_report
+from .status import (
+    format_status_report,
+    format_usage_report,
+)
 from .token import token_tracker
+
+console = Console()
 
 
 def _run_non_interactive(prompt: str) -> None:
@@ -119,7 +126,12 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             save_session_history(current_session_id, history, usage)
 
     if session_saved(current_session_id):
-        print(f"\nResume the session with:\nmini --resume {current_session_id}\n")
+        usage_report = format_usage_report(token_tracker.get())
+        if usage_report:
+            print(f"{usage_report}\n")
+        print("Resume the session with:")
+        console.print(f"mini --resume {current_session_id}", style=ACCENT_COLOR)
+        print()
 
 
 def main() -> None:
