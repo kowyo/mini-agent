@@ -54,29 +54,30 @@ def _display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> Non
         elif event.type == "content_block_delta":
             delta = event.delta
             if delta.type == "text_delta":
-                text += delta.text
-                if live is None:
-                    live = Live(
-                        Markdown(""),
-                        console=console,
-                        refresh_per_second=15,
-                        vertical_overflow="visible",
-                    )
-                    live.start()
-                live.update(Markdown(text))
+                chunk, style = delta.text, None
             elif delta.type == "thinking_delta":
-                console.print(delta.thinking, end="", style=LIGHT_HINT_STYLE_RICH)
-                sys.stdout.flush()
+                chunk, style = delta.thinking, LIGHT_HINT_STYLE_RICH
+            else:
+                continue
+            text += chunk
+            if live is None:
+                live = Live(
+                    Markdown(""),
+                    console=console,
+                    refresh_per_second=15,
+                    vertical_overflow="visible",
+                )
+                live.start()
+            live.update(Markdown(text, style=style or ""))
 
         elif event.type == "content_block_stop":
-            if block_type == "text" and live is not None:
+            if live is not None:
                 live.stop()
                 live = None
                 console.print()
-            elif block_type == "thinking":
-                console.print()
-                console.print()
-            sys.stdout.flush()
+                if block_type == "thinking":
+                    console.print()
+                sys.stdout.flush()
 
     if live is not None:
         live.stop()
@@ -123,12 +124,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
                 with client.messages.stream(**stream_kwargs) as stream:
                     thinking_status.stop()
-
-                    # Drive live display from stream events.
-                    # The SDK accumulates into the final Message in parallel.
                     _display_stream_events(stream)
-
-                    # Obtain the properly SDK-built response.
                     response = stream.get_final_message()
 
             except (TypeError, anthropic.APIStatusError) as e:
