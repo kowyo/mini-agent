@@ -94,9 +94,9 @@ def _display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> Non
         elif event.type == "content_block_stop":
             if current_block_type == "text":
                 _stop_live()
-                print()  # blank line after text block
+                console.print()  # blank line after text block
             elif current_block_type == "thinking":
-                print()  # newline after streaming thinking
+                console.print()  # newline after streaming thinking
 
             current_block_type = None
 
