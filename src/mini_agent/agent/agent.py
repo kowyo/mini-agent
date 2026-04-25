@@ -1,13 +1,13 @@
+import sys
 from datetime import date
 
 import anthropic
 from anthropic.types import (
     MessageParam,
-    TextBlock,
-    ThinkingBlock,
     ToolUseBlock,
 )
 from rich.console import Console
+from rich.live import Live
 from rich.markdown import Markdown
 
 from ..cli.display import LIGHT_HINT_STYLE_RICH, print_tool_result, print_tool_start
@@ -33,6 +33,74 @@ if skill_loader.skills:
 SYSTEM += (
     f"\nCurrent date: {date.today().isoformat()}\nCurrent working directory: {WORKDIR}"
 )
+
+
+def _display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None:
+    """Iterate stream events solely to drive live display.
+
+    The SDK's ``MessageStream`` accumulates events into the final
+    ``Message`` internally (via ``accumulate_event``) as each event is
+    yielded, so we only handle visual output here.  The properly
+    constructed response is obtained later with ``get_final_message()``.
+    """
+
+    live_display: Live | None = None
+    current_block_type: str | None = None
+    current_text = ""
+
+    def _stop_live() -> None:
+        nonlocal live_display
+        if live_display is not None:
+            live_display.stop()
+            live_display = None
+
+    for event in stream:
+        if event.type == "content_block_start":
+            cb = event.content_block
+            current_block_type = cb.type
+
+            if cb.type != "text":
+                _stop_live()
+            else:
+                current_text = ""
+
+        elif event.type == "content_block_delta":
+            delta = event.delta
+
+            if delta.type == "text_delta":
+                current_text += delta.text
+                if live_display is None:
+                    _stop_live()
+                    live_display = Live(
+                        Markdown(""),
+                        console=console,
+                        refresh_per_second=15,
+                        vertical_overflow="visible",
+                    )
+                    live_display.start()
+                if live_display is not None:
+                    live_display.update(Markdown(current_text))
+
+            elif delta.type == "thinking_delta":
+                # Print raw text — wrapping each delta in Markdown() causes
+                # Rich to emit unwanted newlines per chunk.
+                console.print(
+                    delta.thinking,
+                    end="",
+                    style=LIGHT_HINT_STYLE_RICH,
+                )
+                sys.stdout.flush()
+
+        elif event.type == "content_block_stop":
+            if current_block_type == "text":
+                _stop_live()
+                print()  # blank line after text block
+            elif current_block_type == "thinking":
+                print()  # newline after streaming thinking
+
+            current_block_type = None
+
+    _stop_live()
 
 
 def agent_loop(messages: list[MessageParam]) -> None:
@@ -73,21 +141,17 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     stream_kwargs["thinking"] = thinking_param
                     if output_config is not None:
                         stream_kwargs["output_config"] = output_config
+
                 with client.messages.stream(**stream_kwargs) as stream:
-                    response = stream.get_final_message()
                     thinking_status.stop()
 
-                    for block in response.content:
-                        if isinstance(block, ThinkingBlock):
-                            console.print(
-                                Markdown(block.thinking),
-                                end="",
-                                style=LIGHT_HINT_STYLE_RICH,
-                            )
-                            print()
-                        elif isinstance(block, TextBlock):
-                            console.print(Markdown(block.text))
-                            print()
+                    # Drive live display from stream events.
+                    # The SDK accumulates into the final Message in parallel.
+                    _display_stream_events(stream)
+
+                    # Obtain the properly SDK-built response.
+                    response = stream.get_final_message()
+
             except (TypeError, anthropic.APIStatusError) as e:
                 thinking_status.stop()
                 print(f"Unexpected {e=}\n")
@@ -100,7 +164,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
             token_tracker.update(
                 Usage(
-                    input_tokens=usage.input_tokens,
+                    input_tokens=usage.input_tokens or 0,
                     cache_creation_input_tokens=cache_create,
                     cache_read_input_tokens=cache_read,
                     output_tokens=usage.output_tokens,
