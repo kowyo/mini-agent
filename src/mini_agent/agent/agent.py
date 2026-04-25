@@ -36,73 +36,50 @@ SYSTEM += (
 
 
 def _display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None:
-    """Iterate stream events solely to drive live display.
+    """Drive live Markdown display from stream events.
 
-    The SDK's ``MessageStream`` accumulates events into the final
-    ``Message`` internally (via ``accumulate_event``) as each event is
-    yielded, so we only handle visual output here.  The properly
-    constructed response is obtained later with ``get_final_message()``.
+    The SDK accumulates events into the final ``Message`` in parallel,
+    so this function only handles visual output.
     """
 
-    live_display: Live | None = None
-    current_block_type: str | None = None
-    current_text = ""
-
-    def _stop_live() -> None:
-        nonlocal live_display
-        if live_display is not None:
-            live_display.stop()
-            live_display = None
+    live: Live | None = None
+    block_type: str | None = None
+    text = ""
 
     for event in stream:
         if event.type == "content_block_start":
-            cb = event.content_block
-            current_block_type = cb.type
-
-            if cb.type != "text":
-                _stop_live()
-            else:
-                current_text = ""
+            block_type = event.content_block.type
+            text = ""
 
         elif event.type == "content_block_delta":
             delta = event.delta
-
             if delta.type == "text_delta":
-                current_text += delta.text
-                if live_display is None:
-                    _stop_live()
-                    live_display = Live(
+                text += delta.text
+                if live is None:
+                    live = Live(
                         Markdown(""),
                         console=console,
                         refresh_per_second=15,
                         vertical_overflow="visible",
                     )
-                    live_display.start()
-                if live_display is not None:
-                    live_display.update(Markdown(current_text))
-
+                    live.start()
+                live.update(Markdown(text))
             elif delta.type == "thinking_delta":
-                # Print raw text — wrapping each delta in Markdown() causes
-                # Rich to emit unwanted newlines per chunk.
-                console.print(
-                    delta.thinking,
-                    end="",
-                    style=LIGHT_HINT_STYLE_RICH,
-                )
+                console.print(delta.thinking, end="", style=LIGHT_HINT_STYLE_RICH)
                 sys.stdout.flush()
 
         elif event.type == "content_block_stop":
-            if current_block_type == "text":
-                _stop_live()
-                console.print()  # blank line after text block
-                sys.stdout.flush()
-            elif current_block_type == "thinking":
-                console.print()  # newline after streaming thinking
-                sys.stdout.flush()
+            if block_type == "text" and live is not None:
+                live.stop()
+                live = None
+                console.print()
+            elif block_type == "thinking":
+                console.print()
+                console.print()
+            sys.stdout.flush()
 
-            current_block_type = None
-
-    _stop_live()
+    if live is not None:
+        live.stop()
 
 
 def agent_loop(messages: list[MessageParam]) -> None:
