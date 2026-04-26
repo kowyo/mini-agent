@@ -9,6 +9,7 @@ from .printing import (
     print_tool_start,
     print_welcome_banner,
 )
+from .stream import display_stream_events
 from .theme import (
     ACCENT_COLOR,
     GREEN_BG,
@@ -30,6 +31,7 @@ __all__ = [
     "RED_BG",
     "RESET",
     "color_full_line",
+    "display_stream_events",
     "format_edit_diff",
     "get_status_toolbar",
     "print_box",

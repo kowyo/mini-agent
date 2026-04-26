@@ -1,4 +1,3 @@
-import sys
 from datetime import date
 
 import anthropic
@@ -7,10 +6,8 @@ from anthropic.types import (
     ToolUseBlock,
 )
 from rich.console import Console
-from rich.live import Live
-from rich.markdown import Markdown
 
-from ..cli.display import LIGHT_HINT_STYLE_RICH, print_tool_result, print_tool_start
+from ..cli.display import display_stream_events, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import WORKDIR, client, config
@@ -33,48 +30,6 @@ if skill_loader.skills:
 SYSTEM += (
     f"\nCurrent date: {date.today().isoformat()}\nCurrent working directory: {WORKDIR}"
 )
-
-
-def _display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None:
-    """Drive live Markdown display from stream events.
-
-    The SDK accumulates events into the final ``Message`` in parallel,
-    so this function only handles visual output.
-    """
-
-    live: Live | None = None
-    text = ""
-
-    for event in stream:
-        if event.type == "content_block_start":
-            text = ""
-
-        elif event.type == "content_block_delta":
-            delta = event.delta
-            if delta.type == "text_delta":
-                chunk, style = delta.text, None
-            elif delta.type == "thinking_delta":
-                chunk, style = delta.thinking, LIGHT_HINT_STYLE_RICH
-            else:
-                continue
-            text += chunk
-            if live is None:
-                live = Live(
-                    Markdown(""),
-                    console=console,
-                    refresh_per_second=15,
-                )
-                live.start()
-            live.update(Markdown(text, style=style or ""))
-
-        elif event.type == "content_block_stop" and live is not None:
-            live.stop()
-            live = None
-            console.print()
-            sys.stdout.flush()
-
-    if live is not None:
-        live.stop()
 
 
 def agent_loop(messages: list[MessageParam]) -> None:
@@ -118,7 +73,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
                 with client.messages.stream(**stream_kwargs) as stream:
                     thinking_status.stop()
-                    _display_stream_events(stream)
+                    display_stream_events(stream)
                     response = stream.get_final_message()
 
             except (TypeError, anthropic.APIStatusError) as e:
