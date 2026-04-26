@@ -1,10 +1,7 @@
 import json
 import urllib.request
-from datetime import UTC, datetime
 from functools import lru_cache
 from urllib.parse import urlparse
-
-from anthropic.types import ModelInfo
 
 from ..config import REASONING_EFFORT_LEVELS, client, config
 from .display.picker import select_from_list
@@ -48,17 +45,17 @@ def get_max_output_tokens(model_id: str) -> int | None:
         return None
 
 
-def _fetch_models_sdk() -> list[ModelInfo]:
-    models: list[ModelInfo] = []
+def _fetch_models_sdk() -> list[str]:
+    model_ids: list[str] = []
     page = client.models.list(limit=100)
-    models.extend(page.data)
+    model_ids.extend(m.id for m in page.data)
     while page.has_more:
         page = page.get_next_page()
-        models.extend(page.data)
-    return sorted(models, key=lambda m: m.id)
+        model_ids.extend(m.id for m in page.data)
+    return sorted(model_ids)
 
 
-def _fetch_models_manual() -> list[ModelInfo]:
+def _fetch_models_manual() -> list[str]:
     parsed = urlparse(str(client.base_url))
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     url = f"{base_url}/v1/models"
@@ -74,20 +71,10 @@ def _fetch_models_manual() -> list[ModelInfo]:
     with urllib.request.urlopen(req, timeout=30) as resp:
         data = json.loads(resp.read())
 
-    models: list[ModelInfo] = []
-    for model_data in data.get("data", []):
-        models.append(
-            ModelInfo(
-                id=model_data["id"],
-                display_name=model_data.get("display_name") or model_data["id"],
-                created_at=datetime.min.replace(tzinfo=UTC),
-                type="model",
-            )
-        )
-    return sorted(models, key=lambda m: m.id)
+    return sorted(m["id"] for m in data.get("data", []))
 
 
-def fetch_models() -> list[ModelInfo]:
+def fetch_models() -> list[str]:
     try:
         return _fetch_models_sdk()
     except Exception:
@@ -98,10 +85,10 @@ def fetch_models() -> list[ModelInfo]:
         return []
 
 
-def format_model(model: ModelInfo) -> str:
-    parts = [model.id]
+def format_model(model_id: str) -> str:
+    parts = [model_id]
     try:
-        limits = _fetch_limits().get(model.id, {})
+        limits = _fetch_limits().get(model_id, {})
         context = limits.get("context")
         output = limits.get("output")
         if context is not None:
@@ -116,22 +103,21 @@ def format_model(model: ModelInfo) -> str:
 _ENTER_MANUALLY = "Enter model ID manually..."
 
 
-def select_model(models: list[ModelInfo]) -> str | None:
+def select_model(model_ids: list[str]) -> str | None:
     current = config.get_model()
-    ids = [m.id for m in models]
-    selected_index = ids.index(current) if current in ids else 0
+    selected_index = model_ids.index(current) if current in model_ids else 0
 
-    items: list[ModelInfo | str] = [*models, _ENTER_MANUALLY]
-
-    def fmt(item: ModelInfo | str) -> str:
-        return item if isinstance(item, str) else format_model(item)
-
+    items: list[str] = [*model_ids, _ENTER_MANUALLY]
     result = select_from_list(
-        items, "Select model", fmt, selected_index=selected_index, clear_after=True
+        items,
+        "Select model",
+        format_model,
+        selected_index=selected_index,
+        clear_after=True,
     )
     if result is None:
         return None
-    if isinstance(result, str):
+    if result == _ENTER_MANUALLY:
         try:
             model_id = input("Model ID: ").strip()
         except KeyboardInterrupt, EOFError:
@@ -139,7 +125,7 @@ def select_model(models: list[ModelInfo]) -> str | None:
             return None
         print("\033[1A\033[2K", end="", flush=True)
         return model_id or None
-    return result.id
+    return result
 
 
 def select_reasoning_effort() -> str | None:
@@ -160,12 +146,12 @@ def select_reasoning_effort() -> str | None:
 
 def prompt_model() -> None:
     try:
-        models = fetch_models()
+        model_ids = fetch_models()
     except Exception as e:
         print(f"Failed to fetch models: {e}\n")
         return
 
-    if not models:
+    if not model_ids:
         print("No models available from API. Enter a model ID manually.")
         try:
             model_id = input("Model ID: ").strip()
@@ -183,7 +169,7 @@ def prompt_model() -> None:
         print(f"Model set to {model_id} {effort}\n")
         return
 
-    model_id = select_model(models)
+    model_id = select_model(model_ids)
 
     if model_id is None:
         return
