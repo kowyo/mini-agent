@@ -3,14 +3,11 @@ from datetime import date
 import anthropic
 from anthropic.types import (
     MessageParam,
-    TextBlock,
-    ThinkingBlock,
     ToolUseBlock,
 )
 from rich.console import Console
-from rich.markdown import Markdown
 
-from ..cli.display import LIGHT_HINT_STYLE_RICH, print_tool_result, print_tool_start
+from ..cli.display import display_stream_events, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import WORKDIR, client, config
@@ -73,21 +70,12 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     stream_kwargs["thinking"] = thinking_param
                     if output_config is not None:
                         stream_kwargs["output_config"] = output_config
-                with client.messages.stream(**stream_kwargs) as stream:
-                    response = stream.get_final_message()
-                    thinking_status.stop()
 
-                    for block in response.content:
-                        if isinstance(block, ThinkingBlock):
-                            console.print(
-                                Markdown(block.thinking),
-                                end="",
-                                style=LIGHT_HINT_STYLE_RICH,
-                            )
-                            print()
-                        elif isinstance(block, TextBlock):
-                            console.print(Markdown(block.text))
-                            print()
+                with client.messages.stream(**stream_kwargs) as stream:
+                    thinking_status.stop()
+                    display_stream_events(stream)
+                    response = stream.get_final_message()
+
             except (TypeError, anthropic.APIStatusError) as e:
                 thinking_status.stop()
                 print(f"Unexpected {e=}\n")
@@ -141,6 +129,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             messages.append({"role": "user", "content": results})
 
     except KeyboardInterrupt:
+        print("\r", end="", flush=True)
         console.print(
             "[bold yellow]■ Conversation interrupted - tell the model what to do differently[/bold yellow]"
         )
