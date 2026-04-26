@@ -24,6 +24,7 @@ def select_from_list[T](
         return None
 
     selected_index = max(0, min(selected_index, len(items) - 1))
+    initial_selected_index = selected_index
     search_text = ""
 
     def get_filtered_items() -> list[tuple[int, T]]:
@@ -61,14 +62,11 @@ def select_from_list[T](
         end_index = min(len(filtered), start_index + available_rows)
         start_index = max(0, end_index - available_rows)
 
-        fragments: list[tuple[str, str]] = [("", f"{title}\n")]
+        fragments: list[tuple[str, str]] = [("", f"{title}\n\n")]
 
-        # Show search box status
+        # Show search box with cursor
         if enable_search:
-            if search_text:
-                fragments.append(("", f"Search: {search_text}\n\n"))
-            else:
-                fragments.append((LIGHT_HINT_STYLE, "Type to search...\n\n"))
+            fragments.append(("", f"> {search_text}█\n\n"))
 
         if not filtered:
             fragments.append((LIGHT_HINT_STYLE, "  No matches found\n"))
@@ -76,15 +74,22 @@ def select_from_list[T](
             for idx in range(start_index, end_index):
                 orig_idx, item = filtered[idx]
                 label = format_item(item).replace("\n", " ")
-                if orig_idx == selected_index:
+                prefix = "→ " if orig_idx == selected_index else "  "
+                suffix = " ✓" if orig_idx == initial_selected_index else ""
+                fragments.append(
+                    (
+                        f"fg:{PROMPT_TOOLKIT_ACCENT_COLOR} {SELECTED_STYLE}"
+                        if orig_idx == selected_index
+                        else "",
+                        f"{prefix}{label}",
+                    )
+                )
+                if suffix:
                     fragments.append(
-                        (
-                            f"fg:{PROMPT_TOOLKIT_ACCENT_COLOR} {SELECTED_STYLE}",
-                            f"> {label}\n",
-                        )
+                        (f"fg:{PROMPT_TOOLKIT_ACCENT_COLOR}", f"{suffix}\n")
                     )
                 else:
-                    fragments.append(("", f"  {label}\n"))
+                    fragments.append(("", "\n"))
 
         if show_hint or (enable_search and search_text):
             fragments.append(("", "\n"))
