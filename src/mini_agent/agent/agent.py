@@ -88,7 +88,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
             token_tracker.update(
                 Usage(
-                    input_tokens=usage.input_tokens or 0,
+                    input_tokens=usage.input_tokens,
                     cache_creation_input_tokens=cache_create,
                     cache_read_input_tokens=cache_read,
                     output_tokens=usage.output_tokens,
