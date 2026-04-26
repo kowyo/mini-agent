@@ -129,6 +129,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             messages.append({"role": "user", "content": results})
 
     except KeyboardInterrupt:
+        print("\r", end="", flush=True)
         console.print(
             "[bold yellow]■ Conversation interrupted - tell the model what to do differently[/bold yellow]"
         )
