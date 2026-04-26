@@ -4,6 +4,7 @@ from functools import lru_cache
 from urllib.parse import urlparse
 
 from ..config import REASONING_EFFORT_LEVELS, client, config
+from .display import clear_prompt_line
 from .display.picker import select_from_list
 
 
@@ -121,9 +122,10 @@ def select_model(model_ids: list[str]) -> str | None:
         try:
             model_id = input("Model ID: ").strip()
         except KeyboardInterrupt, EOFError:
+            clear_prompt_line()
             print()
             return None
-        print("\033[1A\033[2K", end="", flush=True)
+        clear_prompt_line()
         return model_id or None
     return result
 
@@ -152,10 +154,13 @@ def prompt_model() -> None:
         return
 
     if not model_ids:
-        print("No models available from API. Enter a model ID manually.")
         try:
-            model_id = input("Model ID: ").strip()
+            model_id = input(
+                "No models available from /v1/models. Please enter a model ID here: "
+            ).strip()
+            clear_prompt_line()
         except KeyboardInterrupt, EOFError:
+            clear_prompt_line()
             print()
             return
         if not model_id:
