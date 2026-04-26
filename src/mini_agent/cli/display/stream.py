@@ -1,7 +1,6 @@
 import sys
 from typing import cast
 
-import anthropic
 import anthropic.lib.streaming
 from anthropic.types import ContentBlockDeltaEvent, TextDelta, ThinkingDelta
 from rich.console import Console
