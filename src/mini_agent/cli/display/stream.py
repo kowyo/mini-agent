@@ -23,33 +23,34 @@ def display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None
     live: Live | None = None
     text = ""
 
-    for event in stream:
-        if event.type == "content_block_start":
-            text = ""
+    try:
+        for event in stream:
+            if event.type == "content_block_start":
+                text = ""
 
-        elif event.type == "content_block_delta":
-            delta = cast(ContentBlockDeltaEvent, event).delta
-            if isinstance(delta, TextDelta):
-                chunk, style = delta.text, None
-            elif isinstance(delta, ThinkingDelta):
-                chunk, style = delta.thinking, LIGHT_HINT_STYLE_RICH
-            else:
-                continue
-            text += chunk
-            if live is None:
-                live = Live(
-                    Markdown(""),
-                    console=console,
-                    refresh_per_second=15,
-                )
-                live.start()
-            live.update(Markdown(text, style=style or ""))
+            elif event.type == "content_block_delta":
+                delta = cast(ContentBlockDeltaEvent, event).delta
+                if isinstance(delta, TextDelta):
+                    chunk, style = delta.text, None
+                elif isinstance(delta, ThinkingDelta):
+                    chunk, style = delta.thinking, LIGHT_HINT_STYLE_RICH
+                else:
+                    continue
+                text += chunk
+                if live is None:
+                    live = Live(
+                        Markdown(""),
+                        console=console,
+                        refresh_per_second=15,
+                    )
+                    live.start()
+                live.update(Markdown(text, style=style or ""))
 
-        elif event.type == "content_block_stop" and live is not None:
+            elif event.type == "content_block_stop" and live is not None:
+                live.stop()
+                live = None
+                console.print()
+                sys.stdout.flush()
+    finally:
+        if live is not None:
             live.stop()
-            live = None
-            console.print()
-            sys.stdout.flush()
-
-    if live is not None:
-        live.stop()
