@@ -43,12 +43,10 @@ def _display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> Non
     """
 
     live: Live | None = None
-    block_type: str | None = None
     text = ""
 
     for event in stream:
         if event.type == "content_block_start":
-            block_type = event.content_block.type
             text = ""
 
         elif event.type == "content_block_delta":
@@ -65,19 +63,15 @@ def _display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> Non
                     Markdown(""),
                     console=console,
                     refresh_per_second=15,
-                    vertical_overflow="visible",
                 )
                 live.start()
             live.update(Markdown(text, style=style or ""))
 
-        elif event.type == "content_block_stop":
-            if live is not None:
-                live.stop()
-                live = None
-                console.print()
-                if block_type == "thinking":
-                    console.print()
-                sys.stdout.flush()
+        elif event.type == "content_block_stop" and live is not None:
+            live.stop()
+            live = None
+            console.print()
+            sys.stdout.flush()
 
     if live is not None:
         live.stop()
