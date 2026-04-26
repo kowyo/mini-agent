@@ -160,11 +160,20 @@ def format_session_choice(stored: StoredSession) -> str:
     return f"{stored.title} ({format_relative_time(stored.updated_at)})"
 
 
-def select_session(sessions: list[StoredSession]) -> str | None:
+def select_session(
+    sessions: list[StoredSession], current_session_id: str | None = None
+) -> str | None:
+    selected_index = 0
+    if current_session_id is not None:
+        for i, session in enumerate(sessions):
+            if session.session_id == current_session_id:
+                selected_index = i
+                break
     result = select_from_list(
         sessions,
         "Resume a previous session",
         format_session_choice,
+        selected_index=selected_index,
     )
     return result.session_id if result is not None else None
 
@@ -179,7 +188,7 @@ def prompt_resume(
         print("No saved sessions found.\n")
         return current_session_id, history, False
 
-    result = select_session(sessions)
+    result = select_session(sessions, current_session_id=current_session_id)
     print()
 
     if result is None:
