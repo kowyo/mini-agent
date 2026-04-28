@@ -49,5 +49,5 @@ if [ -z "${WHEEL}" ]; then
 fi
 
 echo "Installing mini-agent from ${WHEEL}..."
-uv tool install "${WHEEL}"
+uv tool install --force "${WHEEL}"
 echo "Done. Run 'mini' to get started."
