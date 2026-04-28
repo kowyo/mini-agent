@@ -15,3 +15,7 @@ wheels/
 # AI
 .agents/
 skills-lock.json
+
+# Compiled mypyc extensions
+*.so
+*.cpython-*.so
