@@ -43,7 +43,6 @@ def print_welcome_banner() -> None:
         f" model: {config.get_model()} {config.get_reasoning_effort()}",
     ]
     print_box(console, lines)
-    print()
 
 
 def print_session_history(history: list[MessageParam]) -> None:
