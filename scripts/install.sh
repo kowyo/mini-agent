@@ -7,7 +7,7 @@ API_URL="https://api.github.com/repos/${REPO}/releases/latest"
 if ! command -v uv &>/dev/null; then
   echo "'uv' is required but not installed."
   read -r -p "Would you like to install uv now? [Y/n] " REPLY </dev/tty
-  if [[ "${REPLY:-y}" =~ ^[Yy]$ ]]; then
+  if [[ "${REPLY:-n}" =~ ^[Yy]$ ]]; then
     echo "Installing uv..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
     # Add uv to PATH for the current script session
