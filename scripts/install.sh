@@ -48,14 +48,13 @@ case "${OS}" in
 esac
 
 case "${ARCH}" in
-  arm64|aarch64) ARCH_TAG="arm64" ;;
-  x86_64)        ARCH_TAG="x86_64" ;;
+  arm64|aarch64|x86_64) ;;
   *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
 esac
 
 ASSETS=$(echo "${LATEST_RELEASE}" | grep "browser_download_url" | grep "\.whl" | sed 's/.*"browser_download_url": "\(.*\)".*/\1/' || true)
 
-WHEEL=$(echo "${ASSETS}" | grep "${OS_TAG}" | grep "${ARCH_TAG}" | head -1 || true)
+WHEEL=$(echo "${ASSETS}" | grep "${OS_TAG}" | grep "${ARCH}" | head -1 || true)
 if [ -z "${WHEEL}" ]; then
   WHEEL=$(echo "${ASSETS}" | grep "none-any" | head -1 || true)
 fi
