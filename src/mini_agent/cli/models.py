@@ -155,7 +155,7 @@ def prompt_model() -> None:
 
     if not model_ids:
         try:
-            model_id = input(
+            model_id: str | None = input(
                 "No models available from /v1/models. Please enter a model ID here: "
             ).strip()
             clear_prompt_line()

@@ -6,9 +6,22 @@ A minimal agent running in your terminal.
 
 ## Installation
 
+**macOS / Linux**
+
 ```bash
-uv tool install git+https://github.com/kowyo/mini-agent.git@main
-mini
+curl -fsSL https://raw.githubusercontent.com/kowyo/mini-agent/main/install.sh | bash
+```
+
+**Windows**
+
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/install.ps1 | iex"
+```
+
+**uv tool**
+
+```bash
+uv tool install git+https://github.com/kowyo/mini-agent.git@v0.12.0
 ```
 
 ## Development

@@ -6,6 +6,7 @@ from anthropic.types import (
     ToolUseBlock,
 )
 from rich.console import Console
+from rich.status import Status
 
 from ..cli.display import display_stream_events, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
@@ -36,8 +37,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
     model = config.get_model()
     max_tokens = get_max_output_tokens(model) or 32768
 
-    working_status = None
-    thinking_status = None
+    working_status: Status | None = None
+    thinking_status: Status | None = None
 
     try:
         while True:
