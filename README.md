@@ -9,13 +9,13 @@ A minimal agent running in your terminal.
 **macOS / Linux**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kowyo/mini-agent/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kowyo/mini-agent/v0.12.0/scripts/install.sh | bash
 ```
 
 **Windows**
 
 ```powershell
-powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/v0.12.0/scripts/install.ps1 | iex"
 ```
 
 **From source**
