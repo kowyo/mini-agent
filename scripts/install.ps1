@@ -1,5 +1,25 @@
 $ErrorActionPreference = "Stop"
 
+$Repo = "kowyo/mini-agent"
+$ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
+
+if (Get-Command mini -ErrorAction SilentlyContinue) {
+    Write-Host "Checking for updates..."
+    $Release = Invoke-RestMethod -Uri $ApiUrl
+    $LATEST_VERSION = $Release.tag_name -replace '^v', ''
+
+    $INSTALLED_VERSION = (mini --version 2>$null) -replace '^.*\s', ''
+    if ($INSTALLED_VERSION -eq $LATEST_VERSION) {
+        Write-Host "You're already on version " -NoNewline
+        Write-Host "$INSTALLED_VERSION" -NoNewline -ForegroundColor Cyan
+        Write-Host " of mini-agent (the latest version)."
+        exit 0
+    }
+    Write-Host "Updating mini-agent from v$INSTALLED_VERSION to v$LATEST_VERSION..."
+} else {
+    $Release = Invoke-RestMethod -Uri $ApiUrl
+}
+
 # Check if uv is available
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     Write-Host "'uv' is required but not installed." -ForegroundColor Red
@@ -22,12 +42,10 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     }
 }
 
-$ApiUrl = "https://api.github.com/repos/kowyo/mini-agent/releases/latest"
-
 $Arch = $env:PROCESSOR_ARCHITECTURE
 $ArchTag = if ($Arch -eq "ARM64") { "arm64" } else { "amd64" }
 
-$Assets = (Invoke-RestMethod -Uri $ApiUrl).assets | Where-Object { $_.name -like "*.whl" }
+$Assets = $Release.assets | Where-Object { $_.name -like "*.whl" }
 
 $Wheel = $Assets | Where-Object { $_.name -like "*win*$ArchTag*" } | Select-Object -First 1
 if (-not $Wheel) {
