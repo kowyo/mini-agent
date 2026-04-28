@@ -20,20 +20,33 @@ jobs:
 
   build:
     needs: lint
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            args: ""
+          - os: macos-latest
+            args: --wheel
+          - os: windows-latest
+            args: --wheel
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Build package
-        run: uv build
+      - name: Build
+        run: uv build ${{ matrix.args }}
 
-      - name: Upload build artifacts
+      - name: Smoke test
+        shell: bash
+        run: uv run --with dist/*.whl --no-project python -c "from mini_agent import main"
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: dist
+          name: dist-${{ matrix.os }}
           path: dist/
 
   release:
@@ -43,10 +56,26 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Update install version in README
+        run: |
+          sed -i -E 's|v[0-9]+\.[0-9]+\.[0-9]+/scripts/install\.sh|${{ github.ref_name }}/scripts/install.sh|g' README.md
+          sed -i -E 's|v[0-9]+\.[0-9]+\.[0-9]+/scripts/install\.ps1|${{ github.ref_name }}/scripts/install.ps1|g' README.md
+          sed -i -E 's|git\+https://github.com/kowyo/mini-agent.git@v[0-9]+\.[0-9]+\.[0-9]+|git+https://github.com/kowyo/mini-agent.git@${{ github.ref_name }}|g' README.md
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --staged --quiet || git commit -m "chore: update install version to ${{ github.ref_name }}"
+          git push
+
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
-          name: dist
+          pattern: dist-*
+          merge-multiple: true
           path: dist/
 
       - name: Create release and upload artifacts
