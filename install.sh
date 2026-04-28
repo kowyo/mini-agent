@@ -4,6 +4,23 @@ set -euo pipefail
 REPO="kowyo/mini-agent"
 API_URL="https://api.github.com/repos/${REPO}/releases/latest"
 
+if ! command -v uv &>/dev/null; then
+  echo "'uv' is required but not installed."
+  read -r -p "Would you like to install uv now? [Y/n] " REPLY
+  if [[ "${REPLY:-y}" =~ ^[Yy]$ ]]; then
+    echo "Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Add uv to PATH for the current script session
+    if [ -f "$HOME/.local/bin/uv" ]; then
+      export PATH="$HOME/.local/bin:$PATH"
+    fi
+    echo "uv installed. Continuing with mini-agent installation..."
+  else
+    echo "Aborting. Install uv manually and re-run this script."
+    exit 1
+  fi
+fi
+
 OS=$(uname -s)
 ARCH=$(uname -m)
 
