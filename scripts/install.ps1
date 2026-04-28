@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     Write-Host "'uv' is required but not installed." -ForegroundColor Red
     $reply = Read-Host "Would you like to install uv now? [Y/n]"
-    if ($reply -eq "" -or $reply -match "^[Yy]") {
+    if ($reply -match "^[Yy]") {
         Write-Host "Installing uv..."
         $installScript = Invoke-RestMethod -Uri "https://astral.sh/uv/install.ps1"
         Invoke-Expression $installScript

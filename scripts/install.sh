@@ -36,11 +36,11 @@ case "${ARCH}" in
   *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
 esac
 
-ASSETS=$(curl -fsSL "${API_URL}" | grep "browser_download_url" | grep "\.whl" | sed 's/.*"browser_download_url": "\(.*\)".*/\1/')
+ASSETS=$(curl -fsSL "${API_URL}" | grep "browser_download_url" | grep "\.whl" | sed 's/.*"browser_download_url": "\(.*\)".*/\1/' || true)
 
-WHEEL=$(echo "${ASSETS}" | grep "${OS_TAG}" | grep "${ARCH_TAG}" | head -1)
+WHEEL=$(echo "${ASSETS}" | grep "${OS_TAG}" | grep "${ARCH_TAG}" | head -1 || true)
 if [ -z "${WHEEL}" ]; then
-  WHEEL=$(echo "${ASSETS}" | grep "none-any" | head -1)
+  WHEEL=$(echo "${ASSETS}" | grep "none-any" | head -1 || true)
 fi
 
 if [ -z "${WHEEL}" ]; then
