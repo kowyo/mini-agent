@@ -23,11 +23,17 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             args: ""
-          - os: macos-latest
+          - os: ubuntu-24.04-arm
             args: --wheel
-          - os: windows-latest
+          - os: windows-2025
+            args: --wheel
+          - os: windows-11-arm
+            args: --wheel
+          - os: macos-26-intel
+            args: --wheel
+          - os: macos-26
             args: --wheel
     runs-on: ${{ matrix.os }}
     steps:
