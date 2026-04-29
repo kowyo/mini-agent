@@ -12,8 +12,16 @@ DISTRIBUTION_VERSION = importlib.metadata.version(DISTRIBUTION_NAME)
 
 DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
 DEFAULT_MODEL = "claude-sonnet-4-6"
-DEFAULT_REASONING_EFFORT = "medium"
-REASONING_EFFORT_LEVELS = ["disabled", "adaptive", "low", "medium", "high"]
+DEFAULT_REASONING_EFFORT = "high"
+REASONING_EFFORT_LEVELS = [
+    "disabled",
+    "adaptive",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+]
 CONFIG_DIR = DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
