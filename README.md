@@ -20,10 +20,6 @@ powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/scrip
 
 **From source**
 
-Prerequisites: A Python C extension development environment.
-
-See the [mypyc getting started guide](https://mypyc.readthedocs.io/en/latest/getting_started.html) for setup instructions.
-
 ```bash
 uv tool install git+https://github.com/kowyo/mini-agent.git@v0.13.1
 ```
