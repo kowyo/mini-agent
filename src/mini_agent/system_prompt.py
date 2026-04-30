@@ -78,11 +78,11 @@ def _build_context_section(files: list[Path]) -> str:
     ]
     for path in files:
         try:
-            content = path.read_text()
+            content = path.read_text().strip()
         except PermissionError, OSError:
             continue
-        sections.append(f"## {path}\n\n{content}\n")
-    return "\n".join(sections)
+        sections.append(f"\n## {path}\n\n{content}\n")
+    return "".join(sections)
 
 
 # ---------------------------------------------------------------------------
