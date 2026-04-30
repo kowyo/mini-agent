@@ -1,6 +1,6 @@
 # mini-agent
 
-<img width="1063" height="418" alt="image" src="https://github.com/user-attachments/assets/792da9af-7472-4231-a1ca-17d1a73e0841" />
+<img width="1024" alt="showcase" src="https://github.com/user-attachments/assets/90edd487-d1a5-496a-bdf3-976b320fe341" />
 
 A minimal agent running in your terminal.
 
