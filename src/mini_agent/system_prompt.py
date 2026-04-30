@@ -5,14 +5,13 @@ from pathlib import Path
 
 from .agent.skills import skill_loader
 from .agent.tools import TOOLS
-from .config import WORKDIR
+from .config import CONFIG_DIR, WORKDIR
 
 # ---------------------------------------------------------------------------
 # Context file discovery
 # ---------------------------------------------------------------------------
 
 CONTEXT_FILENAMES = ("AGENTS.md",)
-CONFIG_DIR = Path.home() / ".mini-agent"
 
 
 def _find_context_in_dir(directory: Path) -> Path | None:
