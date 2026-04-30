@@ -11,7 +11,6 @@ from ..config import (
     REASONING_EFFORT_LEVELS,
     config,
 )
-from ..system_prompt import context_files as loaded_context_files
 from .display import (
     ACCENT_COLOR,
     clear_prompt_line,
@@ -42,19 +41,8 @@ from .token import token_tracker
 console = Console()
 
 
-def _print_context_files() -> None:
-    """Print loaded context files on startup."""
-    if not loaded_context_files:
-        return
-    console.print("[dim]Loaded context files:[/dim]")
-    for path in loaded_context_files:
-        console.print(f"  [dim]• {path}[/dim]")
-    print()
-
-
 def _run_non_interactive(prompt: str) -> None:
     """Run the agent on a single prompt and exit (non-interactive mode)."""
-    _print_context_files()
     history: list[MessageParam] = [{"role": "user", "content": prompt}]
     current_session_id = uuid.uuid4().hex
     history_len = len(history)
@@ -67,7 +55,6 @@ def _run_non_interactive(prompt: str) -> None:
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     """Run the interactive TUI session."""
     print_welcome_banner()
-    _print_context_files()
     history: list[MessageParam] = []
     current_session_id = uuid.uuid4().hex
     session, pre_run, attached_images, sent_image_count, next_indicator = build_session(
@@ -147,7 +134,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     if session_saved(current_session_id):
         usage_report = format_usage_report(token_tracker.get())
         if usage_report:
-            console.print(usage_report)
+            for line in usage_report:
+                console.print(line)
             print()
         print("Resume the session with:")
         console.print(f"mini --resume {current_session_id}", style=ACCENT_COLOR)
