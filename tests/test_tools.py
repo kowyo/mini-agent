@@ -171,14 +171,8 @@ class TestRunRead:
             path.unlink(missing_ok=True)
 
     def test_read_any_path_allowed(self) -> None:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("outside content")
-            path = Path(f.name)
-        try:
-            result = run_read(str(path))
-            assert "Error" in result
-        finally:
-            path.unlink(missing_ok=True)
+        result = run_read("/etc/passwd")
+        assert "Error" in result
 
     def test_read_env_file_blocked(self) -> None:
         with tempfile.NamedTemporaryFile(
