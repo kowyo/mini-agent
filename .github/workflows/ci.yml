@@ -18,8 +18,20 @@ jobs:
         with:
           args: "format --check --diff"
 
-  build:
+  test:
     needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Run tests
+        run: uv run pytest -v tests/
+
+  build:
+    needs: [lint, test]
     strategy:
       matrix:
         include:
