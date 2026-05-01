@@ -1,4 +1,4 @@
-.PHONY: prepare format lint check build clean
+.PHONY: prepare format lint check type-check test build clean
 
 prepare:
 	uv sync --group dev
@@ -13,7 +13,10 @@ lint:
 type-check:
 	uv run ty check src/
 
-check: format lint
+test:
+	uv run pytest -v tests/
+
+check: format lint test
 
 build:
 	uv build --wheel

@@ -8,15 +8,42 @@ from anthropic.types import ToolParam
 from ..config import WORKDIR
 from .skills import skill_loader
 
+BLOCKED_FILE_PATTERNS: list[str] = [
+    ".env",
+    "id_ed25519",
+    "authorized_keys",
+    "known_hosts",
+]
+
 
 def safe_path(path_str: str) -> Path:
     path = Path(path_str)
     path = path.resolve() if path.is_absolute() else (WORKDIR / path_str).resolve()
 
-    if path.is_relative_to(WORKDIR) or path.is_relative_to(Path("/tmp")):
+    if path.is_relative_to(WORKDIR.resolve()) or path.is_relative_to(
+        Path("/tmp").resolve()
+    ):
         return path
 
     raise ValueError(f"Path escapes workspace: {path_str}")
+
+
+def _check_blocked(path: Path) -> None:
+    for pattern in BLOCKED_FILE_PATTERNS:
+        if pattern in path.name:
+            raise ValueError(f"'{path.name}' is blocked for security reasons")
+
+
+def _check_write_target(path_str: str) -> str | None:
+    if path_str.startswith("/dev/"):
+        return None
+    if path_str.startswith(("/tmp", WORKDIR.as_posix())):
+        return None
+    try:
+        safe_path(path_str)
+        return None
+    except ValueError:
+        return f"<system-reminder>\nError: blocked — writes to path outside workspace: {path_str}\n</system-reminder>"
 
 
 def run_bash(command: str) -> str:
@@ -25,9 +52,28 @@ def run_bash(command: str) -> str:
         if token in command:
             return f"<system-reminder>\nError: dangerous command blocked (matched: {token!r})\n</system-reminder>"
 
+    for pattern in BLOCKED_FILE_PATTERNS:
+        if pattern in command:
+            return f"<system-reminder>\nError: command references blocked file pattern '{pattern}'\n</system-reminder>"
+
     match = re.search(r"(?:[&\d]*>+)\s*/dev/(\w+)", command)
     if match and match.group(1) != "null":
         return f"<system-reminder>\nError: dangerous command blocked (matched: /dev/{match.group(1)})\n</system-reminder>"
+
+    for match in re.finditer(r"(?:^|[\s|&;])[\w]*>+\s*(/[\w./-]+)", command):
+        err = _check_write_target(match.group(1))
+        if err:
+            return err
+
+    for match in re.finditer(r"\btee\s+(/[\w./-]+)", command):
+        err = _check_write_target(match.group(1))
+        if err:
+            return err
+
+    for match in re.finditer(r"\bdd\s+.*?of=(/[\w./-]+)", command):
+        err = _check_write_target(match.group(1))
+        if err:
+            return err
 
     try:
         result = subprocess.run(
@@ -49,7 +95,9 @@ def run_bash(command: str) -> str:
 
 def run_read(path: str, limit: int | None = None) -> str:
     try:
-        text = safe_path(path).read_text()
+        file_path = Path(path).resolve()
+        _check_blocked(file_path)
+        text = file_path.read_text()
         lines = text.splitlines()
         if limit and limit < len(lines):
             remaining = len(lines) - limit
@@ -62,6 +110,7 @@ def run_read(path: str, limit: int | None = None) -> str:
 def run_write(path: str, content: str) -> str:
     try:
         file_path = safe_path(path)
+        _check_blocked(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content)
         return f"Wrote {len(content)} bytes to {path}"
@@ -72,6 +121,7 @@ def run_write(path: str, content: str) -> str:
 def run_edit(path: str, old_text: str, new_text: str) -> str:
     try:
         file_path = safe_path(path)
+        _check_blocked(file_path)
         content = file_path.read_text()
         if old_text not in content:
             return f"Error: Text not found in {path}"
