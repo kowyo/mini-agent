@@ -160,7 +160,7 @@ class TestRunRead:
             path = Path(f.name)
         try:
             result = run_read(str(path))
-            assert result == "outside content"
+            assert "Error" in result
         finally:
             path.unlink(missing_ok=True)
 

@@ -95,7 +95,7 @@ def run_bash(command: str) -> str:
 
 def run_read(path: str, limit: int | None = None) -> str:
     try:
-        file_path = Path(path).resolve()
+        file_path = safe_path(path)
         _check_blocked(file_path)
         text = file_path.read_text()
         lines = text.splitlines()
