@@ -1,3 +1,4 @@
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -19,9 +20,14 @@ def safe_path(path_str: str) -> Path:
 
 
 def run_bash(command: str) -> str:
-    dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
-    if any(token in command for token in dangerous):
-        return "Error: Dangerous command blocked"
+    dangerous = ["rm -rf /", "sudo", "shutdown", "reboot"]
+    for token in dangerous:
+        if token in command:
+            return f"<system-reminder>\nError: dangerous command blocked (matched: {token!r})\n</system-reminder>"
+
+    match = re.search(r"(?:[&\d]*>+)\s*/dev/(\w+)", command)
+    if match and match.group(1) != "null":
+        return f"<system-reminder>\nError: dangerous command blocked (matched: /dev/{match.group(1)})\n</system-reminder>"
 
     try:
         result = subprocess.run(
@@ -35,7 +41,7 @@ def run_bash(command: str) -> str:
             timeout=120,
         )
     except subprocess.TimeoutExpired:
-        return "Error: Timeout (120s)"
+        return "<system-reminder>\nError: timeout (120s)\n</system-reminder>"
 
     output = (result.stdout + result.stderr).strip()
     return output[:50000] if output else "(no output)"
