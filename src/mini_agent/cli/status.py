@@ -5,8 +5,8 @@ from rich.style import Style
 from rich.text import Text
 
 from ..agent.skills import skill_loader
+from ..agent.system_prompt import context_files as loaded_context_files
 from ..config import config
-from ..system_prompt import context_files as loaded_context_files
 from .display.theme import ACCENT_COLOR
 from .models import get_max_context_tokens
 from .token import Usage, token_tracker

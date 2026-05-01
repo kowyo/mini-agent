@@ -10,7 +10,7 @@ from ..cli.display import display_stream_events, print_tool_result, print_tool_s
 from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import client, config
-from ..system_prompt import SYSTEM
+from .system_prompt import SYSTEM
 from .tools import TOOL_HANDLERS, TOOLS
 
 console = Console()

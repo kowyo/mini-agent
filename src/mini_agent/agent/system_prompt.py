@@ -1,21 +1,14 @@
-"""Build the system prompt, including project-level AGENTS.md discovery."""
-
 from datetime import date
 from pathlib import Path
 
-from .agent.skills import skill_loader
-from .agent.tools import TOOLS
-from .config import CONFIG_DIR, WORKDIR
-
-# ---------------------------------------------------------------------------
-# Context file discovery
-# ---------------------------------------------------------------------------
+from ..config import CONFIG_DIR, WORKDIR
+from .skills import skill_loader
+from .tools import TOOLS
 
 CONTEXT_FILENAMES = ("AGENTS.md",)
 
 
 def _find_context_in_dir(directory: Path) -> Path | None:
-    """Check if any context file exists in *directory* (case-insensitive)."""
     try:
         entries = {e.name.lower(): e for e in directory.iterdir()}
     except PermissionError, OSError:
@@ -28,11 +21,6 @@ def _find_context_in_dir(directory: Path) -> Path | None:
 
 
 def discover_context_files(cwd: Path | None = None) -> list[Path]:
-    """Return an ordered list of context file paths to load.
-
-    Order: global first, then ancestors from root → cwd (most specific last).
-    Duplicate paths are removed.
-    """
     if cwd is None:
         cwd = Path.cwd()
 
@@ -47,10 +35,8 @@ def discover_context_files(cwd: Path | None = None) -> list[Path]:
             seen.add(resolved)
             result.append(resolved)
 
-    # 1. Global config
     _add(_find_context_in_dir(CONFIG_DIR))
 
-    # 2. Walk from cwd up to root, collect ancestors
     ancestors: list[Path] = []
     current = cwd.resolve()
     while True:
@@ -60,7 +46,6 @@ def discover_context_files(cwd: Path | None = None) -> list[Path]:
             break
         current = parent
 
-    # ancestors is [cwd, parent, ..., root]; reverse so root comes first
     for directory in reversed(ancestors):
         _add(_find_context_in_dir(directory))
 
@@ -68,7 +53,6 @@ def discover_context_files(cwd: Path | None = None) -> list[Path]:
 
 
 def _build_context_section(files: list[Path]) -> str:
-    """Build the ``# Project Context`` section for the system prompt."""
     if not files:
         return ""
 
@@ -83,10 +67,6 @@ def _build_context_section(files: list[Path]) -> str:
         sections.append(f"\n## {path}\n\n{content}\n")
     return "".join(sections)
 
-
-# ---------------------------------------------------------------------------
-# System prompt assembly
-# ---------------------------------------------------------------------------
 
 TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
 
