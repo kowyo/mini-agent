@@ -1,5 +1,6 @@
 import base64
 import io
+import subprocess
 import sys
 from collections.abc import Iterable
 from typing import cast
@@ -83,19 +84,43 @@ def create_image_content(image: Image.Image) -> ImageBlockParam:
     }
 
 
+def _is_text_block(block: object) -> str | None:
+    """Extract text from a content block. Returns text or None if not a text block."""
+    if isinstance(block, dict):
+        d = cast("dict[str, object]", block)
+        block_type = d.get("type")
+        text = d.get("text", "")
+    else:
+        block_type = getattr(block, "type", None)
+        text = getattr(block, "text", None)
+
+    if block_type == "text" and isinstance(text, str) and text.strip():
+        return text.strip()
+    return None
+
+
 def extract_text_content(content: Iterable[object] | str) -> str:
     if isinstance(content, str):
         return content
 
-    blocks = [cast("dict[str, object]", b) for b in content if isinstance(b, dict)]
+    texts = [text for block in content if (text := _is_text_block(block)) is not None]
 
-    texts = [
-        cast(str, b.get("text", "")).strip()
-        for b in blocks
-        if b.get("type") == "text" and isinstance(b.get("text", ""), str)
-    ]
+    return "\n".join(texts) if texts else ""
 
-    if texts:
-        return "\n".join(text for text in texts if text)
 
-    return ""
+def copy_to_clipboard(text: str) -> None:
+    """Copy text to the system clipboard."""
+    if sys.platform == "darwin":
+        subprocess.run(["pbcopy"], input=text, text=True, check=False)
+    elif sys.platform == "win32":
+        subprocess.run(["clip"], input=text, text=True, check=False)
+    else:
+        for cmd in (["wl-copy"], ["xclip", "-selection", "clipboard"]):
+            try:
+                subprocess.run(cmd, input=text, text=True, check=True)
+                return
+            except FileNotFoundError, subprocess.CalledProcessError:
+                continue
+        subprocess.run(
+            ["xclip", "-selection", "clipboard"], input=text, text=True, check=False
+        )

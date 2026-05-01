@@ -11,6 +11,7 @@ from ..config import (
     REASONING_EFFORT_LEVELS,
     config,
 )
+from .clipboard import copy_to_clipboard, extract_text_content
 from .display import (
     ACCENT_COLOR,
     clear_prompt_line,
@@ -115,6 +116,21 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/status":
             print_box(console, format_status_report(current_session_id))
+            print()
+            attached_images.clear()
+            continue
+        if command == "/copy":
+            last_text: str | None = None
+            for message in reversed(history):
+                if message["role"] == "assistant":
+                    last_text = extract_text_content(message["content"])
+                    if last_text:
+                        break
+            if last_text:
+                copy_to_clipboard(last_text)
+                print("Copied to clipboard.")
+            else:
+                print("No assistant message to copy.")
             print()
             attached_images.clear()
             continue
