@@ -58,17 +58,17 @@ def run_bash(command: str) -> str:
     if match and match.group(1) != "null":
         return f"<system-reminder>\nError: dangerous command blocked (matched: /dev/{match.group(1)})\n</system-reminder>"
 
-    for match in re.finditer(r"(?:^|[\s|&;])[\w]*>+\s*(/[\w./-]+)", command):
+    for match in re.finditer(r"(?:^|[\s|&;])[\w]*>+\|?\s*([./\w-]+)", command):
         err = _check_write_target(match.group(1))
         if err:
             return err
 
-    for match in re.finditer(r"\btee\s+(/[\w./-]+)", command):
+    for match in re.finditer(r"\btee\s+([./\w-]+)", command):
         err = _check_write_target(match.group(1))
         if err:
             return err
 
-    for match in re.finditer(r"\bdd\s+.*?of=(/[\w./-]+)", command):
+    for match in re.finditer(r"\bdd\s+.*?of=([./\w-]+)", command):
         err = _check_write_target(match.group(1))
         if err:
             return err

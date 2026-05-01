@@ -89,6 +89,22 @@ class TestRunBash:
         finally:
             path.unlink(missing_ok=True)
 
+    def test_write_relative_dotdot_blocked(self) -> None:
+        result = run_bash("echo hi > ../etc/evil.conf")
+        assert "blocked" in result
+
+    def test_write_relative_path_blocked(self) -> None:
+        result = run_bash("echo hi > foo/../../etc/evil.conf")
+        assert "blocked" in result
+
+    def test_tee_relative_dotdot_blocked(self) -> None:
+        result = run_bash("tee ../outside.txt")
+        assert "blocked" in result
+
+    def test_dd_of_relative_dotdot_blocked(self) -> None:
+        result = run_bash("dd if=/dev/zero of=../outside count=1")
+        assert "blocked" in result
+
     def test_tee_to_etc_blocked(self) -> None:
         result = run_bash("tee /etc/evil.conf")
         assert "blocked" in result
