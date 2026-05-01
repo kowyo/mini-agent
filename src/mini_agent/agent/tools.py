@@ -37,8 +37,6 @@ def _check_blocked(path: Path) -> None:
 def _check_write_target(path_str: str) -> str | None:
     if path_str.startswith("/dev/"):
         return None
-    if path_str.startswith(("/tmp", WORKDIR.as_posix())):
-        return None
     try:
         safe_path(path_str)
         return None
