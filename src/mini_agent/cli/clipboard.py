@@ -5,7 +5,7 @@ import sys
 from collections.abc import Iterable
 from typing import cast
 
-from anthropic.types import ImageBlockParam
+from anthropic.types import ImageBlockParam, MessageParam
 from PIL import Image, ImageGrab
 
 
@@ -108,19 +108,33 @@ def extract_text_content(content: Iterable[object] | str) -> str:
     return "\n".join(texts) if texts else ""
 
 
-def copy_to_clipboard(text: str) -> None:
-    """Copy text to the system clipboard."""
-    if sys.platform == "darwin":
-        subprocess.run(["pbcopy"], input=text, text=True, check=False)
-    elif sys.platform == "win32":
-        subprocess.run(["clip"], input=text, text=True, check=False)
-    else:
-        for cmd in (["wl-copy"], ["xclip", "-selection", "clipboard"]):
-            try:
-                subprocess.run(cmd, input=text, text=True, check=True)
+def copy_to_clipboard(text: str) -> bool:
+    try:
+        if sys.platform == "darwin":
+            subprocess.run(["pbcopy"], input=text, text=True, check=True)
+        elif sys.platform == "win32":
+            subprocess.run(["clip"], input=text, text=True, check=True)
+        else:
+            for cmd in (["wl-copy"], ["xclip", "-selection", "clipboard"]):
+                try:
+                    subprocess.run(cmd, input=text, text=True, check=True)
+                    return True
+                except FileNotFoundError, subprocess.CalledProcessError:
+                    continue
+            return False
+        return True
+    except FileNotFoundError, subprocess.CalledProcessError:
+        return False
+
+
+def copy_last_assistant_text(history: Iterable[MessageParam]) -> None:
+    for message in reversed(list(history)):
+        if message["role"] == "assistant":
+            text = extract_text_content(message["content"])
+            if text:
+                if copy_to_clipboard(text):
+                    print("Copied to clipboard.")
+                else:
+                    print("Failed to copy — no clipboard tool available.")
                 return
-            except FileNotFoundError, subprocess.CalledProcessError:
-                continue
-        subprocess.run(
-            ["xclip", "-selection", "clipboard"], input=text, text=True, check=False
-        )
+    print("No assistant message to copy.")
