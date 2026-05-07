@@ -11,6 +11,7 @@ from ..config import (
     REASONING_EFFORT_LEVELS,
     config,
 )
+from .clipboard import copy_last_assistant_text
 from .display import (
     ACCENT_COLOR,
     clear_prompt_line,
@@ -115,6 +116,11 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/status":
             print_box(console, format_status_report(current_session_id))
+            print()
+            attached_images.clear()
+            continue
+        if command == "/copy":
+            copy_last_assistant_text(history)
             print()
             attached_images.clear()
             continue
