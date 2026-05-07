@@ -8,6 +8,11 @@ from ..config import WORKDIR
 from .skills import skill_loader
 
 
+def _resolve_path(path_str: str) -> Path:
+    path = Path(path_str)
+    return path.resolve() if path.is_absolute() else (WORKDIR / path_str).resolve()
+
+
 def run_bash(command: str) -> str:
     dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
     if any(token in command for token in dangerous):
@@ -33,7 +38,7 @@ def run_bash(command: str) -> str:
 
 def run_read(path: str, limit: int | None = None) -> str:
     try:
-        text = Path(path).read_text()
+        text = _resolve_path(path).read_text()
         lines = text.splitlines()
         if limit and limit < len(lines):
             remaining = len(lines) - limit
@@ -45,7 +50,7 @@ def run_read(path: str, limit: int | None = None) -> str:
 
 def run_write(path: str, content: str) -> str:
     try:
-        file_path = Path(path)
+        file_path = _resolve_path(path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content)
         return f"Wrote {len(content)} bytes to {path}"
@@ -55,7 +60,7 @@ def run_write(path: str, content: str) -> str:
 
 def run_edit(path: str, old_text: str, new_text: str) -> str:
     try:
-        file_path = Path(path)
+        file_path = _resolve_path(path)
         content = file_path.read_text()
         if old_text not in content:
             return f"Error: Text not found in {path}"
