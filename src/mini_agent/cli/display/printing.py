@@ -1,6 +1,7 @@
 import os
 import subprocess
 from html import escape
+from pathlib import Path
 from typing import cast
 
 from anthropic.types import MessageParam
@@ -10,7 +11,6 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
 
-from ...agent.tools import safe_path
 from ...config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION, config
 from ..clipboard import extract_text_content
 from .box import print_box
@@ -115,7 +115,7 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
             return
         old_text = cast(str, input_data["old_text"])
         new_text = cast(str, input_data["new_text"])
-        edited_content = safe_path(path).read_text()
+        edited_content = Path(path).read_text()
         pos = edited_content.find(new_text)
         start_line = edited_content[:pos].count("\n") + 1 if pos != -1 else 1
         diff = format_edit_diff(old_text, new_text, start_line)
