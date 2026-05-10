@@ -1,4 +1,8 @@
+import os
+import signal
 import subprocess
+import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -6,6 +10,28 @@ from anthropic.types import ToolParam
 
 from ..config import WORKDIR
 from .skills import skill_loader
+
+TIMEOUT_SECONDS = 120
+MAX_OUTPUT = 50000
+
+
+class BashInterruptedError(Exception):
+    def __init__(self, partial_output: str) -> None:
+        self.partial_output = partial_output
+
+
+def _kill_process_tree(proc: subprocess.Popen) -> None:
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+            capture_output=True,
+        )
+    else:
+        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
 
 
 def _resolve_path(path_str: str) -> Path:
@@ -18,22 +44,54 @@ def run_bash(command: str) -> str:
     if any(token in command for token in dangerous):
         return "Error: Dangerous command blocked"
 
-    try:
-        result = subprocess.run(
-            command,
-            shell=True,
-            cwd=WORKDIR,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=120,
-        )
-    except subprocess.TimeoutExpired:
-        return "Error: Timeout (120s)"
+    proc = subprocess.Popen(
+        command,
+        shell=True,
+        cwd=WORKDIR,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        start_new_session=True,
+    )
 
-    output = (result.stdout + result.stderr).strip()
-    return output[:50000] if output else "(no output)"
+    stdout = proc.stdout
+    assert stdout is not None
+    output_parts: list[str] = []
+
+    def _read() -> None:
+        for line in stdout:
+            output_parts.append(line)
+
+    reader = threading.Thread(target=_read, daemon=True)
+    reader.start()
+
+    try:
+        reader.join(timeout=TIMEOUT_SECONDS)
+    except KeyboardInterrupt:
+        _kill_process_tree(proc)
+        reader.join(timeout=1)
+        output = "".join(output_parts).strip()
+        partial = (
+            (output[:MAX_OUTPUT] + "\n\nCommand aborted")
+            if output
+            else "Command aborted"
+        )
+        raise BashInterruptedError(partial) from None
+
+    if reader.is_alive():
+        _kill_process_tree(proc)
+        reader.join(timeout=1)
+        output = "".join(output_parts).strip()
+        suffix = f"Command timed out after {TIMEOUT_SECONDS} seconds"
+        return output[:MAX_OUTPUT] + "\n\n" + suffix if output else suffix
+
+    exit_code = proc.wait()
+    output = "".join(output_parts).strip()
+    if not output:
+        return f"(no output)\n\nCommand exited with code {exit_code}"
+    return output[:MAX_OUTPUT]
 
 
 def run_read(path: str, limit: int | None = None) -> str:
@@ -43,7 +101,7 @@ def run_read(path: str, limit: int | None = None) -> str:
         if limit and limit < len(lines):
             remaining = len(lines) - limit
             lines = lines[:limit] + [f"... ({remaining} more lines)"]
-        return "\n".join(lines)[:50000]
+        return "\n".join(lines)[:MAX_OUTPUT]
     except Exception as exc:
         return f"Error: {exc}"
 
