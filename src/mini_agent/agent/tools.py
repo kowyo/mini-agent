@@ -1,6 +1,7 @@
 import os
 import signal
 import subprocess
+import sys
 import threading
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,20 @@ MAX_OUTPUT = 50000
 class BashInterruptedError(Exception):
     def __init__(self, partial_output: str) -> None:
         self.partial_output = partial_output
+
+
+def _kill_process_tree(proc: subprocess.Popen) -> None:
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+            capture_output=True,
+        )
+    else:
+        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
 
 
 def _resolve_path(path_str: str) -> Path:
@@ -55,11 +70,7 @@ def run_bash(command: str) -> str:
     try:
         reader.join(timeout=TIMEOUT_SECONDS)
     except KeyboardInterrupt:
-        os.killpg(proc.pid, signal.SIGTERM)
-        try:
-            proc.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
+        _kill_process_tree(proc)
         reader.join(timeout=1)
         output = "".join(output_parts).strip()
         partial = (
@@ -70,7 +81,7 @@ def run_bash(command: str) -> str:
         raise BashInterruptedError(partial) from None
 
     if reader.is_alive():
-        os.killpg(proc.pid, signal.SIGKILL)
+        _kill_process_tree(proc)
         reader.join(timeout=1)
         output = "".join(output_parts).strip()
         suffix = f"Command timed out after {TIMEOUT_SECONDS} seconds"
