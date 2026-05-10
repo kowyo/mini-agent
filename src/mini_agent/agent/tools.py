@@ -59,7 +59,11 @@ def run_bash(command: str) -> str:
             proc.kill()
         reader.join(timeout=1)
         output = "".join(output_parts).strip()
-        partial = (output + "\n\nCommand aborted") if output else "Command aborted"
+        partial = (
+            (output[:MAX_OUTPUT] + "\n\nCommand aborted")
+            if output
+            else "Command aborted"
+        )
         raise BashInterruptedError(partial) from None
 
     if reader.is_alive():
@@ -67,7 +71,7 @@ def run_bash(command: str) -> str:
         reader.join(timeout=1)
         output = "".join(output_parts).strip()
         suffix = f"Command timed out after {TIMEOUT_SECONDS} seconds"
-        return (output + "\n\n" + suffix if output else suffix)[:MAX_OUTPUT]
+        return output[:MAX_OUTPUT] + "\n\n" + suffix if output else suffix
 
     exit_code = proc.wait()
     output = "".join(output_parts).strip()
