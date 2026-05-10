@@ -1,3 +1,5 @@
+import os
+import signal
 import subprocess
 import threading
 from pathlib import Path
@@ -36,6 +38,7 @@ def run_bash(command: str) -> str:
         text=True,
         encoding="utf-8",
         errors="replace",
+        start_new_session=True,
     )
 
     stdout = proc.stdout
@@ -52,11 +55,11 @@ def run_bash(command: str) -> str:
     try:
         reader.join(timeout=TIMEOUT_SECONDS)
     except KeyboardInterrupt:
-        proc.terminate()
+        os.killpg(proc.pid, signal.SIGTERM)
         try:
             proc.wait(timeout=2)
         except subprocess.TimeoutExpired:
-            proc.kill()
+            os.killpg(proc.pid, signal.SIGKILL)
         reader.join(timeout=1)
         output = "".join(output_parts).strip()
         partial = (
@@ -67,7 +70,7 @@ def run_bash(command: str) -> str:
         raise BashInterruptedError(partial) from None
 
     if reader.is_alive():
-        proc.kill()
+        os.killpg(proc.pid, signal.SIGKILL)
         reader.join(timeout=1)
         output = "".join(output_parts).strip()
         suffix = f"Command timed out after {TIMEOUT_SECONDS} seconds"
