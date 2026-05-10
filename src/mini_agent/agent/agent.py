@@ -11,7 +11,7 @@ from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import client, config
 from .system_prompt import SYSTEM
-from .tools import TOOL_HANDLERS, TOOLS
+from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError
 
 console = Console()
 
@@ -80,37 +80,62 @@ def agent_loop(messages: list[MessageParam]) -> None:
             )
 
             results = []
-            for block in response.content:
-                if isinstance(block, ToolUseBlock):
-                    if working_status is None:
-                        working_status = console.status("Working")
-                        working_status.start()
-                    handler = TOOL_HANDLERS.get(block.name)
-                    print_tool_start(block.name, block.input)
-                    output = (
-                        handler(**block.input)
-                        if handler
-                        else f"Unknown tool: {block.name}"
-                    )
-                    if working_status is not None:
-                        working_status.stop()
-                        working_status = None
-                    print_tool_result(block.name, block.input, output)
-                    results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": output,
-                        }
-                    )
+            try:
+                for block in response.content:
+                    if isinstance(block, ToolUseBlock):
+                        if working_status is None:
+                            working_status = console.status("Working")
+                            working_status.start()
+                        handler = TOOL_HANDLERS.get(block.name)
+                        print_tool_start(block.name, block.input)
+                        interrupted = False
+                        try:
+                            output = (
+                                handler(**block.input)
+                                if handler
+                                else f"Unknown tool: {block.name}"
+                            )
+                        except BashInterruptedError as e:
+                            output = e.partial_output
+                            interrupted = True
+                        if working_status is not None:
+                            working_status.stop()
+                            working_status = None
+                        results.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": output,
+                            }
+                        )
+                        print_tool_result(block.name, block.input, output)
+                        if interrupted:
+                            raise KeyboardInterrupt
+            except KeyboardInterrupt:
+                completed_ids = {r["tool_use_id"] for r in results}
+                for remaining in response.content:
+                    if (
+                        isinstance(remaining, ToolUseBlock)
+                        and remaining.id not in completed_ids
+                    ):
+                        results.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": remaining.id,
+                                "content": "Command aborted",
+                            }
+                        )
+                if results:
+                    messages.append({"role": "user", "content": results})
+                raise
 
             if working_status is not None:
                 working_status.stop()
 
+            if results:
+                messages.append({"role": "user", "content": results})
             if response.stop_reason != "tool_use":
                 return
-
-            messages.append({"role": "user", "content": results})
 
     except KeyboardInterrupt:
         print("\r", end="", flush=True)
