@@ -1,3 +1,4 @@
+import contextlib
 import os
 import signal
 import subprocess
@@ -21,11 +22,15 @@ def kill_process_tree(proc: subprocess.Popen) -> None:
             capture_output=True,
         )
     else:
-        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return
         try:
             proc.wait(timeout=2)
         except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
 
 
 def resolve_path(path_str: str) -> Path:
