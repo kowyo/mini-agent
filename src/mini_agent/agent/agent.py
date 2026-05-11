@@ -1,5 +1,3 @@
-from typing import cast
-
 import anthropic
 from anthropic.types import (
     MessageParam,
@@ -7,15 +5,13 @@ from anthropic.types import (
 )
 from rich.console import Console
 from rich.status import Status
-from rich.text import Text
 
 from ..cli.display import display_stream_events, print_tool_result, print_tool_start
-from ..cli.display.theme import LIGHT_HINT_STYLE_RICH
 from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import client, config
 from .system_prompt import SYSTEM
-from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError, run_bash
+from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError
 
 console = Console()
 
@@ -92,44 +88,22 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             working_status.start()
                         handler = TOOL_HANDLERS.get(block.name)
                         print_tool_start(block.name, block.input)
+
+                        if working_status is not None:
+                            working_status.stop()
+                            working_status = None
+
                         interrupted = False
-                        if block.name == "bash":
-                            if working_status is not None:
-                                working_status.stop()
-                                working_status = None
+                        try:
+                            output = (
+                                handler(**block.input)
+                                if handler
+                                else f"Unknown tool: {block.name}"
+                            )
+                        except BashInterruptedError as e:
+                            output = e.partial_output
+                            interrupted = True
 
-                            def on_line(line: str) -> None:
-                                text = Text.from_ansi(line.rstrip())
-                                text.stylize(LIGHT_HINT_STYLE_RICH)
-                                console.print(text)
-
-                            try:
-                                output = run_bash(
-                                    str(block.input["command"]),
-                                    on_line=on_line,
-                                    timeout=cast(
-                                        int | None, block.input.get("timeout")
-                                    ),
-                                )
-                            except BashInterruptedError as e:
-                                output = e.partial_output
-                                interrupted = True
-
-                            console.print()
-                        else:
-                            try:
-                                output = (
-                                    handler(**block.input)
-                                    if handler
-                                    else f"Unknown tool: {block.name}"
-                                )
-                            except BashInterruptedError as e:
-                                output = e.partial_output
-                                interrupted = True
-                            if working_status is not None:
-                                working_status.stop()
-                                working_status = None
-                            print_tool_result(block.name, block.input, output)
                         results.append(
                             {
                                 "type": "tool_result",
@@ -137,6 +111,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                                 "content": output,
                             }
                         )
+                        print_tool_result(block.name, block.input, output)
                         if interrupted:
                             raise KeyboardInterrupt
             except KeyboardInterrupt:
