@@ -5,7 +5,7 @@ from .bash import bash_handler
 from .file import run_edit, run_read, run_write
 
 TOOL_HANDLERS: dict[str, Any] = {
-    "bash": bash_handler,
+    "bash": lambda **kw: bash_handler(kw["command"], kw.get("timeout")),
     "read_file": lambda **kw: run_read(kw["path"], kw.get("limit")),
     "write_file": lambda **kw: run_write(kw["path"], kw["content"]),
     "edit_file": lambda **kw: run_edit(kw["path"], kw["old_text"], kw["new_text"]),
