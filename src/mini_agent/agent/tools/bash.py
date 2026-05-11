@@ -58,6 +58,8 @@ def run_bash(
             if output
             else "Command aborted"
         )
+        if on_line is not None:
+            on_line(("\n" if output else "") + "Command aborted\n")
         raise BashInterruptedError(partial) from None
 
     if reader.is_alive():
@@ -65,15 +67,23 @@ def run_bash(
         reader.join(timeout=1)
         output = "".join(output_parts).strip()
         suffix = f"Command timed out after {timeout} seconds"
+        if on_line is not None:
+            on_line(("\n" if output else "") + suffix + "\n")
         return output[:MAX_OUTPUT] + "\n\n" + suffix if output else suffix
 
     exit_code = proc.wait()
     output = "".join(output_parts).strip()
     if not output:
-        return f"(no output)\n\nCommand exited with code {exit_code}"
+        msg = f"(no output)\n\nCommand exited with code {exit_code}"
+        if on_line is not None:
+            on_line(msg + "\n")
+        return msg
     truncated = output[:MAX_OUTPUT]
     if exit_code != 0:
-        return f"{truncated}\n\nCommand exited with code {exit_code}"
+        suffix = f"Command exited with code {exit_code}"
+        if on_line is not None:
+            on_line("\n" + suffix + "\n")
+        return f"{truncated}\n\n{suffix}"
     return truncated
 
 
