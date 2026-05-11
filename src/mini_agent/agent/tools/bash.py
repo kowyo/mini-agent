@@ -71,7 +71,10 @@ def run_bash(
     output = "".join(output_parts).strip()
     if not output:
         return f"(no output)\n\nCommand exited with code {exit_code}"
-    return output[:MAX_OUTPUT]
+    truncated = output[:MAX_OUTPUT]
+    if exit_code != 0:
+        return f"{truncated}\n\nCommand exited with code {exit_code}"
+    return truncated
 
 
 def bash_handler(command: str, timeout: int | None = None) -> str:
