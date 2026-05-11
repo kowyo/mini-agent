@@ -12,7 +12,6 @@ from anthropic.types import ToolParam
 from ..config import WORKDIR
 from .skills import skill_loader
 
-TIMEOUT_SECONDS = 120
 MAX_OUTPUT = 50000
 
 
@@ -40,7 +39,11 @@ def _resolve_path(path_str: str) -> Path:
     return path.resolve() if path.is_absolute() else (WORKDIR / path_str).resolve()
 
 
-def run_bash(command: str, on_line: Callable[[str], None] | None = None) -> str:
+def run_bash(
+    command: str,
+    on_line: Callable[[str], None] | None = None,
+    timeout: int | None = None,
+) -> str:
     dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
     if any(token in command for token in dangerous):
         return "Error: Dangerous command blocked"
@@ -72,7 +75,7 @@ def run_bash(command: str, on_line: Callable[[str], None] | None = None) -> str:
     reader.start()
 
     try:
-        reader.join(timeout=TIMEOUT_SECONDS)
+        reader.join(timeout=timeout)
     except KeyboardInterrupt:
         _kill_process_tree(proc)
         reader.join(timeout=1)
@@ -88,7 +91,7 @@ def run_bash(command: str, on_line: Callable[[str], None] | None = None) -> str:
         _kill_process_tree(proc)
         reader.join(timeout=1)
         output = "".join(output_parts).strip()
-        suffix = f"Command timed out after {TIMEOUT_SECONDS} seconds"
+        suffix = f"Command timed out after {timeout} seconds"
         return output[:MAX_OUTPUT] + "\n\n" + suffix if output else suffix
 
     exit_code = proc.wait()
@@ -133,7 +136,7 @@ def run_edit(path: str, old_text: str, new_text: str) -> str:
 
 
 TOOL_HANDLERS: dict[str, Any] = {
-    "bash": lambda **kw: run_bash(kw["command"]),
+    "bash": lambda **kw: run_bash(kw["command"], timeout=kw.get("timeout")),
     "read_file": lambda **kw: run_read(kw["path"], kw.get("limit")),
     "write_file": lambda **kw: run_write(kw["path"], kw["content"]),
     "edit_file": lambda **kw: run_edit(kw["path"], kw["old_text"], kw["new_text"]),
@@ -143,10 +146,16 @@ TOOL_HANDLERS: dict[str, Any] = {
 TOOLS: list[ToolParam] = [
     {
         "name": "bash",
-        "description": "Run a shell command.",
+        "description": "Execute bash commands",
         "input_schema": {
             "type": "object",
-            "properties": {"command": {"type": "string"}},
+            "properties": {
+                "command": {"type": "string"},
+                "timeout": {
+                    "type": "integer",
+                    "description": "Timeout in seconds (optional, no default timeout)",
+                },
+            },
             "required": ["command"],
         },
     },

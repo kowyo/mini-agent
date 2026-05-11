@@ -1,3 +1,5 @@
+from typing import cast
+
 import anthropic
 from anthropic.types import (
     MessageParam,
@@ -103,7 +105,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
                             try:
                                 output = run_bash(
-                                    str(block.input["command"]), on_line=on_line
+                                    str(block.input["command"]),
+                                    on_line=on_line,
+                                    timeout=cast(
+                                        int | None, block.input.get("timeout")
+                                    ),
                                 )
                             except BashInterruptedError as e:
                                 output = e.partial_output
