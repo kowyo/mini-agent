@@ -3,6 +3,7 @@ import signal
 import subprocess
 import sys
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +40,7 @@ def _resolve_path(path_str: str) -> Path:
     return path.resolve() if path.is_absolute() else (WORKDIR / path_str).resolve()
 
 
-def run_bash(command: str) -> str:
+def run_bash(command: str, on_line: Callable[[str], None] | None = None) -> str:
     dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
     if any(token in command for token in dangerous):
         return "Error: Dangerous command blocked"
@@ -63,6 +64,8 @@ def run_bash(command: str) -> str:
     def _read() -> None:
         for line in stdout:
             output_parts.append(line)
+            if on_line is not None:
+                on_line(line)
 
     reader = threading.Thread(target=_read, daemon=True)
     reader.start()
