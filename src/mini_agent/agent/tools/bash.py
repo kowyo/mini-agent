@@ -92,7 +92,7 @@ def bash_handler(command: str, timeout: int | None = None) -> str:
         timeout = None
 
     def on_line(line: str) -> None:
-        text = Text.from_ansi(line.rstrip())
+        text = Text.from_ansi(line.rstrip("\n\r"))
         text.stylize(LIGHT_HINT_STYLE_RICH)
         console.print(text)
 
