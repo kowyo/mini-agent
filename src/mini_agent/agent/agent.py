@@ -88,6 +88,11 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             working_status.start()
                         handler = TOOL_HANDLERS.get(block.name)
                         print_tool_start(block.name, block.input)
+
+                        if working_status is not None:
+                            working_status.stop()
+                            working_status = None
+
                         interrupted = False
                         try:
                             output = (
@@ -98,9 +103,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                         except BashInterruptedError as e:
                             output = e.partial_output
                             interrupted = True
-                        if working_status is not None:
-                            working_status.stop()
-                            working_status = None
+
                         results.append(
                             {
                                 "type": "tool_result",

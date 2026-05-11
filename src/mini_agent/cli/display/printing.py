@@ -85,7 +85,11 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
         return
 
     if name == "bash":
-        print(f"> {name} - {input_data['command']}")
+        text = Text(f"> {name} - {input_data['command']}")
+        timeout = input_data.get("timeout")
+        if timeout is not None:
+            text.append(f" (timeout {timeout}s)", style=LIGHT_HINT_STYLE_RICH)
+        console.print(text)
         return
 
     if name == "edit_file":
@@ -102,10 +106,7 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
 def print_tool_result(name: str, input_data: dict[str, object], output: str) -> None:
     """Print tool output after execution."""
     if name == "bash":
-        text = Text.from_ansi(output)
-        text.stylize(LIGHT_HINT_STYLE_RICH)
-        console.print(text)
-        print()
+        console.print()
         return
 
     if name == "edit_file":
