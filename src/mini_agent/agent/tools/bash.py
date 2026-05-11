@@ -88,6 +88,9 @@ def run_bash(
 
 
 def bash_handler(command: str, timeout: int | None = None) -> str:
+    if timeout is not None and timeout < 1:
+        timeout = None
+
     def on_line(line: str) -> None:
         text = Text.from_ansi(line.rstrip())
         text.stylize(LIGHT_HINT_STYLE_RICH)

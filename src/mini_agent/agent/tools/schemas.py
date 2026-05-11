@@ -10,7 +10,8 @@ TOOLS: list[ToolParam] = [
                 "command": {"type": "string"},
                 "timeout": {
                     "type": "integer",
-                    "description": "Maximum seconds to wait. If omitted, runs until completion.",
+                    "minimum": 1,
+                    "description": "Maximum seconds to wait. If omitted, runs until completion",
                 },
             },
             "required": ["command"],
