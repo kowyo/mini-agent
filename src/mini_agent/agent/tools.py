@@ -48,6 +48,7 @@ def run_bash(command: str, on_line: Callable[[str], None] | None = None) -> str:
     proc = subprocess.Popen(
         command,
         shell=True,
+        stdin=subprocess.DEVNULL,
         cwd=WORKDIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
