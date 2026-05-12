@@ -21,7 +21,7 @@ powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/scrip
 **From source**
 
 ```bash
-uv tool install git+https://github.com/kowyo/mini-agent.git@v0.14.0
+uv tool install git+https://github.com/kowyo/mini-agent.git@main
 ```
 
 ## Development
