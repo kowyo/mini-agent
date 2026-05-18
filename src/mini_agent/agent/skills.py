@@ -1,11 +1,12 @@
 import re
 from pathlib import Path
-from string import Template
 from typing import Any
 
 import yaml
 
 from ..config import SKILLS_DIRS, config
+
+_VAR_RE = re.compile(r"\$([A-Z_][A-Z0-9_]*|\{[A-Z_][A-Z0-9_]*\})")
 
 
 class SkillLoader:
@@ -16,6 +17,16 @@ class SkillLoader:
 
     def _variables(self) -> dict[str, str]:
         return {"MODEL_NAME": config.get_model()}
+
+    @staticmethod
+    def _substitute(text: str, variables: dict[str, str]) -> str:
+        def repl(m: re.Match) -> str:
+            key = m.group(1)
+            if key.startswith("{") and key.endswith("}"):
+                key = key[1:-1]
+            return variables.get(key, m.group(0))
+
+        return _VAR_RE.sub(repl, text)
 
     def _load_all(self) -> None:
         for skills_dir in self.skills_dirs:
@@ -30,8 +41,8 @@ class SkillLoader:
                     continue
                 self.skills[name] = {
                     "meta": meta,
-                    "description_template": Template(description),
-                    "body_template": Template(body),
+                    "description": description,
+                    "body": body,
                     "path": str(f),
                 }
 
@@ -54,7 +65,7 @@ class SkillLoader:
         variables = self._variables()
         lines = []
         for name, skill in self.skills.items():
-            desc = skill["description_template"].safe_substitute(variables)
+            desc = self._substitute(skill["description"], variables)
             lines.append(f"- {name}: {desc}")
         return "\n".join(lines)
 
@@ -63,7 +74,7 @@ class SkillLoader:
         if not skill:
             return f"Error: Unknown skill '{name}'. Available: {', '.join(self.skills.keys())}"
         variables = self._variables()
-        body = skill["body_template"].safe_substitute(variables)
+        body = self._substitute(skill["body"], variables)
         return f'<skill_content name="{name}">\n{body}\n</skill_content>'
 
 
