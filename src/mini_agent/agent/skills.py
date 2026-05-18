@@ -4,7 +4,9 @@ from typing import Any
 
 import yaml
 
-from ..config import SKILLS_DIRS
+from ..config import SKILLS_DIRS, config
+
+_VAR_RE = re.compile(r"\$([A-Z_][A-Z0-9_]*|\{[A-Z_][A-Z0-9_]*\})")
 
 
 class SkillLoader:
@@ -12,6 +14,19 @@ class SkillLoader:
         self.skills_dirs = skills_dirs
         self.skills: dict[str, dict[str, Any]] = {}
         self._load_all()
+
+    def _variables(self) -> dict[str, str]:
+        return {"MODEL_NAME": config.get_model()}
+
+    @staticmethod
+    def _substitute(text: str, variables: dict[str, str]) -> str:
+        def repl(m: re.Match) -> str:
+            key = m.group(1)
+            if key.startswith("{") and key.endswith("}"):
+                key = key[1:-1]
+            return variables.get(key, m.group(0))
+
+        return _VAR_RE.sub(repl, text)
 
     def _load_all(self) -> None:
         for skills_dir in self.skills_dirs:
@@ -24,10 +39,14 @@ class SkillLoader:
                 description = str(meta.get("description", "")).strip()
                 if not name or not description:
                     continue
-                self.skills[name] = {"meta": meta, "body": body, "path": str(f)}
+                self.skills[name] = {
+                    "meta": meta,
+                    "description": description,
+                    "body": body,
+                    "path": str(f),
+                }
 
     def _parse_frontmatter(self, text: str) -> tuple[dict[str, Any], str]:
-        """Parse YAML frontmatter between --- delimiters."""
         match = re.match(r"^---\n(.*?)\n---\n?(.*)", text, re.DOTALL)
         if not match:
             return {}, text
@@ -41,21 +60,22 @@ class SkillLoader:
         return meta, match.group(2).strip()
 
     def get_descriptions(self) -> str:
-        """Layer 1: short descriptions for the system prompt."""
         if not self.skills:
             return "(no skills available)"
+        variables = self._variables()
         lines = []
         for name, skill in self.skills.items():
-            desc = skill["meta"]["description"]
+            desc = self._substitute(skill["description"], variables)
             lines.append(f"- {name}: {desc}")
         return "\n".join(lines)
 
     def get_content(self, name: str) -> str:
-        """Layer 2: full skill body returned in tool_result."""
         skill = self.skills.get(name)
         if not skill:
             return f"Error: Unknown skill '{name}'. Available: {', '.join(self.skills.keys())}"
-        return f'<skill_content name="{name}">\n{skill["body"]}\n</skill_content>'
+        variables = self._variables()
+        body = self._substitute(skill["body"], variables)
+        return f'<skill_content name="{name}">\n{body}\n</skill_content>'
 
 
 skill_loader = SkillLoader(SKILLS_DIRS)
