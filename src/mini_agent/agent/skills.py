@@ -18,7 +18,6 @@ class SkillLoader:
         return {"MODEL_NAME": config.get_model()}
 
     def _load_all(self) -> None:
-        vars = self._variables()
         for skills_dir in self.skills_dirs:
             if not skills_dir.exists():
                 continue
@@ -29,10 +28,10 @@ class SkillLoader:
                 description = str(meta.get("description", "")).strip()
                 if not name or not description:
                     continue
-                meta["description"] = Template(description).safe_substitute(vars)
                 self.skills[name] = {
                     "meta": meta,
-                    "body": Template(body).safe_substitute(vars),
+                    "description_template": Template(description),
+                    "body_template": Template(body),
                     "path": str(f),
                 }
 
@@ -52,16 +51,20 @@ class SkillLoader:
     def get_descriptions(self) -> str:
         if not self.skills:
             return "(no skills available)"
+        variables = self._variables()
         lines = []
         for name, skill in self.skills.items():
-            lines.append(f"- {name}: {skill['meta']['description']}")
+            desc = skill["description_template"].safe_substitute(variables)
+            lines.append(f"- {name}: {desc}")
         return "\n".join(lines)
 
     def get_content(self, name: str) -> str:
         skill = self.skills.get(name)
         if not skill:
             return f"Error: Unknown skill '{name}'. Available: {', '.join(self.skills.keys())}"
-        return f'<skill_content name="{name}">\n{skill["body"]}\n</skill_content>'
+        variables = self._variables()
+        body = skill["body_template"].safe_substitute(variables)
+        return f'<skill_content name="{name}">\n{body}\n</skill_content>'
 
 
 skill_loader = SkillLoader(SKILLS_DIRS)
