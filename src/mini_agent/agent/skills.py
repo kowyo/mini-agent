@@ -1,10 +1,11 @@
 import re
 from pathlib import Path
+from string import Template
 from typing import Any
 
 import yaml
 
-from ..config import SKILLS_DIRS
+from ..config import SKILLS_DIRS, config
 
 
 class SkillLoader:
@@ -13,7 +14,11 @@ class SkillLoader:
         self.skills: dict[str, dict[str, Any]] = {}
         self._load_all()
 
+    def _variables(self) -> dict[str, str]:
+        return {"MODEL_NAME": config.get_model()}
+
     def _load_all(self) -> None:
+        vars = self._variables()
         for skills_dir in self.skills_dirs:
             if not skills_dir.exists():
                 continue
@@ -24,10 +29,14 @@ class SkillLoader:
                 description = str(meta.get("description", "")).strip()
                 if not name or not description:
                     continue
-                self.skills[name] = {"meta": meta, "body": body, "path": str(f)}
+                meta["description"] = Template(description).safe_substitute(vars)
+                self.skills[name] = {
+                    "meta": meta,
+                    "body": Template(body).safe_substitute(vars),
+                    "path": str(f),
+                }
 
     def _parse_frontmatter(self, text: str) -> tuple[dict[str, Any], str]:
-        """Parse YAML frontmatter between --- delimiters."""
         match = re.match(r"^---\n(.*?)\n---\n?(.*)", text, re.DOTALL)
         if not match:
             return {}, text
@@ -41,17 +50,14 @@ class SkillLoader:
         return meta, match.group(2).strip()
 
     def get_descriptions(self) -> str:
-        """Layer 1: short descriptions for the system prompt."""
         if not self.skills:
             return "(no skills available)"
         lines = []
         for name, skill in self.skills.items():
-            desc = skill["meta"]["description"]
-            lines.append(f"- {name}: {desc}")
+            lines.append(f"- {name}: {skill['meta']['description']}")
         return "\n".join(lines)
 
     def get_content(self, name: str) -> str:
-        """Layer 2: full skill body returned in tool_result."""
         skill = self.skills.get(name)
         if not skill:
             return f"Error: Unknown skill '{name}'. Available: {', '.join(self.skills.keys())}"
