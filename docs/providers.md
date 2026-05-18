@@ -28,18 +28,10 @@ export ANTHROPIC_BASE_URL="https://api.custom-provider.com/v1"
 export ANTHROPIC_API_KEY="your-api-key-here"
 ```
 
-## Method 2: Configuration Directory (`~/.mini-agent/.env`)
+## Method 2: Configuration Directory
 
-Create a `.env` file in the mini-agent configuration directory. This is the recommended method for persistent configuration.
+Store provider configuration in `$HOME/.mini-agent/.env`.
 
-### Setup Steps
-
-1. Create the configuration directory:
-```bash
-mkdir -p ~/.mini-agent
-```
-
-2. Create a `.env` file in the directory:
 ```bash
 # For Claude API
 echo 'ANTHROPIC_API_KEY="your-api-key-here"' > ~/.mini-agent/.env
