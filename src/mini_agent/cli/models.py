@@ -1,49 +1,69 @@
 import json
 import urllib.request
-from functools import lru_cache
 from urllib.parse import urlparse
 
-from ..config import REASONING_EFFORT_LEVELS, client, config
+from ..config import CONFIG_DIR, REASONING_EFFORT_LEVELS, client, config
 from .display import clear_prompt_line
 from .display.picker import select_from_list
 
 
-@lru_cache(maxsize=1)
-def _fetch_limits() -> dict[str, dict]:
-    req = urllib.request.Request(
-        "https://models.dev/api.json",
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
-    with urllib.request.urlopen(req, timeout=5) as resp:
-        data = json.loads(resp.read())
-    limits: dict[str, dict] = {}
-    for provider in data.values():
-        for model_id, model in provider.get("models", {}).items():
-            limit = model.get("limit", {})
-            existing = limits.get(model_id, {})
-            limits[model_id] = {
-                "context": max(existing.get("context") or 0, limit.get("context") or 0)
-                or None,
-                "output": max(existing.get("output") or 0, limit.get("output") or 0)
-                or None,
-            }
-    return limits
+class _ModelInfo:
+    def __init__(self) -> None:
+        self._cache_path = CONFIG_DIR / "models.json"
+        self._cache: dict[str, dict] | None = None
+
+    def _load_cache(self) -> dict[str, dict]:
+        """Load the cache from disk, returning an empty dict on failure."""
+        if self._cache is None:
+            try:
+                with self._cache_path.open() as f:
+                    self._cache = json.load(f)
+            except FileNotFoundError, json.JSONDecodeError:
+                self._cache = {}
+        return self._cache
+
+    def get_best_limit(self, model_id: str, key: str) -> int | None:
+        """Return the maximum value for *key* (e.g. 'context' or 'output') across all providers for a given model."""
+        best = None
+        for provider in self._load_cache().values():
+            model = provider.get("models", {}).get(model_id)
+            if model is None:
+                continue
+            value = model.get("limit", {}).get(key)
+            if value is not None and (best is None or value > best):
+                best = value
+        return best
+
+    def refresh_cache(self) -> None:
+        """Fetch the latest model data from the remote API and update the local cache."""
+        try:
+            req = urllib.request.Request(
+                "https://models.dev/api.json",
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read())
+            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._cache_path.open("w") as f:
+                json.dump(data, f)
+            self._cache = data
+        except OSError, json.JSONDecodeError:
+            pass
+
+
+_model_info = _ModelInfo()
 
 
 def get_max_context_tokens(model_id: str) -> int | None:
-    try:
-        return _fetch_limits().get(model_id, {}).get("context")
-    except Exception as e:
-        print(f"Failed to fetch context token limit: {e}")
-        return None
+    return _model_info.get_best_limit(model_id, "context")
 
 
 def get_max_output_tokens(model_id: str) -> int | None:
-    try:
-        return _fetch_limits().get(model_id, {}).get("output")
-    except Exception as e:
-        print(f"Failed to fetch output token limit: {e}")
-        return None
+    return _model_info.get_best_limit(model_id, "output")
+
+
+def refresh_model_limits() -> None:
+    _model_info.refresh_cache()
 
 
 def _fetch_models_sdk() -> list[str]:
@@ -89,9 +109,8 @@ def fetch_models() -> list[str]:
 def format_model(model_id: str) -> str:
     parts = [model_id]
     try:
-        limits = _fetch_limits().get(model_id, {})
-        context = limits.get("context")
-        output = limits.get("output")
+        context = _model_info.get_best_limit(model_id, "context")
+        output = _model_info.get_best_limit(model_id, "output")
         if context is not None:
             parts.append(f"in:{context:,}")
         if output is not None:
@@ -147,6 +166,7 @@ def select_reasoning_effort() -> str | None:
 
 
 def prompt_model() -> None:
+    refresh_model_limits()
     try:
         model_ids = fetch_models()
     except Exception as e:
