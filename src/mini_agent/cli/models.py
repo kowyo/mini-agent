@@ -6,6 +6,8 @@ from ..config import CONFIG_DIR, REASONING_EFFORT_LEVELS, client, config
 from .display import clear_prompt_line
 from .display.picker import select_from_list
 
+_ENTER_MANUALLY = "Enter model ID manually..."
+
 
 class _ModelInfo:
     def __init__(self) -> None:
@@ -114,9 +116,6 @@ def format_model(model_id: str) -> str:
     except Exception:
         pass
     return "  ".join(parts)
-
-
-_ENTER_MANUALLY = "Enter model ID manually..."
 
 
 def select_model(model_ids: list[str]) -> str | None:
