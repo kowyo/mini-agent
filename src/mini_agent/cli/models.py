@@ -62,10 +62,6 @@ def get_max_output_tokens(model_id: str) -> int | None:
     return _model_info.get_best_limit(model_id, "output")
 
 
-def refresh_model_limits() -> None:
-    _model_info.refresh_cache()
-
-
 def _fetch_models_sdk() -> list[str]:
     model_ids: list[str] = []
     page = client.models.list(limit=100)
@@ -166,7 +162,7 @@ def select_reasoning_effort() -> str | None:
 
 
 def prompt_model() -> None:
-    refresh_model_limits()
+    _model_info.refresh_cache()
     try:
         model_ids = fetch_models()
     except Exception as e:
