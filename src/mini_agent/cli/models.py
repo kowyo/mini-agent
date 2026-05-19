@@ -1,6 +1,5 @@
 import json
 import urllib.request
-from functools import lru_cache
 from urllib.parse import urlparse
 
 from ..config import CONFIG_DIR, REASONING_EFFORT_LEVELS, client, config
@@ -23,48 +22,55 @@ def _parse_limits(data: dict) -> dict[str, dict]:
     return limits
 
 
-_MODELS_CACHE_PATH = CONFIG_DIR / "models.json"
+class _LimitsProvider:
+    def __init__(self) -> None:
+        self._cache_path = CONFIG_DIR / "models.json"
+        self._cache: dict[str, dict] | None = None
+
+    def _load(self) -> dict[str, dict]:
+        if self._cache is None:
+            try:
+                with self._cache_path.open() as f:
+                    self._cache = _parse_limits(json.load(f))
+            except FileNotFoundError, json.JSONDecodeError:
+                self._cache = {}
+        return self._cache
+
+    def get(self, model_id: str, key: str) -> int | None:
+        return self._load().get(model_id, {}).get(key)
+
+    def get_entry(self, model_id: str) -> dict:
+        return self._load().get(model_id, {})
+
+    def refresh(self) -> None:
+        try:
+            req = urllib.request.Request(
+                "https://models.dev/api.json",
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read())
+            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._cache_path.open("w") as f:
+                json.dump(data, f)
+            self._cache = _parse_limits(data)
+        except OSError, json.JSONDecodeError:
+            pass
 
 
-def _load_cached_limits() -> dict[str, dict]:
-    with _MODELS_CACHE_PATH.open() as f:
-        data = json.load(f)
-    return _parse_limits(data)
-
-
-def _save_cache(data: dict) -> None:
-    _MODELS_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with _MODELS_CACHE_PATH.open("w") as f:
-        json.dump(data, f, indent=2)
-
-
-@lru_cache(maxsize=1)
-def _fetch_limits() -> dict[str, dict]:
-    req = urllib.request.Request(
-        "https://models.dev/api.json",
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read())
-        _save_cache(data)
-        return _parse_limits(data)
-    except Exception:
-        return _load_cached_limits()
+_limits = _LimitsProvider()
 
 
 def get_max_context_tokens(model_id: str) -> int | None:
-    try:
-        return _fetch_limits().get(model_id, {}).get("context")
-    except Exception:
-        return None
+    return _limits.get(model_id, "context")
 
 
 def get_max_output_tokens(model_id: str) -> int | None:
-    try:
-        return _fetch_limits().get(model_id, {}).get("output")
-    except Exception:
-        return None
+    return _limits.get(model_id, "output")
+
+
+def refresh_limits() -> None:
+    _limits.refresh()
 
 
 def _fetch_models_sdk() -> list[str]:
@@ -110,9 +116,9 @@ def fetch_models() -> list[str]:
 def format_model(model_id: str) -> str:
     parts = [model_id]
     try:
-        limits = _fetch_limits().get(model_id, {})
-        context = limits.get("context")
-        output = limits.get("output")
+        entry = _limits.get_entry(model_id)
+        context = entry.get("context")
+        output = entry.get("output")
         if context is not None:
             parts.append(f"in:{context:,}")
         if output is not None:
@@ -168,6 +174,7 @@ def select_reasoning_effort() -> str | None:
 
 
 def prompt_model() -> None:
+    refresh_limits()
     try:
         model_ids = fetch_models()
     except Exception as e:
