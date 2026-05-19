@@ -33,16 +33,14 @@ def _fetch_limits() -> dict[str, dict]:
 def get_max_context_tokens(model_id: str) -> int | None:
     try:
         return _fetch_limits().get(model_id, {}).get("context")
-    except Exception as e:
-        print(f"Failed to fetch context token limit: {e}")
+    except Exception:
         return None
 
 
 def get_max_output_tokens(model_id: str) -> int | None:
     try:
         return _fetch_limits().get(model_id, {}).get("output")
-    except Exception as e:
-        print(f"Failed to fetch output token limit: {e}")
+    except Exception:
         return None
 
 
