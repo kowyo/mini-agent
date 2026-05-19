@@ -3,19 +3,12 @@ import urllib.request
 from functools import lru_cache
 from urllib.parse import urlparse
 
-from ..config import REASONING_EFFORT_LEVELS, client, config
+from ..config import CONFIG_DIR, REASONING_EFFORT_LEVELS, client, config
 from .display import clear_prompt_line
 from .display.picker import select_from_list
 
 
-@lru_cache(maxsize=1)
-def _fetch_limits() -> dict[str, dict]:
-    req = urllib.request.Request(
-        "https://models.dev/api.json",
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
-    with urllib.request.urlopen(req, timeout=5) as resp:
-        data = json.loads(resp.read())
+def _parse_limits(data: dict) -> dict[str, dict]:
     limits: dict[str, dict] = {}
     for provider in data.values():
         for model_id, model in provider.get("models", {}).items():
@@ -28,6 +21,36 @@ def _fetch_limits() -> dict[str, dict]:
                 or None,
             }
     return limits
+
+
+_MODELS_CACHE_PATH = CONFIG_DIR / "models.json"
+
+
+def _load_cached_limits() -> dict[str, dict]:
+    with _MODELS_CACHE_PATH.open() as f:
+        data = json.load(f)
+    return _parse_limits(data)
+
+
+def _save_cache(data: dict) -> None:
+    _MODELS_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with _MODELS_CACHE_PATH.open("w") as f:
+        json.dump(data, f, indent=2)
+
+
+@lru_cache(maxsize=1)
+def _fetch_limits() -> dict[str, dict]:
+    req = urllib.request.Request(
+        "https://models.dev/api.json",
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+        _save_cache(data)
+        return _parse_limits(data)
+    except Exception:
+        return _load_cached_limits()
 
 
 def get_max_context_tokens(model_id: str) -> int | None:
