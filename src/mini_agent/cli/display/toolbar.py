@@ -9,7 +9,12 @@ from .picker import LIGHT_HINT_STYLE
 
 
 def _format_token_right(total: Usage, last_round: Usage | None) -> str:
-    right = f"↑{total.total_input_tokens} ↓{total.output_tokens}"
+    parts = [f"↑{total.input_tokens}", f"↓{total.output_tokens}"]
+    if total.cache_read_input_tokens:
+        parts.append(f"R{total.cache_read_input_tokens}")
+    if total.cache_creation_input_tokens:
+        parts.append(f"W{total.cache_creation_input_tokens}")
+    right = " ".join(parts)
     context_limit = get_max_context_tokens(config.get_model())
     if context_limit and last_round is not None:
         used_tokens = last_round.total_input_tokens + last_round.output_tokens
