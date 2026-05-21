@@ -3,9 +3,9 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Usage:
-    input_tokens: int
-    cache_creation_input_tokens: int
-    cache_read_input_tokens: int
+    input_tokens: int  # tokens after the last cache breakpoint
+    cache_creation_input_tokens: int  # tokens written to cache
+    cache_read_input_tokens: int  # tokens read from cache
     output_tokens: int
 
     @property
