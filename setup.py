@@ -8,5 +8,8 @@ modules = [
 ]
 
 setup(
-    ext_modules=mypycify(modules, opt_level="3"),
+    ext_modules=mypycify(
+        ["--ignore-missing-imports", *modules],
+        opt_level="3",
+    ),
 )

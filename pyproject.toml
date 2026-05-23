@@ -30,17 +30,9 @@ mini = "mini_agent:main"
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PTH", "ANN", "SIM"]
 ignore = ["E501"]
 
-[tool.mypy]
-mypy_path = "src"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "yaml"
-ignore_missing_imports = true
-
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [build-system]
-requires = ["setuptools>=82.0.1", "mypy[mypyc]>=1.20.1"]
+requires = ["setuptools>=82.0.1", "mypy[mypyc]>=2.1.0"]
 build-backend = "setuptools.build_meta"
