@@ -13,3 +13,8 @@ Config stored in `~/.mini-agent/config.toml`.
 model_id = "claude-sonnet-4-6"
 reasoning_effort = "high"
 ```
+
+## Behavior
+
+- `/model` in interactive mode saves to config.toml permanently.
+- The file is read on startup. Created automatically when you first run `/model`.

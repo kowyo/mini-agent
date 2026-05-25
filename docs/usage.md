@@ -15,6 +15,9 @@ mini [options] [prompt]
 | `-r`, `--resume [id]` | Resume a session by ID, or latest if no ID |
 | `-v`, `--version` | Show version |
 
+> [!NOTE]
+> `--model` and `--effort` override for the current session only.
+
 ### Example
 
 ```bash
@@ -52,3 +55,13 @@ mini /resume
 |----------|-------------|
 | <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste image from clipboard |
 | <kbd>Esc</kbd>+<kbd>Enter</kbd> / <kbd>Meta</kbd>+<kbd>Enter</kbd> | Insert newline |
+
+## Context Files
+
+mini-agent loads `AGENTS.md` at startup from:
+
+- `~/.mini-agent/AGENTS.md` for global instructions
+- parent directories, walking up from the current working directory
+- the current directory
+
+Use context files for project conventions, commands, and preferences.
