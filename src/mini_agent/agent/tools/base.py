@@ -35,4 +35,6 @@ def kill_process_tree(proc: subprocess.Popen) -> None:
 
 def resolve_path(path_str: str) -> Path:
     path = Path(path_str)
-    return path.resolve() if path.is_absolute() else (WORKDIR / path_str).resolve()
+    if path.is_absolute():
+        return path.resolve()
+    return (WORKDIR / path_str).resolve()
