@@ -77,7 +77,11 @@ def print_session_history(history: list[MessageParam]) -> None:
 def print_tool_start(name: str, input_data: dict[str, object]) -> None:
     """Print tool name and input before executing the tool."""
     if name == "read_file":
-        print(f"> {name} - {input_data['path']}")
+        text = Text(f"> {name} - {input_data['path']}")
+        limit = input_data.get("limit")
+        if limit is not None:
+            text.append(f" (limit {limit})", style=LIGHT_HINT_STYLE_RICH)
+        console.print(text)
         return
 
     if name == "write_file":
