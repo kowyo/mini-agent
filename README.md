@@ -6,15 +6,13 @@ A minimal agent running in your terminal.
 
 ## Installation
 
-**macOS / Linux**
+**Pre-built**
 
 ```bash
+# macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/kowyo/mini-agent/main/scripts/install.sh | bash
-```
 
-**Windows**
-
-```powershell
+# Windows
 powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/scripts/install.ps1 | iex"
 ```
 
@@ -23,6 +21,10 @@ powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/scrip
 ```bash
 uv tool install git+https://github.com/kowyo/mini-agent.git@main
 ```
+
+## Documentation
+
+See [docs/](docs/).
 
 ## Development
 

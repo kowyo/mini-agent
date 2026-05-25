@@ -79,14 +79,13 @@ def _fetch_models_manual() -> list[str]:
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     url = f"{base_url}/v1/models"
 
-    api_key = client.api_key or ""
-    req = urllib.request.Request(
-        url,
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-        },
-    )
+    headers: dict[str, str] = {"anthropic-version": "2023-06-01"}
+    if client.auth_token:
+        headers["Authorization"] = f"Bearer {client.auth_token}"
+    elif client.api_key:
+        headers["x-api-key"] = client.api_key
+
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=30) as resp:
         data = json.loads(resp.read())
 

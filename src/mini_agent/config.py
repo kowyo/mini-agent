@@ -33,6 +33,9 @@ SKILLS_DIRS = [HOME_SKILLS_DIR, PROJECT_SKILLS_DIR]
 
 load_dotenv(CONFIG_DIR / ".env")
 
+if os.getenv("ANTHROPIC_API_KEY"):
+    os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
+
 client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
 
 
