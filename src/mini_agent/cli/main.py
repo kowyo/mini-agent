@@ -47,7 +47,7 @@ def _run_non_interactive(prompt: str) -> None:
     history_len = len(history)
     agent_loop(history)
     if len(history) > history_len and token_tracker.get() is not None:
-        session_manager.save(session_id, history, token_tracker.rounds)
+        session_manager.save(session_id, history, token_tracker.round_usages)
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
@@ -132,7 +132,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if len(history) <= history_len:
             continue
         if token_tracker.get() is not None:
-            session_manager.save(current_session_id, history, token_tracker.rounds)
+            session_manager.save(
+                current_session_id, history, token_tracker.round_usages
+            )
 
     if session_manager.exists(current_session_id):
         usage_report = format_usage_report(token_tracker.get())
