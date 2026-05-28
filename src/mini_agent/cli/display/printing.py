@@ -48,10 +48,36 @@ def print_welcome_banner() -> None:
 def print_session_history(history: list[MessageParam]) -> None:
     clear_terminal()
     print_welcome_banner()
+
+    tool_registry: dict[str, tuple[str, dict[str, object]]] = {}
+
     for message in history:
         content = message["content"]
 
         if message["role"] == "user":
+            if isinstance(content, list):
+                tool_results = [
+                    b
+                    for b in content
+                    if isinstance(b, dict) and b.get("type") == "tool_result"
+                ]
+                if tool_results:
+                    for block in tool_results:
+                        tool_use_id = str(block.get("tool_use_id", ""))
+                        name, input_data = tool_registry.get(
+                            tool_use_id, ("unknown", {})
+                        )
+                        output = str(block.get("content", ""))
+                        if name == "bash" and output:
+                            for line in output.splitlines():
+                                text = Text.from_ansi(line.rstrip("\n\r"))
+                                text.stylize(LIGHT_HINT_STYLE_RICH)
+                                console.print(text)
+                            print()
+                        else:
+                            print_tool_result(name, input_data, output)
+                    continue
+
             text = extract_text_content(content)
             if text:
                 lines = text.splitlines()
@@ -67,11 +93,27 @@ def print_session_history(history: list[MessageParam]) -> None:
 
         if message["role"] == "assistant" and isinstance(content, list):
             for block in content:
-                if isinstance(block, dict) and block.get("type") == "text":
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") == "text":
                     text = str(block.get("text", "")).strip()
                     if text:
                         console.print(Markdown(text))
                         print()
+                elif block.get("type") == "thinking":
+                    thinking_text = str(block.get("thinking", "")).strip()
+                    if thinking_text:
+                        console.print(
+                            Markdown(thinking_text, style=LIGHT_HINT_STYLE_RICH)
+                        )
+                        print()
+                elif block.get("type") == "tool_use":
+                    name = str(block.get("name", "unknown"))
+                    input_data = cast(dict[str, object], block.get("input", {}))
+                    tool_use_id = str(block.get("id", ""))
+                    if tool_use_id:
+                        tool_registry[tool_use_id] = (name, input_data)
+                    print_tool_start(name, input_data)
 
 
 def print_tool_start(name: str, input_data: dict[str, object]) -> None:
