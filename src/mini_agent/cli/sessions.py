@@ -121,18 +121,11 @@ class SessionManager:
                 msg_body["model"] = config.get_model()
                 if round_usages and saved_asst < len(round_usages):
                     u = round_usages[saved_asst]
-                    total = (
-                        u.input_tokens
-                        + u.cache_creation_input_tokens
-                        + u.cache_read_input_tokens
-                        + u.output_tokens
-                    )
                     msg_body["usage"] = {
-                        "input": u.input_tokens,
-                        "output": u.output_tokens,
-                        "cacheRead": u.cache_read_input_tokens,
-                        "cacheWrite": u.cache_creation_input_tokens,
-                        "totalTokens": total,
+                        "input_tokens": u.input_tokens,
+                        "cache_creation_input_tokens": u.cache_creation_input_tokens,
+                        "cache_read_input_tokens": u.cache_read_input_tokens,
+                        "output_tokens": u.output_tokens,
                     }
                     saved_asst += 1
             lines.append(
@@ -181,10 +174,12 @@ class SessionManager:
                 if u:
                     round_usages.append(
                         Usage(
-                            input_tokens=u.get("input", 0),
-                            cache_creation_input_tokens=u.get("cacheWrite", 0),
-                            cache_read_input_tokens=u.get("cacheRead", 0),
-                            output_tokens=u.get("output", 0),
+                            input_tokens=u.get("input_tokens", 0),
+                            cache_creation_input_tokens=u.get(
+                                "cache_creation_input_tokens", 0
+                            ),
+                            cache_read_input_tokens=u.get("cache_read_input_tokens", 0),
+                            output_tokens=u.get("output_tokens", 0),
                         )
                     )
         return history, round_usages
@@ -224,12 +219,14 @@ class SessionManager:
                             if u:
                                 round_usages.append(
                                     Usage(
-                                        input_tokens=u.get("input", 0),
+                                        input_tokens=u.get("input_tokens", 0),
                                         cache_creation_input_tokens=u.get(
-                                            "cacheWrite", 0
+                                            "cache_creation_input_tokens", 0
                                         ),
-                                        cache_read_input_tokens=u.get("cacheRead", 0),
-                                        output_tokens=u.get("output", 0),
+                                        cache_read_input_tokens=u.get(
+                                            "cache_read_input_tokens", 0
+                                        ),
+                                        output_tokens=u.get("output_tokens", 0),
                                     )
                                 )
                     updated_at = (
