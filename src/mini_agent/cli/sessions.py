@@ -8,7 +8,7 @@ from pathlib import Path
 from anthropic.types import MessageParam
 from pydantic import BaseModel
 
-from ..config import SESSION_DIR
+from ..config import SESSION_DIR, config
 from .clipboard import extract_text_content
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
@@ -116,26 +116,25 @@ class SessionManager:
                 "content": serialize_content(message["content"]),
                 "timestamp": int(now.timestamp() * 1000),
             }
-            if (
-                message["role"] == "assistant"
-                and round_usages
-                and saved_asst < len(round_usages)
-            ):
-                u = round_usages[saved_asst]
-                total = (
-                    u.input_tokens
-                    + u.cache_creation_input_tokens
-                    + u.cache_read_input_tokens
-                    + u.output_tokens
-                )
-                msg_body["usage"] = {
-                    "input": u.input_tokens,
-                    "output": u.output_tokens,
-                    "cacheRead": u.cache_read_input_tokens,
-                    "cacheWrite": u.cache_creation_input_tokens,
-                    "totalTokens": total,
-                }
-                saved_asst += 1
+            if message["role"] == "assistant":
+                msg_body["api"] = "anthropic-messages"
+                msg_body["model"] = config.get_model()
+                if round_usages and saved_asst < len(round_usages):
+                    u = round_usages[saved_asst]
+                    total = (
+                        u.input_tokens
+                        + u.cache_creation_input_tokens
+                        + u.cache_read_input_tokens
+                        + u.output_tokens
+                    )
+                    msg_body["usage"] = {
+                        "input": u.input_tokens,
+                        "output": u.output_tokens,
+                        "cacheRead": u.cache_read_input_tokens,
+                        "cacheWrite": u.cache_creation_input_tokens,
+                        "totalTokens": total,
+                    }
+                    saved_asst += 1
             lines.append(
                 json.dumps(
                     {
