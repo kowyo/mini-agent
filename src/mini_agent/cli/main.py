@@ -46,9 +46,8 @@ def _run_non_interactive(prompt: str) -> None:
     session_id = session_manager.new_id()
     history_len = len(history)
     agent_loop(history)
-    usage = token_tracker.get()
-    if len(history) > history_len and usage is not None:
-        session_manager.save(session_id, history, usage)
+    if len(history) > history_len and token_tracker.get() is not None:
+        session_manager.save(session_id, history, token_tracker.rounds)
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
@@ -70,7 +69,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             sent_image_count[0] = count_images_in_history(history)
             next_indicator[0] = max_indicator_in_history(history) + 1
             print_session_history(chosen.history)
-            token_tracker.restore(chosen.last_usage)
+            token_tracker.restore(chosen.round_usages)
         except StopIteration:
             print("Session ID not found.\n")
 
@@ -132,9 +131,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
         if len(history) <= history_len:
             continue
-        usage = token_tracker.get()
-        if usage is not None:
-            session_manager.save(current_session_id, history, usage)
+        if token_tracker.get() is not None:
+            session_manager.save(current_session_id, history, token_tracker.rounds)
 
     if session_manager.exists(current_session_id):
         usage_report = format_usage_report(token_tracker.get())
