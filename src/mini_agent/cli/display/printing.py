@@ -15,7 +15,11 @@ from ...config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION, config
 from ..clipboard import extract_text_content
 from .box import print_box
 from .diff import format_edit_diff
-from .theme import LIGHT_HINT_STYLE_RICH, PROMPT_TOOLKIT_ACCENT_COLOR
+from .theme import (
+    LIGHT_HINT_STYLE_RICH,
+    PROMPT_TOOLKIT_ACCENT_COLOR,
+    THINKING_STYLE_RICH,
+)
 
 console = Console()
 
@@ -104,7 +108,7 @@ def print_session_history(history: list[MessageParam]) -> None:
                     thinking_text = str(block.get("thinking", "")).strip()
                     if thinking_text:
                         console.print(
-                            Markdown(thinking_text, style=LIGHT_HINT_STYLE_RICH)
+                            Markdown(thinking_text, style=THINKING_STYLE_RICH)
                         )
                         print()
                 elif block.get("type") == "tool_use":
