@@ -49,7 +49,7 @@ def session_title(history: list[MessageParam]) -> str:
 
 
 class SessionManager:
-    VERSION = 2
+    VERSION = 1
 
     def __init__(self, session_dir: Path | None = None) -> None:
         self._base_dir = session_dir or SESSION_DIR
