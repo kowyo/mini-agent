@@ -24,9 +24,9 @@ class StoredSession:
     round_usages: list[Usage]
 
 
-def serialize_content(content: str | Iterable[object]) -> str | list[object]:
+def serialize_content(content: str | Iterable[object]) -> list[object]:
     if isinstance(content, str):
-        return content
+        return [{"type": "text", "text": content}]
     serialized_blocks: list[object] = []
     for block in content:
         if isinstance(block, BaseModel):
