@@ -53,6 +53,7 @@ class SessionManager:
 
     def __init__(self, session_dir: Path | None = None) -> None:
         self._base_dir = session_dir or SESSION_DIR
+        self._leaf_overrides: dict[str, str | None] = {}
 
     @staticmethod
     def new_id() -> str:
@@ -81,6 +82,39 @@ class SessionManager:
     def exists(self, session_id: str) -> bool:
         return self.find_file(session_id) is not None
 
+    def get_leaf_id(self, session_id: str) -> str | None:
+        path = self.find_file(session_id)
+        if path is None:
+            return None
+        lines = [line for line in path.read_text().splitlines() if line.strip()]
+        if len(lines) <= 1:
+            return None
+        last_entry = json.loads(lines[-1])
+        return last_entry.get("id")
+
+    def branch(self, session_id: str, branch_from_id: str | None) -> None:
+        if branch_from_id is not None:
+            path = self.find_file(session_id)
+            if path is None:
+                raise ValueError(f"Session {session_id} not found")
+            lines = [line for line in path.read_text().splitlines() if line.strip()]
+            found = any(
+                json.loads(line).get("id") == branch_from_id for line in lines[1:]
+            )
+            if not found:
+                raise ValueError(
+                    f"Entry {branch_from_id} not found in session {session_id}"
+                )
+        self._leaf_overrides[session_id] = branch_from_id
+
+    def determine_parent(self, session_id: str, entries: list[dict]) -> str | None:
+        if session_id in self._leaf_overrides:
+            parent = self._leaf_overrides.pop(session_id)
+            return parent
+        if entries:
+            return entries[-1]["id"]
+        return None
+
     def save(
         self,
         session_id: str,
@@ -95,22 +129,28 @@ class SessionManager:
         existing = self.find_file(session_id)
         if existing:
             lines = [line for line in existing.read_text().splitlines() if line.strip()]
+            entries = [json.loads(line) for line in lines]
         else:
-            lines = []
+            entries = []
+
+        existing_entry_count = max(len(entries) - 1, 0) if entries else 0
 
         saved_asst = 0
         if existing:
-            for line in lines[1:]:
-                entry = json.loads(line)
+            for entry in entries[1:]:
                 if (
                     entry.get("type") == "message"
                     and entry["message"]["role"] == "assistant"
                 ):
                     saved_asst += 1
 
-        for message in history[len(lines) - (1 if existing else 0) :]:
+        non_header = entries[1:] if entries else []
+        parent_id = self.determine_parent(session_id, non_header)
+
+        for message in history[existing_entry_count:]:
             now = datetime.now(UTC)
             entry_ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            new_id = self.entry_id()
             msg_body: dict = {
                 "role": message["role"],
                 "content": serialize_content(message["content"]),
@@ -128,16 +168,16 @@ class SessionManager:
                         "output_tokens": u.output_tokens,
                     }
                     saved_asst += 1
-            lines.append(
-                json.dumps(
-                    {
-                        "type": "message",
-                        "id": self.entry_id(),
-                        "timestamp": entry_ts,
-                        "message": msg_body,
-                    }
-                )
+            entries.append(
+                {
+                    "type": "message",
+                    "id": new_id,
+                    "parent_id": parent_id,
+                    "timestamp": entry_ts,
+                    "message": msg_body,
+                }
             )
+            parent_id = new_id
 
         if existing:
             path = existing
@@ -153,9 +193,9 @@ class SessionManager:
             }
             file_timestamp = ts.replace(":", "-").replace(".", "-")
             path = session_dir / f"{file_timestamp}_{session_id}.jsonl"
-            lines.insert(0, json.dumps(header))
+            entries.insert(0, header)
 
-        path.write_text("\n".join(lines) + "\n")
+        path.write_text("\n".join(json.dumps(e) for e in entries) + "\n")
 
     def load(self, session_id: str) -> tuple[list[MessageParam], list[Usage]]:
         path = self.find_file(session_id)
