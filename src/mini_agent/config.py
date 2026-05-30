@@ -22,6 +22,12 @@ REASONING_EFFORT_LEVELS = [
     "xhigh",
     "max",
 ]
+DEFAULT_PROVIDERS = {
+    "anthropic": ["claude-"],
+    "deepseek": ["deepseek-"],
+    "google": ["gemini-"],
+    "openai": ["gpt-", "o3", "o4", "text-", "chatgpt-"],
+}
 CONFIG_DIR = DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
@@ -45,11 +51,22 @@ class Config:
         self._session_model_override: str | None = None
         self._reasoning_effort: str | None = None
         self._session_reasoning_effort_override: str | None = None
+        self._provider: str | None = None
+        self._provider_loaded: bool = False
 
     def _load_config(self) -> dict[str, object]:
         if CONFIG_FILE.exists():
             return tomllib.loads(CONFIG_FILE.read_text())
         return {}
+
+    def get_provider(self) -> str | None:
+        if not self._provider_loaded:
+            cfg = self._load_config()
+            val = cfg.get("provider")
+            if isinstance(val, str):
+                self._provider = val
+            self._provider_loaded = True
+        return self._provider
 
     def set_session_model(self, model_id: str) -> None:
         self._session_model_override = model_id

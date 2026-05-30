@@ -2,11 +2,34 @@ import json
 import urllib.request
 from urllib.parse import urlparse
 
-from ..config import CONFIG_DIR, REASONING_EFFORT_LEVELS, client, config
+from ..config import (
+    CONFIG_DIR,
+    DEFAULT_PROVIDERS,
+    REASONING_EFFORT_LEVELS,
+    client,
+    config,
+)
 from .display import clear_prompt_line
 from .display.picker import select_from_list
 
-_ENTER_MANUALLY = "Enter model ID manually..."
+
+def _get_provider_hint(model_id: str) -> str | None:
+    for provider_id, prefixes in DEFAULT_PROVIDERS.items():
+        if model_id.startswith(tuple(prefixes)):
+            return provider_id
+    return None
+
+
+def _get_limit_for_provider(
+    cache: dict[str, dict], provider_id: str, model_id: str, key: str
+) -> int | None:
+    provider = cache.get(provider_id)
+    if not provider:
+        return None
+    model = (provider.get("models") or {}).get(model_id)
+    if not model:
+        return None
+    return (model.get("limit") or {}).get(key)
 
 
 class _ModelInfo:
@@ -26,12 +49,31 @@ class _ModelInfo:
 
     def get_best_limit(self, model_id: str, key: str) -> int | None:
         """Return the maximum value for *key* (e.g. 'context' or 'output') across all providers for a given model."""
+        cache = self._load_cache()
+
+        # 1. Try with user-specified provider
+        user_provider = config.get_provider()
+        if user_provider:
+            best = _get_limit_for_provider(cache, user_provider, model_id, key)
+            if best is not None:
+                return best
+
+        # 2. Fall back to prefix matching using DEFAULT_PROVIDERS
+        provider_hint = _get_provider_hint(model_id)
+        if provider_hint and provider_hint != user_provider:
+            best = _get_limit_for_provider(cache, provider_hint, model_id, key)
+            if best is not None:
+                return best
+
+        # 3. Fall back to searching across ALL providers in the catalog
         best = None
-        for provider in self._load_cache().values():
-            model = provider.get("models", {}).get(model_id)
+        for provider_id, provider in cache.items():
+            if provider_id in (user_provider, provider_hint):
+                continue
+            model = (provider.get("models") or {}).get(model_id)
             if model is None:
                 continue
-            value = model.get("limit", {}).get(key)
+            value = (model.get("limit") or {}).get(key)
             if value is not None and (best is None or value > best):
                 best = value
         return best
@@ -121,7 +163,7 @@ def select_model(model_ids: list[str]) -> str | None:
     current = config.get_model()
     selected_index = model_ids.index(current) if current in model_ids else 0
 
-    items: list[str] = [*model_ids, _ENTER_MANUALLY]
+    items: list[str] = [*model_ids, "Enter model ID manually..."]
     result = select_from_list(
         items,
         "Select model",
@@ -131,7 +173,7 @@ def select_model(model_ids: list[str]) -> str | None:
     )
     if result is None:
         return None
-    if result == _ENTER_MANUALLY:
+    if result == "Enter model ID manually...":
         try:
             model_id = input("Model ID: ").strip()
         except KeyboardInterrupt, EOFError:
