@@ -52,6 +52,7 @@ class Config:
         self._reasoning_effort: str | None = None
         self._session_reasoning_effort_override: str | None = None
         self._provider: str | None = None
+        self._provider_loaded: bool = False
 
     def _load_config(self) -> dict[str, object]:
         if CONFIG_FILE.exists():
@@ -59,11 +60,12 @@ class Config:
         return {}
 
     def get_provider(self) -> str | None:
-        if self._provider is None:
+        if not self._provider_loaded:
             cfg = self._load_config()
             val = cfg.get("provider")
             if isinstance(val, str):
                 self._provider = val
+            self._provider_loaded = True
         return self._provider
 
     def set_session_model(self, model_id: str) -> None:
