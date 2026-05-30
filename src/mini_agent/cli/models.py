@@ -26,10 +26,10 @@ def _get_limit_for_provider(
     provider = cache.get(provider_id)
     if not provider:
         return None
-    model = provider.get("models", {}).get(model_id)
+    model = (provider.get("models") or {}).get(model_id)
     if not model:
         return None
-    return model.get("limit", {}).get(key)
+    return (model.get("limit") or {}).get(key)
 
 
 class _ModelInfo:
@@ -70,10 +70,10 @@ class _ModelInfo:
         for provider_id, provider in cache.items():
             if provider_id in (user_provider, provider_hint):
                 continue
-            model = provider.get("models", {}).get(model_id)
+            model = (provider.get("models") or {}).get(model_id)
             if model is None:
                 continue
-            value = model.get("limit", {}).get(key)
+            value = (model.get("limit") or {}).get(key)
             if value is not None and (best is None or value > best):
                 best = value
         return best
