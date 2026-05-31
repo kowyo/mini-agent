@@ -65,10 +65,8 @@ class SessionManager:
     def cwd_dir(self, cwd: str | None = None) -> Path:
         cwd = cwd or str(Path.cwd())
         resolved = str(Path(cwd).resolve())
-        safe = (
-            resolved.lstrip("/").replace("/", "-").replace(":", "-").replace(".", "-")
-        )
-        return self._base_dir / safe
+        safe = resolved.lstrip("/").replace("/", "-").replace(":", "-")
+        return self._base_dir / (safe or "__root__")
 
     def find_file(self, session_id: str) -> Path | None:
         if not self._base_dir.exists():
