@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 
-from .theme import LIGHT_HINT_STYLE_RICH
+from .theme import THINKING_STYLE_RICH
 
 console = Console()
 
@@ -32,7 +32,7 @@ def display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None
                 if isinstance(delta, TextDelta):
                     chunk, style = delta.text, None
                 elif isinstance(delta, ThinkingDelta):
-                    chunk, style = delta.thinking, LIGHT_HINT_STYLE_RICH
+                    chunk, style = delta.thinking, THINKING_STYLE_RICH
                 else:
                     continue
                 text += chunk

@@ -1,5 +1,4 @@
 import argparse
-import uuid
 
 from anthropic.types import MessageParam
 from rich.console import Console
@@ -27,11 +26,9 @@ from .image_messages import (
 from .models import prompt_model
 from .prompt_session import build_session
 from .sessions import (
-    list_sessions,
+    SessionManager,
     print_session_history,
     prompt_resume,
-    save_session_history,
-    session_saved,
 )
 from .status import (
     format_status_report,
@@ -41,30 +38,29 @@ from .token import token_tracker
 
 console = Console()
 
+session_manager = SessionManager()
+
 
 def _run_non_interactive(prompt: str) -> None:
-    """Run the agent on a single prompt and exit (non-interactive mode)."""
     history: list[MessageParam] = [{"role": "user", "content": prompt}]
-    current_session_id = uuid.uuid4().hex
+    session_id = session_manager.new_id()
     history_len = len(history)
     agent_loop(history)
-    usage = token_tracker.get()
-    if len(history) > history_len and usage is not None:
-        save_session_history(current_session_id, history, usage)
+    if len(history) > history_len and token_tracker.get() is not None:
+        session_manager.save(session_id, history, token_tracker.round_usages)
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
-    """Run the interactive TUI session."""
     print_welcome_banner()
     history: list[MessageParam] = []
-    current_session_id = uuid.uuid4().hex
+    current_session_id = session_manager.new_id()
     session, pre_run, attached_images, sent_image_count, next_indicator = build_session(
         prompt
     )
 
     if session_id is not None:
         current_session_id = session_id
-        sessions = list_sessions()
+        sessions = session_manager.list_sessions()
         try:
             chosen = next(
                 stored for stored in sessions if stored.session_id == current_session_id
@@ -73,7 +69,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             sent_image_count[0] = count_images_in_history(history)
             next_indicator[0] = max_indicator_in_history(history) + 1
             print_session_history(chosen.history)
-            token_tracker.restore(chosen.last_usage)
+            token_tracker.restore(chosen.round_usages)
         except StopIteration:
             print("Session ID not found.\n")
 
@@ -96,7 +92,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         print()
         if command == "/new":
             history.clear()
-            current_session_id = uuid.uuid4().hex
+            current_session_id = session_manager.new_id()
             sent_image_count[0] = 0
             next_indicator[0] = 1
             token_tracker.reset()
@@ -105,7 +101,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             print_welcome_banner()
             continue
         if command == "/resume":
-            current_session_id, history, _ = prompt_resume(current_session_id, history)
+            current_session_id, history, _ = prompt_resume(
+                session_manager, current_session_id, history
+            )
             sent_image_count[0] = count_images_in_history(history)
             next_indicator[0] = max_indicator_in_history(history) + 1
             attached_images.clear()
@@ -133,11 +131,12 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
         if len(history) <= history_len:
             continue
-        usage = token_tracker.get()
-        if usage is not None:
-            save_session_history(current_session_id, history, usage)
+        if token_tracker.get() is not None:
+            session_manager.save(
+                current_session_id, history, token_tracker.round_usages
+            )
 
-    if session_saved(current_session_id):
+    if session_manager.exists(current_session_id):
         usage_report = format_usage_report(token_tracker.get())
         if usage_report:
             for line in usage_report:
@@ -205,7 +204,7 @@ def main() -> None:
 
     session_id: str | None = args.session_id
     if session_id == "__LATEST__":
-        sessions = list_sessions()
+        sessions = session_manager.list_sessions()
         if sessions:
             session_id = sessions[0].session_id
         else:

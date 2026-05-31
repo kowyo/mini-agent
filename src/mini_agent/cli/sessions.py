@@ -1,4 +1,5 @@
 import json
+import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -7,7 +8,7 @@ from pathlib import Path
 from anthropic.types import MessageParam
 from pydantic import BaseModel
 
-from ..config import SESSION_DIR
+from ..config import SESSION_DIR, config
 from .clipboard import extract_text_content
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
@@ -20,24 +21,12 @@ class StoredSession:
     title: str
     updated_at: str
     history: list[MessageParam]
-    last_usage: Usage
+    round_usages: list[Usage]
 
 
-def session_path(session_id: str) -> Path:
-    return SESSION_DIR / f"{session_id}.jsonl"
-
-
-def session_saved(session_id: str) -> bool:
-    return session_path(session_id).exists()
-
-
-def ensure_session_dir() -> None:
-    SESSION_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def serialize_content(content: str | Iterable[object]) -> str | list[object]:
+def serialize_content(content: str | Iterable[object]) -> list[object]:
     if isinstance(content, str):
-        return content
+        return [{"type": "text", "text": content}]
     serialized_blocks: list[object] = []
     for block in content:
         if isinstance(block, BaseModel):
@@ -49,89 +38,225 @@ def serialize_content(content: str | Iterable[object]) -> str | list[object]:
     return serialized_blocks
 
 
-def save_session_history(
-    session_id: str,
-    history: list[MessageParam],
-    last_usage: Usage,
-) -> None:
-    ensure_session_dir()
-    path = session_path(session_id)
-    lines = []
-    for message in history:
-        lines.append(
-            json.dumps(
-                {
-                    "role": message["role"],
-                    "content": serialize_content(message["content"]),
-                }
-            )
-        )
-    lines.append(
-        json.dumps(
-            {
-                "input_tokens": last_usage.input_tokens,
-                "cache_creation_input_tokens": last_usage.cache_creation_input_tokens,
-                "cache_read_input_tokens": last_usage.cache_read_input_tokens,
-                "output_tokens": last_usage.output_tokens,
-            }
-        )
-    )
-    path.write_text("\n".join(lines) + "\n")
-
-
-def load_session_history(
-    session_id: str,
-) -> tuple[list[MessageParam], Usage]:
-    path = session_path(session_id)
-    lines = [line for line in path.read_text().splitlines() if line.strip()]
-    *message_lines, usage_line = lines
-    record = json.loads(usage_line)
-    last_usage = Usage(
-        input_tokens=record.get("input_tokens", 0),
-        cache_creation_input_tokens=record.get("cache_creation_input_tokens", 0),
-        cache_read_input_tokens=record.get("cache_read_input_tokens", 0),
-        output_tokens=record.get("output_tokens", 0),
-    )
-    history: list[MessageParam] = [
-        {"role": r["role"], "content": r["content"]}
-        for r in (json.loads(line) for line in message_lines)
-    ]
-    return history, last_usage
-
-
-def summarize_content(content: str | Iterable[object]) -> str:
-    summary = extract_text_content(content)
-    return " ".join(summary.splitlines()).strip()
-
-
 def session_title(history: list[MessageParam]) -> str:
     for message in history:
         if message["role"] == "user":
-            title = summarize_content(message["content"])
+            text = extract_text_content(message["content"])
+            title = " ".join(text.splitlines()).strip()
             if title:
                 return title[:60]
     return "Untitled session"
 
 
-def list_sessions() -> list[StoredSession]:
-    ensure_session_dir()
-    sessions: list[StoredSession] = []
-    for path in SESSION_DIR.glob("*.jsonl"):
-        try:
-            history, last_usage = load_session_history(path.stem)
-        except OSError, json.JSONDecodeError, ValueError, KeyError:
-            continue
-        updated_at = datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat()
-        sessions.append(
-            StoredSession(
-                session_id=path.stem,
-                title=session_title(history),
-                updated_at=updated_at,
-                history=history,
-                last_usage=last_usage,
+class SessionManager:
+    VERSION = 1
+
+    def __init__(self, session_dir: Path | None = None) -> None:
+        self._base_dir = session_dir or SESSION_DIR
+
+    @staticmethod
+    def new_id() -> str:
+        return str(uuid.uuid7())
+
+    @staticmethod
+    def entry_id() -> str:
+        return uuid.uuid4().hex[:8]
+
+    def cwd_dir(self, cwd: str | None = None) -> Path:
+        cwd = cwd or str(Path.cwd())
+        resolved = str(Path(cwd).resolve())
+        safe = resolved.lstrip("/").replace("/", "-").replace(":", "-")
+        return self._base_dir / (safe or "__root__")
+
+    def find_file(self, session_id: str) -> Path | None:
+        if not self._base_dir.exists():
+            return None
+        for cwd_dir in self._base_dir.iterdir():
+            if not cwd_dir.is_dir():
+                continue
+            for f in cwd_dir.glob(f"*_{session_id}.jsonl"):
+                return f
+        return None
+
+    def exists(self, session_id: str) -> bool:
+        return self.find_file(session_id) is not None
+
+    def save(
+        self,
+        session_id: str,
+        history: list[MessageParam],
+        round_usages: list[Usage] | None = None,
+        cwd: str | None = None,
+    ) -> None:
+        cwd = cwd or str(Path.cwd())
+        session_dir = self.cwd_dir(cwd)
+        session_dir.mkdir(parents=True, exist_ok=True)
+
+        existing = self.find_file(session_id)
+        if existing:
+            lines = [line for line in existing.read_text().splitlines() if line.strip()]
+            try:
+                entries = [json.loads(line) for line in lines]
+            except json.JSONDecodeError as err:
+                raise ValueError(f"Invalid JSON in session file: {existing}") from err
+        else:
+            entries = []
+
+        existing_entry_count = max(len(entries) - 1, 0) if entries else 0
+
+        saved_asst = 0
+        if existing:
+            for entry in entries[1:]:
+                if (
+                    entry.get("type") == "message"
+                    and entry["message"]["role"] == "assistant"
+                ):
+                    saved_asst += 1
+
+        parent_id = entries[-1]["id"] if len(entries) > 1 else None
+
+        for message in history[existing_entry_count:]:
+            now = datetime.now(UTC)
+            entry_ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            new_id = self.entry_id()
+            msg_body: dict = {
+                "role": message["role"],
+                "content": serialize_content(message["content"]),
+                "timestamp": int(now.timestamp() * 1000),
+            }
+            if message["role"] == "assistant":
+                msg_body["api"] = "anthropic-messages"
+                msg_body["model"] = config.get_model()
+                if round_usages and saved_asst < len(round_usages):
+                    u = round_usages[saved_asst]
+                    msg_body["usage"] = {
+                        "input_tokens": u.input_tokens,
+                        "cache_creation_input_tokens": u.cache_creation_input_tokens,
+                        "cache_read_input_tokens": u.cache_read_input_tokens,
+                        "output_tokens": u.output_tokens,
+                    }
+                    saved_asst += 1
+            entries.append(
+                {
+                    "type": "message",
+                    "id": new_id,
+                    "parent_id": parent_id,
+                    "timestamp": entry_ts,
+                    "message": msg_body,
+                }
             )
-        )
-    return sorted(sessions, key=lambda item: item.updated_at, reverse=True)
+            parent_id = new_id
+
+        if existing:
+            path = existing
+        else:
+            now = datetime.now(UTC)
+            ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            header = {
+                "type": "session",
+                "version": self.VERSION,
+                "id": session_id,
+                "timestamp": ts,
+                "cwd": cwd,
+            }
+            file_timestamp = ts.replace(":", "-").replace(".", "-")
+            path = session_dir / f"{file_timestamp}_{session_id}.jsonl"
+            entries.insert(0, header)
+
+        path.write_text("\n".join(json.dumps(e) for e in entries) + "\n")
+
+    def load(self, session_id: str) -> tuple[list[MessageParam], list[Usage]]:
+        path = self.find_file(session_id)
+        if path is None:
+            return [], []
+
+        lines = [line for line in path.read_text().splitlines() if line.strip()]
+        history: list[MessageParam] = []
+        round_usages: list[Usage] = []
+        for line in lines[1:]:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            msg = entry["message"]
+            history.append({"role": msg["role"], "content": msg["content"]})
+            if msg["role"] == "assistant":
+                u = msg.get("usage")
+                if u:
+                    round_usages.append(
+                        Usage(
+                            input_tokens=u.get("input_tokens", 0),
+                            cache_creation_input_tokens=u.get(
+                                "cache_creation_input_tokens", 0
+                            ),
+                            cache_read_input_tokens=u.get("cache_read_input_tokens", 0),
+                            output_tokens=u.get("output_tokens", 0),
+                        )
+                    )
+        return history, round_usages
+
+    def list_sessions(self) -> list[StoredSession]:
+        if not self._base_dir.exists():
+            return []
+        sessions: list[StoredSession] = []
+        for cwd_dir in self._base_dir.iterdir():
+            if not cwd_dir.is_dir():
+                continue
+            for path in cwd_dir.glob("*.jsonl"):
+                try:
+                    content = path.read_text()
+                    lines = [line for line in content.splitlines() if line.strip()]
+                    if not lines:
+                        continue
+                    header = json.loads(lines[0])
+                    if header.get("type") != "session":
+                        continue
+                    sid = header.get("id", "")
+                    if not sid:
+                        continue
+                    entry_lines = lines[1:]
+                    max_ts = 0
+                    history: list[MessageParam] = []
+                    round_usages: list[Usage] = []
+                    for line in entry_lines:
+                        entry = json.loads(line)
+                        msg = entry["message"]
+                        history.append({"role": msg["role"], "content": msg["content"]})
+                        ts = msg.get("timestamp", 0)
+                        if ts > max_ts:
+                            max_ts = ts
+                        if msg["role"] == "assistant":
+                            u = msg.get("usage")
+                            if u:
+                                round_usages.append(
+                                    Usage(
+                                        input_tokens=u.get("input_tokens", 0),
+                                        cache_creation_input_tokens=u.get(
+                                            "cache_creation_input_tokens", 0
+                                        ),
+                                        cache_read_input_tokens=u.get(
+                                            "cache_read_input_tokens", 0
+                                        ),
+                                        output_tokens=u.get("output_tokens", 0),
+                                    )
+                                )
+                    updated_at = (
+                        datetime.fromtimestamp(max_ts / 1000, UTC).isoformat()
+                        if max_ts
+                        else header.get("timestamp", "")
+                    )
+                    sessions.append(
+                        StoredSession(
+                            session_id=sid,
+                            title=session_title(history),
+                            updated_at=updated_at,
+                            history=history,
+                            round_usages=round_usages,
+                        )
+                    )
+                except OSError, json.JSONDecodeError, ValueError, KeyError:
+                    continue
+        return sorted(sessions, key=lambda item: item.updated_at, reverse=True)
 
 
 def format_relative_time(timestamp: str) -> str:
@@ -179,11 +304,12 @@ def select_session(
 
 
 def prompt_resume(
+    manager: SessionManager,
     current_session_id: str,
     history: list[MessageParam],
 ) -> tuple[str, list[MessageParam], bool]:
     clear_terminal()
-    sessions = list_sessions()
+    sessions = manager.list_sessions()
     if not sessions:
         print("No saved sessions found.\n")
         return current_session_id, history, False
@@ -197,5 +323,5 @@ def prompt_resume(
 
     chosen = next(stored for stored in sessions if stored.session_id == result)
     print_session_history(chosen.history)
-    token_tracker.restore(chosen.last_usage)
+    token_tracker.restore(chosen.round_usages)
     return chosen.session_id, chosen.history.copy(), True

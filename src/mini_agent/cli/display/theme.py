@@ -4,6 +4,7 @@ PROMPT_TOOLKIT_ACCENT_COLOR = "ansicyan"
 SELECTED_STYLE = "bold"
 LIGHT_HINT_STYLE = "fg:#888888"
 LIGHT_HINT_STYLE_RICH = "dim"
+THINKING_STYLE_RICH = "dim italic"
 
 RED_BG = "\x1b[48;5;224m\x1b[30m"
 GREEN_BG = "\x1b[48;5;194m\x1b[30m"
