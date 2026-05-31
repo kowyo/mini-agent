@@ -113,8 +113,6 @@ class SessionManager:
                 ):
                     saved_asst += 1
 
-        parent_id = entries[-1]["id"] if len(entries) > 1 else None
-
         for message in history[existing_entry_count:]:
             now = datetime.now(UTC)
             entry_ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -125,7 +123,6 @@ class SessionManager:
                 "timestamp": int(now.timestamp() * 1000),
             }
             if message["role"] == "assistant":
-                msg_body["api"] = "anthropic-messages"
                 msg_body["model"] = config.get_model()
                 if round_usages and saved_asst < len(round_usages):
                     u = round_usages[saved_asst]
@@ -140,12 +137,10 @@ class SessionManager:
                 {
                     "type": "message",
                     "id": new_id,
-                    "parent_id": parent_id,
                     "timestamp": entry_ts,
                     "message": msg_body,
                 }
             )
-            parent_id = new_id
 
         if existing:
             path = existing
