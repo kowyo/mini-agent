@@ -74,8 +74,9 @@ class SessionManager:
         for cwd_dir in self._base_dir.iterdir():
             if not cwd_dir.is_dir():
                 continue
-            for f in cwd_dir.glob(f"*_{session_id}.jsonl"):
-                return f
+            candidate = cwd_dir / f"{session_id}.jsonl"
+            if candidate.exists():
+                return candidate
         return None
 
     def exists(self, session_id: str) -> bool:
@@ -159,8 +160,7 @@ class SessionManager:
                 "timestamp": ts,
                 "cwd": cwd,
             }
-            file_timestamp = ts.replace(":", "-").replace(".", "-")
-            path = session_dir / f"{file_timestamp}_{session_id}.jsonl"
+            path = session_dir / f"{session_id}.jsonl"
             entries.insert(0, header)
 
         path.write_text("\n".join(json.dumps(e) for e in entries) + "\n")
