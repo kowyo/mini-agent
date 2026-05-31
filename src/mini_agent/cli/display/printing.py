@@ -80,7 +80,6 @@ def print_session_history(history: list[MessageParam]) -> None:
                             print()
                         else:
                             print_tool_result(name, input_data, output)
-                    continue
 
             text = extract_text_content(content)
             if text:
