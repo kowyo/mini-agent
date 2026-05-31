@@ -56,15 +56,16 @@ def _build_context_section(files: list[Path]) -> str:
     if not files:
         return ""
 
-    sections = [
-        "\n# Project Context\n\nProject-specific instructions and guidelines:\n"
-    ]
-    for path in files:
+    sections = ["\n<project_instructions>\n"]
+    for i, path in enumerate(files, 1):
         try:
             content = path.read_text().strip()
         except PermissionError, OSError:
             continue
-        sections.append(f"\n## {path}\n\n{content}\n")
+        sections.append(
+            f'<project_instruction index="{i}" path="{path}">\n{content}\n</project_instruction>\n'
+        )
+    sections.append("</project_instructions>\n")
     return "".join(sections)
 
 
@@ -72,13 +73,14 @@ TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TO
 
 _SYSTEM_BASE = f"""You are an expert coding assistant. You help users by reading files, executing commands, editing code, and writing new files.
 
-Available tools:
+<available_tools>
 {TOOLS_LIST}
+</available_tools>
 """
 
 SYSTEM = _SYSTEM_BASE
 if skill_loader.skills:
-    SYSTEM += f"\nAvailable skills:\n{skill_loader.get_descriptions()}\n"
+    SYSTEM += f"\n{skill_loader.get_descriptions()}\n"
 
 context_files = discover_context_files()
 _context_section = _build_context_section(context_files)

@@ -63,10 +63,18 @@ class SkillLoader:
         if not self.skills:
             return "(no skills available)"
         variables = self._variables()
-        lines = []
+        lines = [
+            "<available_skills>",
+            "  <instructions>The following skills provide specialized instructions for specific tasks. When a task matches a skill's description, call the activate_skill tool with the skill's name to load its full instructions.</instructions>",
+        ]
         for name, skill in self.skills.items():
             desc = self._substitute(skill["description"], variables)
-            lines.append(f"- {name}: {desc}")
+            lines.append("  <skill>")
+            lines.append(f"    <name>{name}</name>")
+            lines.append(f"    <description>{desc}</description>")
+            lines.append(f"    <location>{skill['path']}</location>")
+            lines.append("  </skill>")
+        lines.append("</available_skills>")
         return "\n".join(lines)
 
     def get_content(self, name: str) -> str:
