@@ -97,8 +97,8 @@ class SessionManager:
             lines = [line for line in existing.read_text().splitlines() if line.strip()]
             try:
                 entries = [json.loads(line) for line in lines]
-            except json.JSONDecodeError:
-                entries = []
+            except json.JSONDecodeError as err:
+                raise ValueError(f"Invalid JSON in session file: {existing}") from err
         else:
             entries = []
 
