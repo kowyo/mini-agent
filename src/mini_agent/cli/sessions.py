@@ -89,7 +89,10 @@ class SessionManager:
         lines = [line for line in path.read_text().splitlines() if line.strip()]
         if len(lines) <= 1:
             return None
-        last_entry = json.loads(lines[-1])
+        try:
+            last_entry = json.loads(lines[-1])
+        except json.JSONDecodeError:
+            return None
         return last_entry.get("id")
 
     def branch(self, session_id: str, branch_from_id: str | None) -> None:
@@ -129,7 +132,10 @@ class SessionManager:
         existing = self.find_file(session_id)
         if existing:
             lines = [line for line in existing.read_text().splitlines() if line.strip()]
-            entries = [json.loads(line) for line in lines]
+            try:
+                entries = [json.loads(line) for line in lines]
+            except json.JSONDecodeError:
+                entries = []
         else:
             entries = []
 
@@ -206,7 +212,10 @@ class SessionManager:
         history: list[MessageParam] = []
         round_usages: list[Usage] = []
         for line in lines[1:]:
-            entry = json.loads(line)
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
             msg = entry["message"]
             history.append({"role": msg["role"], "content": msg["content"]})
             if msg["role"] == "assistant":
