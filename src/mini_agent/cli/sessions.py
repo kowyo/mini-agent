@@ -53,7 +53,6 @@ class SessionManager:
 
     def __init__(self, session_dir: Path | None = None) -> None:
         self._base_dir = session_dir or SESSION_DIR
-        self._leaf_overrides: dict[str, str | None] = {}
 
     @staticmethod
     def new_id() -> str:
@@ -81,42 +80,6 @@ class SessionManager:
 
     def exists(self, session_id: str) -> bool:
         return self.find_file(session_id) is not None
-
-    def get_leaf_id(self, session_id: str) -> str | None:
-        path = self.find_file(session_id)
-        if path is None:
-            return None
-        lines = [line for line in path.read_text().splitlines() if line.strip()]
-        if len(lines) <= 1:
-            return None
-        try:
-            last_entry = json.loads(lines[-1])
-        except json.JSONDecodeError:
-            return None
-        return last_entry.get("id")
-
-    def branch(self, session_id: str, branch_from_id: str | None) -> None:
-        if branch_from_id is not None:
-            path = self.find_file(session_id)
-            if path is None:
-                raise ValueError(f"Session {session_id} not found")
-            lines = [line for line in path.read_text().splitlines() if line.strip()]
-            found = any(
-                json.loads(line).get("id") == branch_from_id for line in lines[1:]
-            )
-            if not found:
-                raise ValueError(
-                    f"Entry {branch_from_id} not found in session {session_id}"
-                )
-        self._leaf_overrides[session_id] = branch_from_id
-
-    def determine_parent(self, session_id: str, entries: list[dict]) -> str | None:
-        if session_id in self._leaf_overrides:
-            parent = self._leaf_overrides.pop(session_id)
-            return parent
-        if entries:
-            return entries[-1]["id"]
-        return None
 
     def save(
         self,
@@ -150,8 +113,7 @@ class SessionManager:
                 ):
                     saved_asst += 1
 
-        non_header = entries[1:] if entries else []
-        parent_id = self.determine_parent(session_id, non_header)
+        parent_id = entries[-1]["id"] if len(entries) > 1 else None
 
         for message in history[existing_entry_count:]:
             now = datetime.now(UTC)
