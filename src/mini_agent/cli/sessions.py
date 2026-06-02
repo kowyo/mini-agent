@@ -158,7 +158,9 @@ class SessionManager:
             path = session_dir / f"{file_timestamp}_{session_id}.jsonl"
             entries.insert(0, header)
 
-        path.write_text("\n".join(json.dumps(e) for e in entries) + "\n")
+        path.write_text(
+            "\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n"
+        )
 
     def load(self, session_id: str) -> tuple[list[MessageParam], list[Usage]]:
         path = self.find_file(session_id)
