@@ -53,6 +53,7 @@ class Config:
         self._session_reasoning_effort_override: str | None = None
         self._provider: str | None = None
         self._provider_loaded: bool = False
+        self._cache_control: bool | None = None
 
     def _load_config(self) -> dict[str, object]:
         if CONFIG_FILE.exists():
@@ -99,6 +100,12 @@ class Config:
                 cfg.get("reasoning_effort", DEFAULT_REASONING_EFFORT)
             )
         return self._reasoning_effort
+
+    def get_cache_control(self) -> bool:
+        if self._cache_control is None:
+            cfg = self._load_config()
+            self._cache_control = bool(cfg.get("cache_control", False))
+        return self._cache_control
 
     def save_reasoning_effort(self, effort: str) -> None:
         self._session_reasoning_effort_override = None

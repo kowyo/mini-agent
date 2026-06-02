@@ -48,7 +48,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     "messages": messages,
                     "tools": TOOLS,
                 }
-                if "claude" in model.lower():
+                if config.get_cache_control():
                     stream_kwargs["cache_control"] = {"type": "ephemeral"}
                 if thinking_param is not None:
                     stream_kwargs["thinking"] = thinking_param
