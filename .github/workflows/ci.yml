@@ -66,6 +66,23 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: main
+          fetch-depth: 0
+
+      - name: Generate release notes
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate | grep '^v' | sed -n '2p')
+          if [ -z "$PREV_TAG" ]; then
+            # First release — list all commits
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          REPO_URL="https://github.com/${{ github.repository }}"
+          echo "## What's Changed" > /tmp/notes.md
+          echo "" >> /tmp/notes.md
+          git log --no-decorate --first-parent --format="* %s ([%h]($REPO_URL/commit/%H))" \
+            "$PREV_TAG".."${{ github.ref_name }}" \
+            | grep -v 'chore: bump version' >> /tmp/notes.md
+          echo "" >> /tmp/notes.md
+          echo "**Full Changelog**: $REPO_URL/compare/${PREV_TAG}...${{ github.ref_name }}" >> /tmp/notes.md
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8
@@ -75,7 +92,7 @@ jobs:
           path: dist/
 
       - name: Create release and upload artifacts
-        run: gh release create ${{ github.ref_name }} dist/* --generate-notes --latest
+        run: gh release create ${{ github.ref_name }} dist/* --notes-file /tmp/notes.md --latest
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
