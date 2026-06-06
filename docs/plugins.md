@@ -39,7 +39,6 @@ def create_plugin():
 
 ```bash
 pip install my-plugin
-mini --plugins
 ```
 
 ## Secrets

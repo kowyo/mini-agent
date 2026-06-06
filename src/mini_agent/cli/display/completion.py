@@ -17,6 +17,7 @@ COMMANDS = {
     "/model": "Select a model",
     "/copy": "Copy the last assistant response to clipboard",
     "/status": "Show current session configuration and token usage",
+    "/plugins": "List currently active plugins",
     "/exit": "exit the session",
 }
 

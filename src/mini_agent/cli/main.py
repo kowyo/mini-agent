@@ -209,11 +209,6 @@ def main() -> None:
         help="Resume a session by ID, or resume the most recent session if no ID provided",
     )
     parser.add_argument(
-        "--plugins",
-        action="store_true",
-        help="List available plugins and exit",
-    )
-    parser.add_argument(
         "prompt",
         nargs="?",
         type=str,
@@ -222,16 +217,6 @@ def main() -> None:
     args = parser.parse_args()
 
     plugin_manager.on_agent_init()
-
-    if args.plugins:
-        plugins = plugin_manager.list_plugins()
-        if plugins:
-            print(f"Active plugins ({len(plugins)}):")
-            for name in plugins:
-                print(f"  - {name}")
-        else:
-            print("No plugins loaded.")
-        return
 
     if args.model:
         config.set_session_model(args.model)
