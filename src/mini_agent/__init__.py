@@ -1,3 +1,4 @@
 from .cli.main import main
+from .plugin import MiniAgentPlugin, PluginManager
 
-__all__ = ["main"]
+__all__ = ["MiniAgentPlugin", "PluginManager", "main"]

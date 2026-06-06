@@ -47,6 +47,7 @@ mini /resume
 | `/new` | Start a new session |
 | `/resume` | Pick from previous sessions |
 | `/copy` | Copy last assistant message to clipboard |
+| `/plugins` | List active plugins |
 | `/exit`, `q` | Quit |
 
 ## Keyboard Shortcuts
