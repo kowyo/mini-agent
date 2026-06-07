@@ -9,8 +9,10 @@ if sys.platform == "darwin":
 
     sysconfig._CONFIG_VARS["MACOSX_DEPLOYMENT_TARGET"] = "11.0"
 
+EXCLUDE = {"__init__.py", "plugin.py"}
+
 modules = [
-    str(f) for f in Path("src/mini_agent").rglob("*.py") if f.name != "__init__.py"
+    str(f) for f in Path("src/mini_agent").rglob("*.py") if f.name not in EXCLUDE
 ]
 
 setup(
