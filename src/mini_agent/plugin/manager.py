@@ -1,32 +1,10 @@
-"""Plugin system for mini-agent.
-
-Plugins are discovered via the ``mini_agent.plugins`` entry point group.
-"""
+"""Plugin discovery and lifecycle dispatch."""
 
 import contextlib
 import importlib.metadata
 import warnings
 from dataclasses import dataclass, field
 from typing import Any
-
-
-class MiniAgentPlugin:
-    """Override lifecycle methods as needed. All default to no-ops."""
-
-    def on_agent_init(self) -> None: ...
-    def on_session_start(self, session_id: str) -> None: ...
-    def on_turn_complete(
-        self,
-        session_id: str,
-        history: list[dict[str, Any]],
-        round_usages: list[Any] | None,
-    ) -> None: ...
-    def on_session_end(
-        self,
-        session_id: str,
-        history: list[dict[str, Any]],
-        round_usages: list[Any] | None,
-    ) -> None: ...
 
 
 @dataclass

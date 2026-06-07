@@ -40,29 +40,24 @@ from .token import token_tracker
 console = Console()
 
 session_manager = SessionManager()
-
-
-def _plugin_manager() -> PluginManager:
-    """Lazily initialize and cache the plugin manager."""
-    if not hasattr(_plugin_manager, "_instance"):
-        _plugin_manager._instance = PluginManager.discover()
-    return _plugin_manager._instance
+plugin_manager = PluginManager.discover()
 
 
 def _run_non_interactive(prompt: str) -> None:
     history: list[MessageParam] = [{"role": "user", "content": prompt}]
     session_id = session_manager.new_id()
-    _plugin_manager().on_session_start(session_id)
+    plugin_manager.on_session_start(session_id)
     history_len = len(history)
     agent_loop(history)
     if len(history) > history_len and token_tracker.get() is not None:
         session_manager.save(session_id, history, token_tracker.round_usages)
-        _plugin_manager().on_turn_complete(
-            session_id, history, token_tracker.round_usages
-        )
+        plugin_manager.on_turn_complete(session_id, history, token_tracker.round_usages)
 
 
-def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
+def _run_interactive(
+    prompt: str | None = None,
+    session_id: str | None = None,
+) -> None:
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = session_manager.new_id()
@@ -85,7 +80,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         except StopIteration:
             print("Session ID not found.\n")
 
-    _plugin_manager().on_session_start(current_session_id)
+    plugin_manager.on_session_start(current_session_id)
 
     while True:
         try:
@@ -107,7 +102,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if command == "/new":
             history.clear()
             current_session_id = session_manager.new_id()
-            _plugin_manager().on_session_start(current_session_id)
+            plugin_manager.on_session_start(current_session_id)
             sent_image_count[0] = 0
             next_indicator[0] = 1
             token_tracker.reset()
@@ -119,7 +114,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             current_session_id, history, _ = prompt_resume(
                 session_manager, current_session_id, history
             )
-            _plugin_manager().on_session_start(current_session_id)
+            plugin_manager.on_session_start(current_session_id)
             sent_image_count[0] = count_images_in_history(history)
             next_indicator[0] = max_indicator_in_history(history) + 1
             attached_images.clear()
@@ -139,7 +134,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             continue
         if command == "/plugins":
-            plugins = _plugin_manager().list_plugins()
+            plugins = plugin_manager.list_plugins()
             if plugins:
                 print(f"Active plugins: {', '.join(plugins)}")
             else:
@@ -160,11 +155,11 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             session_manager.save(
                 current_session_id, history, token_tracker.round_usages
             )
-            _plugin_manager().on_turn_complete(
+            plugin_manager.on_turn_complete(
                 current_session_id, history, token_tracker.round_usages
             )
 
-    _plugin_manager().on_session_end(
+    plugin_manager.on_session_end(
         current_session_id, history, token_tracker.round_usages
     )
 
@@ -224,7 +219,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    _plugin_manager().on_agent_init()
+    plugin_manager.on_agent_init()
 
     if args.model:
         config.set_session_model(args.model)

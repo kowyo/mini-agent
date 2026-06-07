@@ -1,4 +1,5 @@
-from .cli.main import main
-from .plugin import MiniAgentPlugin, PluginManager
+"""Mini-agent: a minimal agent."""
 
-__all__ = ["MiniAgentPlugin", "PluginManager", "main"]
+from .cli.main import main
+
+__all__ = ["main"]
