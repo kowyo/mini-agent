@@ -1,35 +1,16 @@
 import json
+import time
 import urllib.request
 from urllib.parse import urlparse
 
 from ..config import (
     CONFIG_DIR,
-    DEFAULT_PROVIDERS,
     REASONING_EFFORT_LEVELS,
     client,
     config,
 )
 from .display import clear_prompt_line
 from .display.picker import select_from_list
-
-
-def _get_provider_hint(model_id: str) -> str | None:
-    for provider_id, prefixes in DEFAULT_PROVIDERS.items():
-        if model_id.startswith(tuple(prefixes)):
-            return provider_id
-    return None
-
-
-def _get_limit_for_provider(
-    cache: dict[str, dict], provider_id: str, model_id: str, key: str
-) -> int | None:
-    provider = cache.get(provider_id)
-    if not provider:
-        return None
-    model = (provider.get("models") or {}).get(model_id)
-    if not model:
-        return None
-    return (model.get("limit") or {}).get(key)
 
 
 class _ModelInfo:
@@ -48,41 +29,27 @@ class _ModelInfo:
         return self._cache
 
     def get_best_limit(self, model_id: str, key: str) -> int | None:
-        """Return the maximum value for *key* (e.g. 'context' or 'output') across all providers for a given model."""
+        """Return the value for *key* (e.g. 'context' or 'output') for a given model."""
         cache = self._load_cache()
-
-        # 1. Try with user-specified provider
-        user_provider = config.get_provider()
-        if user_provider:
-            best = _get_limit_for_provider(cache, user_provider, model_id, key)
-            if best is not None:
-                return best
-
-        # 2. Fall back to prefix matching using DEFAULT_PROVIDERS
-        provider_hint = _get_provider_hint(model_id)
-        if provider_hint and provider_hint != user_provider:
-            best = _get_limit_for_provider(cache, provider_hint, model_id, key)
-            if best is not None:
-                return best
-
-        # 3. Fall back to searching across ALL providers in the catalog
-        best = None
-        for provider_id, provider in cache.items():
-            if provider_id in (user_provider, provider_hint):
-                continue
-            model = (provider.get("models") or {}).get(model_id)
-            if model is None:
-                continue
-            value = (model.get("limit") or {}).get(key)
-            if value is not None and (best is None or value > best):
-                best = value
-        return best
+        model = cache.get(model_id)
+        if model is None:
+            for full_key, data in cache.items():
+                if full_key.split("/")[-1] == model_id:
+                    model = data
+                    break
+        if model is None:
+            return None
+        return (model.get("limit") or {}).get(key)
 
     def refresh_cache(self) -> None:
         """Fetch the latest model data from the remote API and update the local cache."""
+        if self._cache_path.exists():
+            age = time.time() - self._cache_path.stat().st_mtime
+            if age < 3600:
+                return
         try:
             req = urllib.request.Request(
-                "https://models.dev/api.json",
+                "https://models.dev/models.json",
                 headers={"User-Agent": "Mozilla/5.0"},
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
