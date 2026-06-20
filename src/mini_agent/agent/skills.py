@@ -4,9 +4,8 @@ from typing import Any
 
 import yaml
 
-from ..config import SKILLS_DIRS, config
-
-_VAR_RE = re.compile(r"\$([A-Z_][A-Z0-9_]*|\{[A-Z_][A-Z0-9_]*\})")
+from ..config import SKILLS_DIRS
+from .variables import get_variables, substitute_variables
 
 
 class SkillLoader:
@@ -14,19 +13,6 @@ class SkillLoader:
         self.skills_dirs = skills_dirs
         self.skills: dict[str, dict[str, Any]] = {}
         self._load_all()
-
-    def _variables(self) -> dict[str, str]:
-        return {"MODEL_NAME": config.get_model()}
-
-    @staticmethod
-    def _substitute(text: str, variables: dict[str, str]) -> str:
-        def repl(m: re.Match) -> str:
-            key = m.group(1)
-            if key.startswith("{") and key.endswith("}"):
-                key = key[1:-1]
-            return variables.get(key, m.group(0))
-
-        return _VAR_RE.sub(repl, text)
 
     def _load_all(self) -> None:
         for skills_dir in self.skills_dirs:
@@ -62,13 +48,13 @@ class SkillLoader:
     def get_descriptions(self) -> str:
         if not self.skills:
             return "(no skills available)"
-        variables = self._variables()
+        variables = get_variables()
         lines = [
             "<available_skills>",
             "  <instructions>The following skills provide specialized instructions for specific tasks. When a task matches a skill's description, call the activate_skill tool with the skill's name to load its full instructions.</instructions>",
         ]
         for name, skill in self.skills.items():
-            desc = self._substitute(skill["description"], variables)
+            desc = substitute_variables(skill["description"], variables)
             lines.append("  <skill>")
             lines.append(f"    <name>{name}</name>")
             lines.append(f"    <description>{desc}</description>")
@@ -81,8 +67,8 @@ class SkillLoader:
         skill = self.skills.get(name)
         if not skill:
             return f"Error: Unknown skill '{name}'. Available: {', '.join(self.skills.keys())}"
-        variables = self._variables()
-        body = self._substitute(skill["body"], variables)
+        variables = get_variables()
+        body = substitute_variables(skill["body"], variables)
         return f'<skill_content name="{name}">\n{body}\n</skill_content>'
 
 

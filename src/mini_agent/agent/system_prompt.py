@@ -4,6 +4,7 @@ from pathlib import Path
 from ..config import CONFIG_DIR, WORKDIR
 from .skills import skill_loader
 from .tools import TOOLS
+from .variables import get_variables, substitute_variables
 
 CONTEXT_FILENAMES = ("AGENTS.md",)
 
@@ -57,9 +58,10 @@ def _build_context_section(files: list[Path]) -> str:
         return ""
 
     sections = ["\n<project_instructions>\n"]
+    variables = get_variables()
     for i, path in enumerate(files, 1):
         try:
-            content = path.read_text().strip()
+            content = substitute_variables(path.read_text().strip(), variables)
         except PermissionError, OSError:
             continue
         sections.append(
