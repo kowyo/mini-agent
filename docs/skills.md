@@ -8,8 +8,9 @@ mini-agent follows the [Agent Skills](https://agentskills.io/specification) stan
 
 - `~/.agents/skills/<name>/SKILL.md`
 - `.agents/skills/<name>/SKILL.md`
+- `.mini-agent/skills/<name>/SKILL.md`
 
-Directories are scanned recursively.
+Directories are scanned recursively. If the same skill name exists in both project skill directories, `.mini-agent/skills` takes precedence over `.agents/skills`.
 
 ## Variables
 
