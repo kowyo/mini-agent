@@ -65,3 +65,5 @@ mini-agent loads `AGENTS.md` at startup from:
 - the current directory
 
 Use context files for project conventions, commands, and preferences.
+
+`${VARIABLE}` and `$VARIABLE` placeholders in `AGENTS.md` are substituted at load time. `MODEL_NAME` resolves to the active model ID.

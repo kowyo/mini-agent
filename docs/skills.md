@@ -13,7 +13,7 @@ Directories are scanned recursively.
 
 ## Variables
 
-`${VARIABLE}` placeholders in SKILL.md are substituted at load time:
+`${VARIABLE}` and `$VARIABLE` placeholders in `SKILL.md` are substituted at load time:
 
 | Variable | Source |
 |----------|--------|
