@@ -92,7 +92,7 @@ jobs:
           path: dist/
 
       - name: Create release and upload artifacts
-        run: gh release create ${{ github.ref_name }} dist/* --notes-file /tmp/notes.md --latest
+        run: gh release create ${{ github.ref_name }} dist/* --title "${{ github.ref_name }}" --notes-file /tmp/notes.md --latest
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
