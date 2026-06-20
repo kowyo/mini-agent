@@ -28,8 +28,15 @@ CONFIG_FILE = CONFIG_DIR / "config.toml"
 
 WORKDIR = Path.cwd()
 HOME_SKILLS_DIR = Path.home() / ".agents" / "skills"
+HOME_MINI_AGENT_SKILLS_DIR = Path.home() / ".mini-agent" / "skills"
 PROJECT_SKILLS_DIR = WORKDIR / ".agents" / "skills"
-SKILLS_DIRS = [HOME_SKILLS_DIR, PROJECT_SKILLS_DIR]
+PROJECT_MINI_AGENT_SKILLS_DIR = WORKDIR / ".mini-agent" / "skills"
+SKILLS_DIRS = [
+    HOME_SKILLS_DIR,
+    HOME_MINI_AGENT_SKILLS_DIR,
+    PROJECT_SKILLS_DIR,
+    PROJECT_MINI_AGENT_SKILLS_DIR,
+]
 
 load_dotenv(CONFIG_DIR / ".env")
 
