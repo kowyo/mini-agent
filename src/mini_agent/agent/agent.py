@@ -1,6 +1,7 @@
 import anthropic
 from anthropic.types import (
     MessageParam,
+    ToolResultBlockParam,
     ToolUseBlock,
 )
 from rich.console import Console
@@ -79,7 +80,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 )
             )
 
-            results = []
+            results: list[ToolResultBlockParam] = []
             try:
                 for block in response.content:
                     if isinstance(block, ToolUseBlock):

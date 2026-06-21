@@ -1,8 +1,7 @@
 import sys
-from typing import cast
 
 import anthropic.lib.streaming
-from anthropic.types import ContentBlockDeltaEvent, TextDelta, ThinkingDelta
+from anthropic.types import TextDelta, ThinkingDelta
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
@@ -28,7 +27,7 @@ def display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None
                 text = ""
 
             elif event.type == "content_block_delta":
-                delta = cast(ContentBlockDeltaEvent, event).delta
+                delta = event.delta
                 if isinstance(delta, TextDelta):
                     chunk, style = delta.text, None
                 elif isinstance(delta, ThinkingDelta):

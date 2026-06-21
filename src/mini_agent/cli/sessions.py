@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from anthropic.types import MessageParam
 from pydantic import BaseModel
@@ -96,20 +97,22 @@ class SessionManager:
         if existing:
             lines = [line for line in existing.read_text().splitlines() if line.strip()]
             try:
-                entries = [json.loads(line) for line in lines]
+                entries: list[dict[str, Any]] = [json.loads(line) for line in lines]
             except json.JSONDecodeError as err:
                 raise ValueError(f"Invalid JSON in session file: {existing}") from err
         else:
-            entries = []
+            entries: list[dict[str, Any]] = []
 
         existing_entry_count = max(len(entries) - 1, 0) if entries else 0
 
         saved_asst = 0
         if existing:
             for entry in entries[1:]:
+                message = entry.get("message")
                 if (
                     entry.get("type") == "message"
-                    and entry["message"]["role"] == "assistant"
+                    and isinstance(message, dict)
+                    and message.get("role") == "assistant"
                 ):
                     saved_asst += 1
 
