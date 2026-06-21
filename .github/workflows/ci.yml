@@ -10,6 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
       - name: Ruff check
         uses: astral-sh/ruff-action@v4.0.0
 
@@ -17,6 +20,9 @@ jobs:
         uses: astral-sh/ruff-action@v4.0.0
         with:
           args: "format --check --diff"
+
+      - name: Type check
+        run: uv run ty check src/
 
   build:
     needs: lint
