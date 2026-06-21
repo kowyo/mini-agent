@@ -19,6 +19,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "prek>=0.4.4",
+    "pytest>=9.1.0",
+    "pytest-cov>=7.1.0",
     "ruff>=0.15.17",
     "ty>=0.0.49",
 ]
@@ -27,7 +29,7 @@ dev = [
 mini = "mini_agent:main"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PTH", "ANN", "SIM"]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PTH", "ANN", "SIM", "PT"]
 ignore = ["E501"]
 
 [tool.ty.src]
@@ -35,6 +37,12 @@ include = ["src"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "--cov=src/mini_agent"
+]
 
 [build-system]
 requires = ["setuptools>=82.0.1", "mypy[mypyc]>=2.1.0"]
