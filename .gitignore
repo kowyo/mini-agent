@@ -12,8 +12,7 @@ wheels/
 # Environment variables
 .env
 
-# AI
-.agents/
+# Skills
 skills-lock.json
 
 # Agent instructions (keep local copy only)
