@@ -94,14 +94,15 @@ class SessionManager:
         session_dir.mkdir(parents=True, exist_ok=True)
 
         existing = self.find_file(session_id)
+        entries: list[dict[str, Any]]
         if existing:
             lines = [line for line in existing.read_text().splitlines() if line.strip()]
             try:
-                entries: list[dict[str, Any]] = [json.loads(line) for line in lines]
+                entries = [json.loads(line) for line in lines]
             except json.JSONDecodeError as err:
                 raise ValueError(f"Invalid JSON in session file: {existing}") from err
         else:
-            entries: list[dict[str, Any]] = []
+            entries = []
 
         existing_entry_count = max(len(entries) - 1, 0) if entries else 0
 
