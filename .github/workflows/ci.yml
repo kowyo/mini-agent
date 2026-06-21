@@ -91,7 +91,7 @@ jobs:
           echo "**Full Changelog**: $REPO_URL/compare/${PREV_TAG}...${{ github.ref_name }}" >> /tmp/notes.md
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           pattern: dist-*
           merge-multiple: true
