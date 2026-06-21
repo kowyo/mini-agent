@@ -1,9 +1,10 @@
 import base64
+import importlib
 import io
 import subprocess
 import sys
 from collections.abc import Iterable
-from typing import cast
+from typing import Any, cast
 
 from anthropic.types import ImageBlockParam, MessageParam
 from PIL import Image, ImageGrab
@@ -14,11 +15,13 @@ def format_image_indicator(index: int) -> str:
 
 
 def _get_macos_clipboard_file_image() -> Image.Image | None:
+    if sys.platform != "darwin":
+        return None
     try:
-        import AppKit
+        appkit = cast("Any", importlib.import_module("AppKit"))
 
-        pb = AppKit.NSPasteboard.generalPasteboard()  # ty: ignore[unresolved-attribute]
-        paths = pb.propertyListForType_(AppKit.NSFilenamesPboardType)  # ty: ignore[unresolved-attribute]
+        pb = appkit.NSPasteboard.generalPasteboard()
+        paths = pb.propertyListForType_(appkit.NSFilenamesPboardType)
         if not paths:
             return None
         for path in paths:
