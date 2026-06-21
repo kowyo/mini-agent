@@ -15,9 +15,6 @@ wheels/
 # Skills
 skills-lock.json
 
-# Agent instructions (keep local copy only)
-AGENTS.md
-
 # Compiled mypyc extensions
 *.so
 *.cpython-*.so

@@ -20,3 +20,11 @@ repos:
       args: [ --fix ]
     - id: ruff-format
       types_or: [ python, pyi ]
+
+- repo: local
+  hooks:
+    - id: make-check
+      name: make check
+      entry: make check
+      language: system
+      pass_filenames: false

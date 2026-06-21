@@ -13,7 +13,7 @@ lint:
 type-check:
 	uv run ty check src/
 
-check: format lint
+check: format lint type-check
 
 build:
 	uv build --wheel
