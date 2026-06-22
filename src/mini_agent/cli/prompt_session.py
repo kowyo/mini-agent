@@ -4,13 +4,14 @@ from collections.abc import Callable
 from anthropic.types import ImageBlockParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import get_app
+from prompt_toolkit.completion import merge_completers
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from .clipboard import format_image_indicator, get_clipboard_image
-from .display import COMPLETION_STYLE, CommandCompleter
+from .display import COMPLETION_STYLE, CommandCompleter, FileCompleter
 from .display.theme import PROMPT_TOOLKIT_ACCENT_COLOR
 from .display.toolbar import get_status_toolbar
 
@@ -95,7 +96,12 @@ def build_session(
         HTML(f'<style color="{PROMPT_TOOLKIT_ACCENT_COLOR}">> </style>'),
         multiline=True,
         key_bindings=bindings,
-        completer=CommandCompleter(),
+        completer=merge_completers(
+            [
+                CommandCompleter(),
+                FileCompleter(),
+            ]
+        ),
         complete_while_typing=True,
         style=COMPLETION_STYLE,
         bottom_toolbar=get_status_toolbar,

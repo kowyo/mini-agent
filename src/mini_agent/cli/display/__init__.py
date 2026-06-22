@@ -1,5 +1,5 @@
 from .box import print_box
-from .completion import COMPLETION_STYLE, CommandCompleter
+from .completion import COMPLETION_STYLE, CommandCompleter, FileCompleter
 from .context import print_context_files, print_skills
 from .printing import (
     clear_prompt_line,
@@ -16,6 +16,7 @@ __all__ = [
     "print_box",
     "COMPLETION_STYLE",
     "CommandCompleter",
+    "FileCompleter",
     "print_context_files",
     "print_skills",
     "clear_prompt_line",

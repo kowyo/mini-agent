@@ -1,3 +1,5 @@
+import re
+import subprocess
 from collections.abc import Callable, Iterable
 from typing import cast
 
@@ -61,7 +63,6 @@ def _patch_completion_menu_alignment() -> None:
 
 
 def _patch_completion_menu_anchor() -> None:
-    """Shift the completion menu anchor to the completion start column."""
     original_create_content = pt_controls.BufferControl.create_content
 
     def _aligned_create_content(
@@ -73,16 +74,8 @@ def _patch_completion_menu_anchor() -> None:
         content = original_create_content(self, width, height, preview_search)
 
         if self.buffer.complete_state and content.menu_position is not None:
-            completion = self.buffer.complete_state.current_completion
-            if completion is None and self.buffer.complete_state.completions:
-                completion = self.buffer.complete_state.completions[0]
-
-            start_offset = completion.start_position if completion else -1
-
-            # Anchor at completion start, not current cursor, so `/`, `/n`, and
-            # `/ne` all align at the same slash column.
             content.menu_position = Point(
-                x=max(0, content.menu_position.x + start_offset),
+                x=0,
                 y=content.menu_position.y,
             )
 
@@ -116,6 +109,61 @@ class CommandCompleter(Completer):
                     cmd,
                     start_position=-len(text),
                     display_meta=desc,
+                )
+
+
+class FileCompleter(Completer):
+    _AT_PATTERN = re.compile(r"@([\w.\-/]*)$")
+    _MAX_RESULTS = 20
+
+    def get_completions(
+        self, document: Document, complete_event: CompleteEvent
+    ) -> Iterable[Completion]:
+        text = document.current_line_before_cursor
+
+        match = self._AT_PATTERN.search(text)
+        if not match:
+            return
+
+        query = match.group(1)
+        full_match = match.group(0)
+
+        fd_query = query if query else "."
+
+        try:
+            result = subprocess.run(
+                [
+                    "fd",
+                    "--type",
+                    "f",
+                    "--type",
+                    "d",
+                    "--full-path",
+                    "-i",
+                    "--max-depth",
+                    "8",
+                    fd_query,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+            )
+        except subprocess.TimeoutExpired, FileNotFoundError, OSError:
+            return
+
+        if result.returncode != 0:
+            return
+
+        files = result.stdout.strip().split("\n")
+        if not files or (len(files) == 1 and not files[0]):
+            return
+
+        for file_path in files[: self._MAX_RESULTS]:
+            if file_path:
+                yield Completion(
+                    file_path,
+                    start_position=-len(full_match),
+                    display=file_path,
                 )
 
 
