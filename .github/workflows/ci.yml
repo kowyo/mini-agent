@@ -67,7 +67,7 @@ jobs:
         run: uv run --with dist/*.whl --no-project python -c "from mini_agent import main"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: dist-${{ matrix.os }}
           path: dist/
