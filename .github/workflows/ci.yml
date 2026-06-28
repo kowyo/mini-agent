@@ -31,7 +31,7 @@ jobs:
         run: uv run pytest tests
 
   build:
-    needs: lint
+    needs: check
     strategy:
       fail-fast: false
       matrix:
