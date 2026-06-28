@@ -12,6 +12,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.2.0
+        with:
+          version-file: "uv.toml"
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
@@ -54,6 +56,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.2.0
+        with:
+          version-file: "uv.toml"
 
       - name: Build
         run: uv build ${{ matrix.args }}

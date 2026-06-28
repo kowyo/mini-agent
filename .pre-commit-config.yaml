@@ -21,7 +21,11 @@ repos:
     - id: ruff-format
       types_or: [ python, pyi ]
 
-- repo: https://github.com/astral-sh/ty-pre-commit
-  rev: v0.0.49
+- repo: local
   hooks:
     - id: ty
+      name: ty
+      entry: uv run ty check src/
+      language: system
+      pass_filenames: false
+      always_run: true
