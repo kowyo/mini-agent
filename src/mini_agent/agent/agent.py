@@ -61,7 +61,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     display_stream_events(stream)
                     response = stream.get_final_message()
 
-            except (TypeError, anthropic.APIStatusError) as e:
+            except (TypeError, anthropic.APIError) as e:
                 thinking_status.stop()
                 print(f"Unexpected {e=}\n")
                 messages.pop()

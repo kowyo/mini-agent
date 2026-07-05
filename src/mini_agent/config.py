@@ -43,7 +43,11 @@ load_dotenv(CONFIG_DIR / ".env")
 if os.getenv("ANTHROPIC_API_KEY"):
     os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
 
-client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
+client = Anthropic(
+    base_url=os.getenv("ANTHROPIC_BASE_URL"),
+    timeout=60.0,
+    max_retries=2,
+)
 
 
 class Config:
