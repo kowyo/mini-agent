@@ -1,4 +1,3 @@
-import anthropic
 from anthropic.types import (
     MessageParam,
     ToolResultBlockParam,
@@ -17,7 +16,12 @@ from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError
 console = Console()
 
 
+def _discard_incomplete_turn(messages: list[MessageParam], turn_start: int) -> None:
+    del messages[turn_start:]
+
+
 def agent_loop(messages: list[MessageParam]) -> None:
+    turn_start = max(len(messages) - 1, 0)
     model = config.get_model()
     max_tokens = get_max_output_tokens(model) or 32768
 
@@ -61,10 +65,10 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     display_stream_events(stream)
                     response = stream.get_final_message()
 
-            except (TypeError, anthropic.APIStatusError) as e:
+            except Exception as e:
                 thinking_status.stop()
-                print(f"Unexpected {e=}\n")
-                messages.pop()
+                console.print(f"{type(e).__name__}: {e}", style="bold red")
+                _discard_incomplete_turn(messages, turn_start)
                 return
 
             messages.append({"role": "assistant", "content": response.content})
