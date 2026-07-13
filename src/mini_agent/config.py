@@ -3,6 +3,7 @@ import os
 import tomllib
 from pathlib import Path
 
+import httpx
 import tomli_w
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -45,8 +46,7 @@ if os.getenv("ANTHROPIC_API_KEY"):
 
 client = Anthropic(
     base_url=os.getenv("ANTHROPIC_BASE_URL"),
-    timeout=60.0,
-    max_retries=2,
+    timeout=httpx.Timeout(600.0, connect=30.0),
 )
 
 
