@@ -24,6 +24,7 @@ def format_usage_report(usage: Usage | None) -> list[Text]:
         ("Output:         ", f"{usage.output_tokens}"),
         ("Cache Creation: ", f"{usage.cache_creation_input_tokens}"),
         ("Cache Read:     ", f"{usage.cache_read_input_tokens}"),
+        ("Cache Hit Rate: ", f"{usage.cache_hit_rate:.1%}"),
     ]
     for label, value in rows:
         line = Text()

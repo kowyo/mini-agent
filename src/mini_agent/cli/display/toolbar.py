@@ -27,6 +27,7 @@ def _format_token_right(total: Usage, last_round: Usage | None) -> str:
     ]
     if total.cache_read_input_tokens:
         parts.append(f"R{_format_tokens(total.cache_read_input_tokens)}")
+        parts.append(f"CR{total.cache_hit_rate:.1%}")
     if total.cache_creation_input_tokens:
         parts.append(f"W{_format_tokens(total.cache_creation_input_tokens)}")
     right = " ".join(parts)

@@ -26,6 +26,11 @@ class Usage:
             + self.cache_read_input_tokens
         )
 
+    @property
+    def cache_hit_rate(self) -> float:
+        total = self.total_input_tokens
+        return self.cache_read_input_tokens / total if total else 0.0
+
 
 class TokenTracker:
     """Tracks per-round token usage and computes accumulated totals."""
