@@ -25,7 +25,3 @@ Use `uv` for dependency management and command execution.
 - `make check`: run formatting, linting, type checking, and tests.
 - `make build`: build the wheel into `dist/`.
 - `make clean`: remove build outputs and package metadata.
-
-## Testing Guidelines
-
-Before validating changes, run `make clean`.
