@@ -23,4 +23,3 @@ build:
 
 clean:
 	rm -rf dist/ build/ src/*.egg-info
-	find src/ -name '*.so' -delete

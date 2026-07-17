@@ -24,7 +24,7 @@ Use `uv` for dependency management and command execution.
 - `uv run mini`: run the CLI locally from the working tree.
 - `make check`: run formatting, linting, type checking, and tests.
 - `make build`: build the wheel into `dist/`.
-- `make clean`: remove build outputs, package metadata, and compiled extension artifacts.
+- `make clean`: remove build outputs and package metadata.
 
 ## Testing Guidelines
 

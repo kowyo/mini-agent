@@ -15,9 +15,5 @@ wheels/
 # Skills
 skills-lock.json
 
-# Compiled mypyc extensions
-*.so
-*.cpython-*.so
-
 # Tests
 .coverage
