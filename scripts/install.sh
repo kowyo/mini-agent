@@ -39,7 +39,7 @@ if ! command -v uv &>/dev/null; then
 fi
 
 ASSETS=$(echo "${LATEST_RELEASE}" | grep "browser_download_url" | grep "\.whl" | sed 's/.*"browser_download_url": "\(.*\)".*/\1/' || true)
-WHEEL=$(echo "${ASSETS}" | grep "none-any" | head -1 || true)
+WHEEL=$(echo "${ASSETS}" | grep 'none-any\.whl$' | head -1 || true)
 
 if [ -z "${WHEEL}" ]; then
   echo "No wheel found in the latest release."
