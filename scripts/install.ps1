@@ -42,18 +42,12 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     }
 }
 
-$Arch = $env:PROCESSOR_ARCHITECTURE
-$ArchTag = if ($Arch -eq "ARM64") { "arm64" } else { "amd64" }
-
-$Assets = $Release.assets | Where-Object { $_.name -like "*.whl" }
-
-$Wheel = $Assets | Where-Object { $_.name -like "*win*$ArchTag*" } | Select-Object -First 1
-if (-not $Wheel) {
-    $Wheel = $Assets | Where-Object { $_.name -like "*none-any*" } | Select-Object -First 1
-}
+$Wheel = $Release.assets |
+    Where-Object { $_.name -like "*none-any.whl" } |
+    Select-Object -First 1
 
 if (-not $Wheel) {
-    Write-Error "No compatible wheel found for Windows/$Arch."
+    Write-Error "No wheel found in the latest release."
     exit 1
 }
 
