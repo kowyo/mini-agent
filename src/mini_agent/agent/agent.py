@@ -68,6 +68,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
             except Exception as e:
                 thinking_status.stop()
                 console.print(f"{type(e).__name__}: {e}", style="bold red")
+                console.print()
                 _discard_incomplete_turn(messages, turn_start)
                 return
 

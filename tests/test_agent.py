@@ -66,7 +66,7 @@ def test_stream_error_is_reported_and_discards_the_entire_incomplete_turn(
     monkeypatch.setattr(
         agent.console,
         "print",
-        lambda message, **kwargs: errors.append((message, kwargs)),
+        lambda message=None, **kwargs: errors.append((message, kwargs)),
     )
     monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
     monkeypatch.setattr(
@@ -83,7 +83,8 @@ def test_stream_error_is_reported_and_discards_the_entire_incomplete_turn(
         agent.agent_loop(messages)
         assert messages == previous_messages
         assert errors == [
-            ("RuntimeError: The response stream failed", {"style": "bold red"})
+            ("RuntimeError: The response stream failed", {"style": "bold red"}),
+            (None, {}),
         ]
     finally:
         agent.token_tracker.restore(previous_usages)
