@@ -1,7 +1,41 @@
+import base64
+from pathlib import Path
+from typing import Any
+
 from .base import resolve_path
 
 MAX_LINES = 2000
 MAX_BYTES = 50 * 1024
+
+_EXTENSION_MEDIA_TYPES: dict[str, str] = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+_MAGIC_SIGNATURES: list[tuple[str, bytes, int]] = [
+    ("image/png", b"\x89PNG\r\n\x1a\n", 0),
+    ("image/jpeg", b"\xff\xd8\xff", 0),
+    ("image/gif", b"GIF87a", 0),
+    ("image/gif", b"GIF89a", 0),
+    ("image/webp", b"WEBP", 8),
+]
+
+
+def _detect_image_media_type(file_path: Path) -> str | None:
+    media_type = _EXTENSION_MEDIA_TYPES.get(file_path.suffix.lower())
+    if media_type:
+        return media_type
+    try:
+        header = file_path.read_bytes()[:16]
+    except OSError:
+        return None
+    for sig_type, signature, offset in _MAGIC_SIGNATURES:
+        if header[offset : offset + len(signature)] == signature:
+            return sig_type
+    return None
 
 
 def _format_size(n: int) -> str:
@@ -16,9 +50,29 @@ def run_read(
     path: str,
     offset: int | None = None,
     limit: int | None = None,
-) -> str:
+) -> str | list[dict[str, Any]]:
+    file_path = resolve_path(path)
+
+    media_type = _detect_image_media_type(file_path)
+    if media_type:
+        try:
+            data = base64.standard_b64encode(file_path.read_bytes()).decode()
+        except Exception as exc:
+            return f"Error: {exc}"
+        return [
+            {"type": "text", "text": f"Read image file [{media_type}]"},
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": data,
+                },
+            },
+        ]
+
     try:
-        text = resolve_path(path).read_text()
+        text = file_path.read_text()
     except Exception as exc:
         return f"Error: {exc}"
 

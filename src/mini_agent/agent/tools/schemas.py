@@ -22,9 +22,11 @@ TOOLS: list[ToolParam] = [
     {
         "name": "read_file",
         "description": (
-            f"Read the contents of a file. Output is truncated to {MAX_LINES} lines or "
-            f"{MAX_BYTES // 1024}KB (whichever is hit first). Use offset/limit for large files. "
-            f"When you need the full file, continue with offset until complete."
+            f"Read the contents of a file. Supports text files and images "
+            f"(jpg, png, gif, webp). Images are sent as attachments. "
+            f"For text files, output is truncated to {MAX_LINES} lines or "
+            f"{MAX_BYTES // 1024}KB (whichever is hit first). Use offset/limit for "
+            f"large files. When you need the full file, continue with offset until complete."
         ),
         "input_schema": {
             "type": "object",

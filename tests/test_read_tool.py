@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from mini_agent.agent.tools.file import MAX_BYTES, MAX_LINES, run_read
+from mini_agent.agent.tools.file import (
+    MAX_BYTES,
+    MAX_LINES,
+    _detect_image_media_type,
+    run_read,
+)
 
 
 @pytest.fixture
@@ -84,3 +89,69 @@ def test_continuation_hint_at_user_limit_boundary(sample_file: Path) -> None:
     result = run_read(str(sample_file), offset=1, limit=10)
     assert "offset=11" in result
     assert "90 more lines" in result
+
+
+PNG_HEADER = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+JPEG_HEADER = b"\xff\xd8\xff\xe0" + b"\x00" * 12
+GIF_HEADER = b"GIF89a" + b"\x00" * 10
+WEBP_HEADER = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 4
+
+
+class TestImageDetection:
+    def test_detect_by_extension(self, tmp_path: Path) -> None:
+        for ext, expected in [
+            (".png", "image/png"),
+            (".jpg", "image/jpeg"),
+            (".jpeg", "image/jpeg"),
+            (".gif", "image/gif"),
+            (".webp", "image/webp"),
+        ]:
+            f = tmp_path / f"image{ext}"
+            f.write_bytes(b"\x00")
+            assert _detect_image_media_type(f) == expected
+
+    def test_detect_by_magic_bytes(self, tmp_path: Path) -> None:
+        for header, expected in [
+            (PNG_HEADER, "image/png"),
+            (JPEG_HEADER, "image/jpeg"),
+            (GIF_HEADER, "image/gif"),
+            (WEBP_HEADER, "image/webp"),
+        ]:
+            f = tmp_path / "unknown_file"
+            f.write_bytes(header)
+            assert _detect_image_media_type(f) == expected
+
+    def test_non_image_returns_none(self, tmp_path: Path) -> None:
+        f = tmp_path / "data.txt"
+        f.write_text("hello world")
+        assert _detect_image_media_type(f) is None
+
+    def test_unsupported_image_extension(self, tmp_path: Path) -> None:
+        f = tmp_path / "image.bmp"
+        f.write_bytes(b"BM" + b"\x00" * 14)
+        assert _detect_image_media_type(f) is None
+
+
+class TestReadImage:
+    def test_returns_image_content_blocks(self, tmp_path: Path) -> None:
+        f = tmp_path / "photo.png"
+        f.write_bytes(PNG_HEADER)
+        result = run_read(str(f))
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["type"] == "text"
+        assert "image/png" in result[0]["text"]
+        assert result[1]["type"] == "image"
+        assert result[1]["source"]["media_type"] == "image/png"
+        assert result[1]["source"]["type"] == "base64"
+
+    def test_image_ignores_offset_and_limit(self, tmp_path: Path) -> None:
+        f = tmp_path / "photo.jpg"
+        f.write_bytes(JPEG_HEADER)
+        result = run_read(str(f), offset=10, limit=5)
+        assert isinstance(result, list)
+        assert result[1]["source"]["media_type"] == "image/jpeg"
+
+    def test_non_image_returns_string(self, sample_file: Path) -> None:
+        result = run_read(str(sample_file))
+        assert isinstance(result, str)
