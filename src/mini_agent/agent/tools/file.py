@@ -51,7 +51,10 @@ def run_read(
     offset: int | None = None,
     limit: int | None = None,
 ) -> str | list[dict[str, Any]]:
-    file_path = resolve_path(path)
+    try:
+        file_path = resolve_path(path)
+    except Exception as exc:
+        return f"Error: {exc}"
 
     media_type = _detect_image_media_type(file_path)
     if media_type:
