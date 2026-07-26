@@ -12,8 +12,9 @@ wheels/
 # Environment variables
 .env
 
-# Skills
-skills-lock.json
-
 # Tests
 .coverage
+
+# AI
+skills-lock.json
+.claude/

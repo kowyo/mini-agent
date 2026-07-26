@@ -6,7 +6,7 @@ from .file import run_edit, run_read, run_write
 
 TOOL_HANDLERS: dict[str, Any] = {
     "bash": lambda **kw: bash_handler(kw["command"], kw.get("timeout")),
-    "read_file": lambda **kw: run_read(kw["path"], kw.get("limit")),
+    "read_file": lambda **kw: run_read(kw["path"], kw.get("offset"), kw.get("limit")),
     "write_file": lambda **kw: run_write(kw["path"], kw["content"]),
     "edit_file": lambda **kw: run_edit(kw["path"], kw["old_text"], kw["new_text"]),
     "activate_skill": lambda **kw: skill_loader.get_content(kw["name"]),

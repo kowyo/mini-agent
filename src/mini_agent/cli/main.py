@@ -21,7 +21,6 @@ from .display import (
 from .image_messages import (
     build_user_content,
     count_images_in_history,
-    max_indicator_in_history,
 )
 from .models import prompt_model
 from .prompt_session import build_session
@@ -54,9 +53,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_welcome_banner()
     history: list[MessageParam] = []
     current_session_id = session_manager.new_id()
-    session, pre_run, attached_images, sent_image_count, next_indicator = build_session(
-        prompt
-    )
+    session, pre_run, attached_images, sent_image_count = build_session(prompt)
 
     if session_id is not None:
         current_session_id = session_id
@@ -67,7 +64,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             )
             history = chosen.history.copy()
             sent_image_count[0] = count_images_in_history(history)
-            next_indicator[0] = max_indicator_in_history(history) + 1
             print_session_history(chosen.history)
             token_tracker.restore(chosen.round_usages)
         except StopIteration:
@@ -94,7 +90,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             history.clear()
             current_session_id = session_manager.new_id()
             sent_image_count[0] = 0
-            next_indicator[0] = 1
             token_tracker.reset()
             attached_images.clear()
             clear_terminal()
@@ -105,7 +100,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
                 session_manager, current_session_id, history
             )
             sent_image_count[0] = count_images_in_history(history)
-            next_indicator[0] = max_indicator_in_history(history) + 1
             attached_images.clear()
             continue
         if command == "/model":

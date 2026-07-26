@@ -1,16 +1,146 @@
-from .base import MAX_OUTPUT, resolve_path
+import base64
+import shlex
+from pathlib import Path
+from typing import Any
+
+from .base import resolve_path
+
+MAX_LINES = 2000
+MAX_BYTES = 50 * 1024
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+_EXTENSION_MEDIA_TYPES: dict[str, str] = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+_MAGIC_SIGNATURES: list[tuple[str, bytes, int]] = [
+    ("image/png", b"\x89PNG\r\n\x1a\n", 0),
+    ("image/jpeg", b"\xff\xd8\xff", 0),
+    ("image/gif", b"GIF87a", 0),
+    ("image/gif", b"GIF89a", 0),
+    ("image/webp", b"WEBP", 8),
+]
 
 
-def run_read(path: str, limit: int | None = None) -> str:
+def _match_magic(header: bytes) -> str | None:
+    for sig_type, signature, sig_offset in _MAGIC_SIGNATURES:
+        if header[sig_offset : sig_offset + len(signature)] == signature:
+            return sig_type
+    return None
+
+
+def _detect_image_media_type(file_path: Path) -> str | None:
     try:
-        text = resolve_path(path).read_text()
-        lines = text.splitlines()
-        if limit and limit < len(lines):
-            remaining = len(lines) - limit
-            lines = lines[:limit] + [f"... ({remaining} more lines)"]
-        return "\n".join(lines)[:MAX_OUTPUT]
+        with file_path.open("rb") as f:
+            header = f.read(16)
+    except OSError:
+        return None
+    return _match_magic(header)
+
+
+def _format_size(n: int) -> str:
+    if n < 1024:
+        return f"{n}B"
+    if n < 1024 * 1024:
+        return f"{n / 1024:.1f}KB"
+    return f"{n / (1024 * 1024):.1f}MB"
+
+
+def run_read(
+    path: str,
+    offset: int | None = None,
+    limit: int | None = None,
+) -> str | list[dict[str, Any]]:
+    try:
+        file_path = resolve_path(path)
     except Exception as exc:
         return f"Error: {exc}"
+
+    media_type = _detect_image_media_type(file_path)
+    if media_type:
+        try:
+            file_size = file_path.stat().st_size
+            if file_size > MAX_IMAGE_BYTES:
+                return (
+                    f"Error: image {path} is {_format_size(file_size)}, "
+                    f"exceeds {_format_size(MAX_IMAGE_BYTES)} limit"
+                )
+            data = base64.standard_b64encode(file_path.read_bytes()).decode()
+        except Exception as exc:
+            return f"Error: {exc}"
+        return [
+            {"type": "text", "text": f"Read image file [{media_type}]"},
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": data,
+                },
+            },
+        ]
+
+    try:
+        text = file_path.read_text()
+    except Exception as exc:
+        return f"Error: {exc}"
+
+    all_lines = text.splitlines()
+    total = len(all_lines)
+    start = max(0, (offset or 1) - 1)
+
+    if start >= total and (total > 0 or start > 0):
+        return f"Error: offset {offset} is beyond end of file ({total} lines total)"
+
+    end = min(start + limit, total) if limit is not None else total
+    selected = all_lines[start:end]
+
+    output = "\n".join(selected)
+    output_bytes = len(output.encode())
+
+    if output_bytes > MAX_BYTES:
+        truncated: list[str] = []
+        byte_count = 0
+        for line in selected:
+            line_bytes = len(line.encode()) + (1 if truncated else 0)
+            if byte_count + line_bytes > MAX_BYTES:
+                break
+            truncated.append(line)
+            byte_count += line_bytes
+        if not truncated:
+            first_line_size = _format_size(len(selected[0].encode()))
+            output = (
+                f"[Line {start + 1} is {first_line_size}, exceeds "
+                f"{_format_size(MAX_BYTES)} limit. "
+                f"Use bash: sed -n '{start + 1}p' {shlex.quote(path)} | head -c {MAX_BYTES}]"
+            )
+        else:
+            shown_end = start + len(truncated)
+            next_offset = shown_end + 1
+            output = "\n".join(truncated)
+            output += (
+                f"\n\n[Showing lines {start + 1}-{shown_end} of {total} "
+                f"({_format_size(MAX_BYTES)} limit). Use offset={next_offset} to continue.]"
+            )
+    elif len(selected) > MAX_LINES:
+        selected = selected[:MAX_LINES]
+        shown_end = start + MAX_LINES
+        next_offset = shown_end + 1
+        output = "\n".join(selected)
+        output += (
+            f"\n\n[Showing lines {start + 1}-{shown_end} of {total}. "
+            f"Use offset={next_offset} to continue.]"
+        )
+    elif end < total:
+        remaining = total - end
+        next_offset = end + 1
+        output += f"\n\n[{remaining} more lines in file. Use offset={next_offset} to continue.]"
+
+    return output
 
 
 def run_write(path: str, content: str) -> str:

@@ -2,7 +2,7 @@ import os
 import subprocess
 from html import escape
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from anthropic.types import MessageParam
 from prompt_toolkit.formatted_text import HTML
@@ -71,8 +71,13 @@ def print_session_history(history: list[MessageParam]) -> None:
                         name, input_data = tool_registry.get(
                             tool_use_id, ("unknown", {})
                         )
-                        output = str(block.get("content", ""))
-                        if name == "bash" and output:
+                        raw_content = block.get("content", "")
+                        output = (
+                            raw_content
+                            if isinstance(raw_content, list)
+                            else str(raw_content)
+                        )
+                        if name == "bash" and isinstance(output, str) and output:
                             for line in output.splitlines():
                                 text = Text.from_ansi(line.rstrip("\n\r"))
                                 text.stylize(LIGHT_HINT_STYLE_RICH)
@@ -123,9 +128,15 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
     """Print tool name and input before executing the tool."""
     if name == "read_file":
         text = Text(f"> {name} - {input_data['path']}")
+        offset = input_data.get("offset")
         limit = input_data.get("limit")
-        if limit is not None:
-            text.append(f" (limit {limit})", style=LIGHT_HINT_STYLE_RICH)
+        if offset is not None or limit is not None:
+            hints = []
+            if offset is not None:
+                hints.append(f"offset {offset}")
+            if limit is not None:
+                hints.append(f"limit {limit}")
+            text.append(f" ({', '.join(hints)})", style=LIGHT_HINT_STYLE_RICH)
         console.print(text)
         return
 
@@ -152,7 +163,9 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
     print(f"> {name} - {input_data}")
 
 
-def print_tool_result(name: str, input_data: dict[str, object], output: str) -> None:
+def print_tool_result(
+    name: str, input_data: dict[str, object], output: str | list[Any]
+) -> None:
     """Print tool output after execution."""
     if name == "bash":
         console.print()
@@ -160,7 +173,7 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
 
     if name == "edit_file":
         path = cast(str, input_data["path"])
-        if output.startswith("Error"):
+        if isinstance(output, str) and output.startswith("Error"):
             print(f"{output}\n")
             return
         old_text = cast(str, input_data["old_text"])
@@ -179,4 +192,5 @@ def print_tool_result(name: str, input_data: dict[str, object], output: str) -> 
         print()
         return
 
-    print(f"{output[:200]}\n")
+    output_str = output if isinstance(output, str) else str(output)
+    print(f"{output_str[:200]}\n")
