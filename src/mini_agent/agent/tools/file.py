@@ -98,13 +98,21 @@ def run_read(
                 break
             truncated.append(line)
             byte_count += line_bytes
-        shown_end = start + len(truncated)
-        next_offset = shown_end + 1
-        output = "\n".join(truncated)
-        output += (
-            f"\n\n[Showing lines {start + 1}-{shown_end} of {total} "
-            f"({_format_size(MAX_BYTES)} limit). Use offset={next_offset} to continue.]"
-        )
+        if not truncated:
+            first_line_size = _format_size(len(selected[0].encode()))
+            output = (
+                f"[Line {start + 1} is {first_line_size}, exceeds "
+                f"{_format_size(MAX_BYTES)} limit. "
+                f"Use bash: sed -n '{start + 1}p' {path} | head -c {MAX_BYTES}]"
+            )
+        else:
+            shown_end = start + len(truncated)
+            next_offset = shown_end + 1
+            output = "\n".join(truncated)
+            output += (
+                f"\n\n[Showing lines {start + 1}-{shown_end} of {total} "
+                f"({_format_size(MAX_BYTES)} limit). Use offset={next_offset} to continue.]"
+            )
     elif len(selected) > MAX_LINES:
         selected = selected[:MAX_LINES]
         shown_end = start + MAX_LINES
