@@ -97,8 +97,17 @@ GIF_HEADER = b"GIF89a" + b"\x00" * 10
 WEBP_HEADER = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 4
 
 
+HEADERS_BY_EXT: dict[str, bytes] = {
+    ".png": PNG_HEADER,
+    ".jpg": JPEG_HEADER,
+    ".jpeg": JPEG_HEADER,
+    ".gif": GIF_HEADER,
+    ".webp": WEBP_HEADER,
+}
+
+
 class TestImageDetection:
-    def test_detect_by_extension(self, tmp_path: Path) -> None:
+    def test_detect_by_extension_with_valid_header(self, tmp_path: Path) -> None:
         for ext, expected in [
             (".png", "image/png"),
             (".jpg", "image/jpeg"),
@@ -107,8 +116,13 @@ class TestImageDetection:
             (".webp", "image/webp"),
         ]:
             f = tmp_path / f"image{ext}"
-            f.write_bytes(b"\x00")
+            f.write_bytes(HEADERS_BY_EXT[ext])
             assert _detect_image_media_type(f) == expected
+
+    def test_extension_without_valid_header_returns_none(self, tmp_path: Path) -> None:
+        f = tmp_path / "notes.png"
+        f.write_text("this is plain text, not a PNG")
+        assert _detect_image_media_type(f) is None
 
     def test_detect_by_magic_bytes(self, tmp_path: Path) -> None:
         for header, expected in [

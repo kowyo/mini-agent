@@ -24,18 +24,25 @@ _MAGIC_SIGNATURES: list[tuple[str, bytes, int]] = [
 ]
 
 
+def _match_magic(header: bytes) -> str | None:
+    for sig_type, signature, sig_offset in _MAGIC_SIGNATURES:
+        if header[sig_offset : sig_offset + len(signature)] == signature:
+            return sig_type
+    return None
+
+
 def _detect_image_media_type(file_path: Path) -> str | None:
-    media_type = _EXTENSION_MEDIA_TYPES.get(file_path.suffix.lower())
-    if media_type:
-        return media_type
     try:
         with file_path.open("rb") as f:
             header = f.read(16)
     except OSError:
         return None
-    for sig_type, signature, offset in _MAGIC_SIGNATURES:
-        if header[offset : offset + len(signature)] == signature:
-            return sig_type
+    magic = _match_magic(header)
+    if magic:
+        return magic
+    candidate = _EXTENSION_MEDIA_TYPES.get(file_path.suffix.lower())
+    if candidate and candidate == _match_magic(header):
+        return candidate
     return None
 
 
