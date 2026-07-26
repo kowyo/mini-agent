@@ -1,5 +1,3 @@
-import re
-
 from anthropic.types import ImageBlockParam, MessageParam, TextBlockParam
 
 from .clipboard import format_image_indicator
@@ -16,32 +14,20 @@ def count_images_in_history(history: list[MessageParam]) -> int:
     return image_count
 
 
-def max_indicator_in_history(history: list[MessageParam]) -> int:
-    max_num = 0
-    for message in history:
-        if message["role"] != "user" or not isinstance(message["content"], list):
-            continue
-        for block in message["content"]:
-            if isinstance(block, dict) and block.get("type") == "text":
-                for m in re.finditer(r"\[Image #(\d+)\]", block.get("text", "")):
-                    max_num = max(max_num, int(m.group(1)))
-    return max_num
-
-
 def prune_attached_images(
     query: str,
-    attached_images: list[tuple[int, ImageBlockParam]],
+    attached_images: list[tuple[str, ImageBlockParam]],
 ) -> None:
     attached_images[:] = [
-        (num, image_block)
-        for num, image_block in attached_images
-        if format_image_indicator(num) in query
+        (path, image_block)
+        for path, image_block in attached_images
+        if format_image_indicator(path) in query
     ]
 
 
 def build_user_content(
     query: str,
-    attached_images: list[tuple[int, ImageBlockParam]],
+    attached_images: list[tuple[str, ImageBlockParam]],
     sent_image_count: list[int],
 ) -> str | list[ImageBlockParam | TextBlockParam]:
     if attached_images:

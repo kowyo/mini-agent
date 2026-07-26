@@ -1,4 +1,3 @@
-import re
 from collections.abc import Callable
 
 from anthropic.types import ImageBlockParam
@@ -18,15 +17,15 @@ from .display.toolbar import get_status_toolbar
 
 def _sync_attached_images_with_buffer(
     buffer_text: str,
-    attached_images: list[tuple[int, ImageBlockParam]],
+    attached_images: list[tuple[str, ImageBlockParam]],
 ) -> None:
     if not attached_images:
         return
 
     attached_images[:] = [
-        (num, image_block)
-        for num, image_block in attached_images
-        if format_image_indicator(num) in buffer_text
+        (path, image_block)
+        for path, image_block in attached_images
+        if format_image_indicator(path) in buffer_text
     ]
 
 
@@ -35,14 +34,12 @@ def build_session(
 ) -> tuple[
     PromptSession,
     Callable[[], None] | None,
-    list[tuple[int, ImageBlockParam]],
-    list[int],
+    list[tuple[str, ImageBlockParam]],
     list[int],
 ]:
     bindings = KeyBindings()
-    attached_images: list[tuple[int, ImageBlockParam]] = []
+    attached_images: list[tuple[str, ImageBlockParam]] = []
     sent_image_count = [0]
-    next_indicator = [1]
 
     @bindings.add("c-c")
     def clear_buffer(event: KeyPressEvent) -> None:
@@ -61,10 +58,17 @@ def build_session(
     def delete_backwards(event: KeyPressEvent) -> None:
         buffer = event.current_buffer
         text_before_cursor = buffer.document.text_before_cursor
-        indicator_match = re.search(r"\[Image #\d+\]$", text_before_cursor)
+        indicator_match = next(
+            (
+                (path, image_block)
+                for path, image_block in attached_images
+                if text_before_cursor.endswith(path)
+            ),
+            None,
+        )
 
         if indicator_match is not None:
-            buffer.delete_before_cursor(count=len(indicator_match.group(0)))
+            buffer.delete_before_cursor(count=len(indicator_match[0]))
         else:
             buffer.delete_before_cursor(count=1)
 
@@ -76,19 +80,18 @@ def build_session(
     @bindings.add("c-v")
     def paste_clipboard_image(event: KeyPressEvent) -> None:
         """Paste image from clipboard with Ctrl+V."""
-        image = get_clipboard_image()
-        if image is None:
+        result = get_clipboard_image()
+        if result is None:
             return
 
         from .clipboard import create_image_content
 
+        image, image_path = result
         image_block = create_image_content(image)
-        indicator_num = next_indicator[0]
-        next_indicator[0] += 1
-        attached_images.append((indicator_num, image_block))
+        attached_images.append((image_path, image_block))
 
         current_text = event.current_buffer.text
-        indicator = format_image_indicator(indicator_num)
+        indicator = format_image_indicator(image_path)
         if indicator not in current_text:
             event.current_buffer.insert_text(indicator)
 
@@ -115,4 +118,4 @@ def build_session(
             app.current_buffer.set_document(Document(prompt), bypass_readonly=True)
             app.current_buffer.validate_and_handle()
 
-    return session, pre_run, attached_images, sent_image_count, next_indicator
+    return session, pre_run, attached_images, sent_image_count

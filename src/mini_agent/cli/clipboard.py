@@ -1,20 +1,22 @@
 import base64
 import importlib
 import io
+import os
 import subprocess
 import sys
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any, cast
 
 from anthropic.types import ImageBlockParam, MessageParam
 from PIL import Image, ImageGrab
 
 
-def format_image_indicator(index: int) -> str:
-    return f"[Image #{index}]"
+def format_image_indicator(path: str) -> str:
+    return path
 
 
-def _get_macos_clipboard_file_image() -> Image.Image | None:
+def _get_macos_clipboard_file_path() -> str | None:
     if sys.platform != "darwin":
         return None
     try:
@@ -28,7 +30,8 @@ def _get_macos_clipboard_file_image() -> Image.Image | None:
             try:
                 img = Image.open(path)
                 img.load()
-                return img
+                img.close()
+                return str(Path(path).resolve())
             except Exception:
                 continue
     except Exception:
@@ -36,11 +39,16 @@ def _get_macos_clipboard_file_image() -> Image.Image | None:
     return None
 
 
-def get_clipboard_image() -> Image.Image | None:
+def get_clipboard_image() -> tuple[Image.Image, str] | None:
     if sys.platform == "darwin":
-        file_image = _get_macos_clipboard_file_image()
-        if file_image is not None:
-            return file_image
+        file_path = _get_macos_clipboard_file_path()
+        if file_path is not None:
+            try:
+                img = Image.open(file_path)
+                img.load()
+                return img, file_path
+            except Exception:
+                pass
 
     try:
         clipboard_content = ImageGrab.grabclipboard()
@@ -56,13 +64,18 @@ def get_clipboard_image() -> Image.Image | None:
                 try:
                     img = Image.open(item)
                     img.load()
-                    return img
+                    return img, str(Path(item).resolve())
                 except Exception:
                     continue
         return None
 
     if isinstance(clipboard_content, Image.Image):
-        return clipboard_content
+        import tempfile
+
+        fd, tmp_path = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        clipboard_content.save(tmp_path, format="PNG")
+        return clipboard_content, tmp_path
 
     return None
 
