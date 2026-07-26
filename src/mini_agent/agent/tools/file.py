@@ -29,7 +29,8 @@ def _detect_image_media_type(file_path: Path) -> str | None:
     if media_type:
         return media_type
     try:
-        header = file_path.read_bytes()[:16]
+        with file_path.open("rb") as f:
+            header = f.read(16)
     except OSError:
         return None
     for sig_type, signature, offset in _MAGIC_SIGNATURES:
