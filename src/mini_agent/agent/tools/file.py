@@ -1,4 +1,5 @@
 import base64
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -115,7 +116,7 @@ def run_read(
             output = (
                 f"[Line {start + 1} is {first_line_size}, exceeds "
                 f"{_format_size(MAX_BYTES)} limit. "
-                f"Use bash: sed -n '{start + 1}p' {path} | head -c {MAX_BYTES}]"
+                f"Use bash: sed -n '{start + 1}p' {shlex.quote(path)} | head -c {MAX_BYTES}]"
             )
         else:
             shown_end = start + len(truncated)
