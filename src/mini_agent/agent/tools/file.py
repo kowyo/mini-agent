@@ -38,13 +38,7 @@ def _detect_image_media_type(file_path: Path) -> str | None:
             header = f.read(16)
     except OSError:
         return None
-    magic = _match_magic(header)
-    if magic:
-        return magic
-    candidate = _EXTENSION_MEDIA_TYPES.get(file_path.suffix.lower())
-    if candidate and candidate == _match_magic(header):
-        return candidate
-    return None
+    return _match_magic(header)
 
 
 def _format_size(n: int) -> str:
