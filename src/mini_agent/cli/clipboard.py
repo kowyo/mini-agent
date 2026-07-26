@@ -16,7 +16,7 @@ def format_image_indicator(path: str) -> str:
     return path
 
 
-def _get_macos_clipboard_file_path() -> str | None:
+def _get_macos_clipboard_file_image() -> tuple[Image.Image, str] | None:
     if sys.platform != "darwin":
         return None
     try:
@@ -30,8 +30,7 @@ def _get_macos_clipboard_file_path() -> str | None:
             try:
                 img = Image.open(path)
                 img.load()
-                img.close()
-                return str(Path(path).resolve())
+                return img, str(Path(path).resolve())
             except Exception:
                 continue
     except Exception:
@@ -41,14 +40,9 @@ def _get_macos_clipboard_file_path() -> str | None:
 
 def get_clipboard_image() -> tuple[Image.Image, str] | None:
     if sys.platform == "darwin":
-        file_path = _get_macos_clipboard_file_path()
-        if file_path is not None:
-            try:
-                img = Image.open(file_path)
-                img.load()
-                return img, file_path
-            except Exception:
-                pass
+        result = _get_macos_clipboard_file_image()
+        if result is not None:
+            return result
 
     try:
         clipboard_content = ImageGrab.grabclipboard()
