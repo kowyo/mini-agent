@@ -80,7 +80,7 @@ def run_read(
     total = len(all_lines)
     start = max(0, (offset or 1) - 1)
 
-    if start >= total:
+    if start >= total and (total > 0 or start > 0):
         return f"Error: offset {offset} is beyond end of file ({total} lines total)"
 
     end = min(start + limit, total) if limit is not None else total
