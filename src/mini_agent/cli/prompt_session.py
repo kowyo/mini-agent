@@ -88,12 +88,13 @@ def build_session(
 
         image, image_path = result
         image_block = create_image_content(image)
-        attached_images.append((image_path, image_block))
 
         current_text = event.current_buffer.text
         indicator = format_image_indicator(image_path)
-        if indicator not in current_text:
-            event.current_buffer.insert_text(indicator)
+        if indicator in current_text:
+            return
+        attached_images.append((image_path, image_block))
+        event.current_buffer.insert_text(indicator)
 
     session = PromptSession(
         HTML(f'<style color="{PROMPT_TOOLKIT_ACCENT_COLOR}">> </style>'),
