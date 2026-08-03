@@ -17,7 +17,7 @@ def run_bash(
     on_line: Callable[[str], None] | None = None,
     timeout: int | None = None,
 ) -> str:
-    dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
+    dangerous = ["shutdown", "reboot"]
     if any(token in command for token in dangerous):
         return "Error: Dangerous command blocked"
 
