@@ -235,18 +235,19 @@ from mcp import Client, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.types import ImageContent, TextContent
 
+
 async def main() -> None:
     params = StdioServerParameters(
         command="npx",
         args=["-y", "chrome-devtools-mcp@1.6.0"],
-        env={},                       # merged over a minimal allow-list env
+        env={},  # merged over a minimal allow-list env
     )
     async with Client(stdio_client(params)) as client:
         print(client.server_info, client.protocol_version)
 
         tools = []
         cursor = None
-        while True:                   # tools/list pagination
+        while True:  # tools/list pagination
             page = await client.list_tools(cursor=cursor)
             tools.extend(page.tools)
             if page.next_cursor is None:
@@ -262,6 +263,7 @@ async def main() -> None:
             elif isinstance(block, ImageContent):
                 print("image:", block.mime_type, len(block.data), "b64 chars")
 
+
 asyncio.run(main())
 ```
 
@@ -271,9 +273,12 @@ For HTTP with auth headers, you construct the httpx client yourself:
 import httpx2
 from mcp.client.streamable_http import streamable_http_client
 
-http = httpx2.AsyncClient(headers={"Authorization": "Bearer ..."},
-                          timeout=httpx2.Timeout(30.0, read=300.0))
-async with Client(streamable_http_client("https://mcp.example.com/mcp", http_client=http)) as client:
+http = httpx2.AsyncClient(
+    headers={"Authorization": "Bearer ..."}, timeout=httpx2.Timeout(30.0, read=300.0)
+)
+async with Client(
+    streamable_http_client("https://mcp.example.com/mcp", http_client=http)
+) as client:
     ...
 ```
 
@@ -509,6 +514,7 @@ Add `mcp>=2` as a dependency. New module `src/mini_agent/agent/mcp/` with:
   import asyncio, threading
   from contextlib import AsyncExitStack
 
+
   class McpRuntime:
       """Owns one event loop thread; all MCP I/O happens on it."""
 
@@ -525,6 +531,7 @@ Add `mcp>=2` as a dependency. New module `src/mini_agent/agent/mcp/` with:
           async def _connect():
               client = await self._stack.enter_async_context(Client(stdio_client(params)))
               self.clients[name] = client
+
           self._run(_connect())
 
       def call_tool(self, server: str, tool: str, args: dict):
