@@ -74,43 +74,60 @@ class McpRuntime:
             future.cancel()
             raise
 
+    async def _start(self, cfg: ServerConfig) -> _ServerHandle:
+        loop = asyncio.get_running_loop()
+        ready: asyncio.Future[Client] = loop.create_future()
+        stop = asyncio.Event()
+
+        async def _serve() -> None:
+            try:
+                async with Client(_make_transport(cfg)) as client:
+                    if not ready.done():
+                        ready.set_result(client)
+                    await stop.wait()
+            except Exception as exc:
+                if not ready.done():
+                    ready.set_exception(exc)
+
+        task = loop.create_task(_serve())
+        try:
+            client = await asyncio.wait_for(asyncio.shield(ready), CONNECT_TIMEOUT)
+        except TimeoutError:
+            stop.set()
+            task.cancel()
+            raise McpServerError(
+                f"{cfg.name}: did not start within {CONNECT_TIMEOUT:g}s"
+            ) from None
+        except McpServerError:
+            raise
+        except Exception as exc:
+            raise McpServerError(f"{cfg.name}: {exc}") from exc
+        return _ServerHandle(client=client, stop=stop, task=task, timeout=cfg.timeout)
+
     def connect(self, cfg: ServerConfig) -> None:
         if cfg.name in self._servers:
             raise McpServerError(f"{cfg.name}: already connected")
+        self._servers[cfg.name] = self._run(self._start(cfg), CONNECT_TIMEOUT + 5)
 
-        async def _start() -> _ServerHandle:
-            loop = asyncio.get_running_loop()
-            ready: asyncio.Future[Client] = loop.create_future()
-            stop = asyncio.Event()
+    def connect_all(self, cfgs: list[ServerConfig]) -> dict[str, McpServerError | None]:
+        cfgs = [cfg for cfg in cfgs if cfg.name not in self._servers]
 
-            async def _serve() -> None:
-                try:
-                    async with Client(_make_transport(cfg)) as client:
-                        if not ready.done():
-                            ready.set_result(client)
-                        await stop.wait()
-                except Exception as exc:
-                    if not ready.done():
-                        ready.set_exception(exc)
-
-            task = loop.create_task(_serve())
-            try:
-                client = await asyncio.wait_for(asyncio.shield(ready), CONNECT_TIMEOUT)
-            except TimeoutError:
-                stop.set()
-                task.cancel()
-                raise McpServerError(
-                    f"{cfg.name}: did not start within {CONNECT_TIMEOUT:g}s"
-                ) from None
-            except McpServerError:
-                raise
-            except Exception as exc:
-                raise McpServerError(f"{cfg.name}: {exc}") from exc
-            return _ServerHandle(
-                client=client, stop=stop, task=task, timeout=cfg.timeout
+        async def _all() -> list[_ServerHandle | BaseException]:
+            return await asyncio.gather(
+                *(self._start(cfg) for cfg in cfgs), return_exceptions=True
             )
 
-        self._servers[cfg.name] = self._run(_start(), CONNECT_TIMEOUT + 5)
+        statuses: dict[str, McpServerError | None] = {}
+        results = self._run(_all(), CONNECT_TIMEOUT + 5)
+        for cfg, result in zip(cfgs, results, strict=True):
+            if isinstance(result, _ServerHandle):
+                self._servers[cfg.name] = result
+                statuses[cfg.name] = None
+            elif isinstance(result, McpServerError):
+                statuses[cfg.name] = result
+            else:
+                statuses[cfg.name] = McpServerError(f"{cfg.name}: {result}")
+        return statuses
 
     def _handle(self, server: str) -> _ServerHandle:
         handle = self._servers.get(server)

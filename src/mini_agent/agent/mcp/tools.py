@@ -78,12 +78,14 @@ def _make_handler(server: str, tool: str) -> Callable[..., object]:
 def setup_mcp() -> list[str]:
     servers, errors = load_mcp_servers()
     lines = [f"mcp: {error}" for error in errors]
+    if not servers:
+        return lines
+    statuses = runtime.connect_all(list(servers.values()))
     connected = False
     for cfg in servers.values():
-        try:
-            runtime.connect(cfg)
-        except McpServerError as exc:
-            lines.append(f"mcp: {exc}")
+        status = statuses.get(cfg.name)
+        if status is not None:
+            lines.append(f"mcp: {status}")
             continue
         connected = True
         try:
