@@ -116,9 +116,7 @@ def load_mcp_servers(
         except (OSError, json.JSONDecodeError) as exc:
             errors.append(f"{path}: {exc}")
             continue
-        entries = None
-        if isinstance(data, dict):
-            entries = data.get("mcpServers", data.get("servers"))
+        entries = data.get("mcpServers") if isinstance(data, dict) else None
         if not isinstance(entries, dict):
             errors.append(f'{path}: expected an object with an "mcpServers" object')
             continue
