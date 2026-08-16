@@ -17,6 +17,13 @@ dependencies = [
     "tomli-w>=1.2.0",
 ]
 
+[tool.uv]
+# cryptography (via mcp -> pyjwt[crypto]) stopped publishing win_arm64
+# wheels after 46.0.3; source builds there fail on missing OpenSSL.
+constraint-dependencies = [
+    "cryptography<46.0.4 ; sys_platform == 'win32' and platform_machine == 'ARM64'",
+]
+
 [dependency-groups]
 dev = [
     "prek>=0.4.5",
