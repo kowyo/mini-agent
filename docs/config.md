@@ -1,6 +1,7 @@
 # Config
 
-Config stored in `~/.mini-agent/config.toml`.
+Config stored in `~/.mini-agent/config.toml`. MCP servers are configured
+separately in `mcp.json` — see [mcp.md](mcp.md).
 
 | Key | Default | Values |
 |---|---|---|
