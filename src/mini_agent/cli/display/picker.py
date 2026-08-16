@@ -19,6 +19,7 @@ def select_from_list[T](
     selected_index: int = 0,
     clear_after: bool = False,
     enable_search: bool = True,
+    mark_initial: bool = True,
 ) -> T | None:
     if not items:
         return None
@@ -62,7 +63,9 @@ def select_from_list[T](
         end_index = min(len(filtered), start_index + available_rows)
         start_index = max(0, end_index - available_rows)
 
-        fragments: list[tuple[str, str]] = [("", f"{title}\n\n")]
+        fragments: list[tuple[str, str]] = []
+        if title:
+            fragments.append(("", f"{title}\n\n"))
 
         # Show search box with cursor
         if enable_search:
@@ -75,7 +78,9 @@ def select_from_list[T](
                 orig_idx, item = filtered[idx]
                 label = format_item(item).replace("\n", " ")
                 prefix = "→ " if orig_idx == selected_index else "  "
-                suffix = " ✓" if orig_idx == initial_selected_index else ""
+                suffix = (
+                    " ✓" if mark_initial and orig_idx == initial_selected_index else ""
+                )
                 fragments.append(
                     (
                         f"fg:{PROMPT_TOOLKIT_ACCENT_COLOR} {SELECTED_STYLE}"
