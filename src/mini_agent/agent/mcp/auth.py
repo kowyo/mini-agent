@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import threading
 from collections.abc import AsyncGenerator
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -21,6 +22,8 @@ from .config import HttpServerConfig
 AUTH_DIR = CONFIG_DIR / "mcp-auth"
 AUTHORIZATION_TIMEOUT = 300.0
 
+logging.getLogger("mcp.client.auth.oauth2").setLevel(logging.CRITICAL)
+
 GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 DEVICE_POLL_INTERVAL = 5.0
@@ -35,7 +38,11 @@ CALLBACK_PAGE = (
 
 
 def _prompt_authorization(server_name: str, instruction: str) -> None:
-    print(f"\nmcp: {server_name}: authorization needed — {instruction}\n")
+    print(f"mcp: {server_name}: authorization needed — {instruction}\n")
+
+
+class AuthorizationRequiredError(Exception):
+    """User interaction is needed to authorize; raised in non-interactive mode."""
 
 
 class FileTokenStorage:
@@ -114,8 +121,9 @@ class _CallbackHandler(BaseHTTPRequestHandler):
 class OAuthBrowserFlow:
     """Loopback redirect target for the OAuth authorization-code flow."""
 
-    def __init__(self, server_name: str) -> None:
+    def __init__(self, server_name: str, interactive: bool) -> None:
         self._server_name = server_name
+        self._interactive = interactive
         self._server = _CallbackServer(("127.0.0.1", 0), _CallbackHandler)
         self._server.flow = self
         self._done = threading.Event()
@@ -129,6 +137,8 @@ class OAuthBrowserFlow:
         self._done.set()
 
     async def redirect_handler(self, authorization_url: str) -> None:
+        if not self._interactive:
+            raise AuthorizationRequiredError(self._server_name)
         threading.Thread(target=self._server.serve_forever, daemon=True).start()
         _prompt_authorization(self._server_name, f"open {authorization_url}")
 
@@ -154,10 +164,11 @@ class OAuthBrowserFlow:
 class GitHubDeviceAuth(httpx2.Auth):
     """GitHub device flow: public client_id only, no secret or callback."""
 
-    def __init__(self, server_name: str, client_id: str) -> None:
+    def __init__(self, server_name: str, client_id: str, interactive: bool) -> None:
         self._server_name = server_name
         self._storage = FileTokenStorage(server_name)
         self._client_id = client_id
+        self._interactive = interactive
         self._lock = asyncio.Lock()
 
     async def async_auth_flow(
@@ -217,6 +228,8 @@ class GitHubDeviceAuth(httpx2.Auth):
         return tokens
 
     async def _device_flow(self) -> OAuthToken:
+        if not self._interactive:
+            raise AuthorizationRequiredError(self._server_name)
         async with httpx2.AsyncClient(headers={"Accept": "application/json"}) as http:
             response = await http.post(
                 GITHUB_DEVICE_CODE_URL, data={"client_id": self._client_id}
@@ -256,13 +269,15 @@ class GitHubDeviceAuth(httpx2.Auth):
         raise OAuthFlowError("authorization timed out")
 
 
-def build_auth(cfg: HttpServerConfig) -> httpx2.Auth:
+def build_auth(cfg: HttpServerConfig, interactive: bool) -> httpx2.Auth:
     if cfg.client_id:
-        return build_oauth_provider(cfg.name, cfg.url, cfg.client_id, cfg.client_secret)
+        return build_oauth_provider(
+            cfg.name, cfg.url, cfg.client_id, cfg.client_secret, interactive
+        )
     default_client_id = DEFAULT_CLIENT_IDS.get(urlparse(cfg.url).hostname or "")
     if default_client_id:
-        return GitHubDeviceAuth(cfg.name, default_client_id)
-    return build_oauth_provider(cfg.name, cfg.url)
+        return GitHubDeviceAuth(cfg.name, default_client_id, interactive)
+    return build_oauth_provider(cfg.name, cfg.url, interactive=interactive)
 
 
 def build_oauth_provider(
@@ -270,8 +285,9 @@ def build_oauth_provider(
     url: str,
     client_id: str | None = None,
     client_secret: str | None = None,
+    interactive: bool = True,
 ) -> OAuthClientProvider:
-    flow = OAuthBrowserFlow(server_name)
+    flow = OAuthBrowserFlow(server_name, interactive)
     auth_method = "client_secret_post" if client_secret else "none"
     metadata = OAuthClientMetadata(
         client_name="mini-agent",

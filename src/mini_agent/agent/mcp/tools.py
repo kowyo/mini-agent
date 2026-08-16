@@ -9,8 +9,8 @@ from mcp_types import CallToolResult, ContentBlock, ImageContent, TextContent
 from ..tools.base import MAX_OUTPUT, ToolError
 from ..tools.handlers import TOOL_HANDLERS
 from ..tools.schemas import TOOLS
-from .config import load_mcp_servers
-from .runtime import McpRuntime, McpServerError
+from .config import ServerConfig, load_mcp_servers
+from .runtime import McpAuthRequiredError, McpRuntime, McpServerError
 
 TRUNCATION_MARKER = "\n[output truncated]"
 
@@ -24,9 +24,17 @@ class ServerStatus:
     name: str
     tools: list[str] = field(default_factory=list)
     error: str | None = None
+    needs_auth: bool = False
 
 
 server_statuses: list[ServerStatus] = []
+_configs: dict[str, ServerConfig] = {}
+_pending_auth: dict[str, ServerConfig] = {}
+_shutdown_registered = False
+
+
+def pending_auth_count() -> int:
+    return len(_pending_auth)
 
 
 def tool_name(server: str, tool: str) -> str:
@@ -86,40 +94,86 @@ def _make_handler(server: str, tool: str) -> Callable[..., object]:
     return handler
 
 
+def _ensure_shutdown_hook() -> None:
+    global _shutdown_registered
+    if not _shutdown_registered:
+        atexit.register(runtime.shutdown)
+        _shutdown_registered = True
+
+
+def _set_status(status: ServerStatus) -> None:
+    server_statuses[:] = [s for s in server_statuses if s.name != status.name]
+    server_statuses.append(status)
+
+
+def _register_tools(cfg: ServerConfig) -> ServerStatus:
+    try:
+        tools = runtime.list_tools(cfg.name)
+    except McpServerError as exc:
+        return ServerStatus(name=cfg.name, error=str(exc))
+    for tool in tools:
+        name = _unique_name(tool_name(cfg.name, tool.name))
+        TOOLS.append(
+            {
+                "name": name,
+                "description": tool.description or tool.title or tool.name,
+                "input_schema": tool.input_schema,
+            }
+        )
+        TOOL_HANDLERS[name] = _make_handler(cfg.name, tool.name)
+    return ServerStatus(name=cfg.name, tools=[tool.name for tool in tools])
+
+
 def setup_mcp() -> list[str]:
     servers, errors = load_mcp_servers()
     lines = [f"mcp: {error}" for error in errors]
     server_statuses.clear()
+    _pending_auth.clear()
+    _configs.clear()
+    _configs.update(servers)
     if not servers:
         return lines
-    statuses = runtime.connect_all(list(servers.values()))
-    connected = False
+    statuses = runtime.connect_all(list(servers.values()), interactive=False)
     for cfg in servers.values():
         status = statuses.get(cfg.name)
+        if isinstance(status, McpAuthRequiredError):
+            _pending_auth[cfg.name] = cfg
+            _set_status(ServerStatus(name=cfg.name, error=str(status), needs_auth=True))
+            continue
         if status is not None:
             lines.append(f"mcp: {status}")
-            server_statuses.append(ServerStatus(name=cfg.name, error=str(status)))
+            _set_status(ServerStatus(name=cfg.name, error=str(status)))
             continue
-        connected = True
-        try:
-            tools = runtime.list_tools(cfg.name)
-        except McpServerError as exc:
-            lines.append(f"mcp: {exc}")
-            server_statuses.append(ServerStatus(name=cfg.name, error=str(exc)))
-            continue
-        for tool in tools:
-            name = _unique_name(tool_name(cfg.name, tool.name))
-            TOOLS.append(
-                {
-                    "name": name,
-                    "description": tool.description or tool.title or tool.name,
-                    "input_schema": tool.input_schema,
-                }
-            )
-            TOOL_HANDLERS[name] = _make_handler(cfg.name, tool.name)
-        server_statuses.append(
-            ServerStatus(name=cfg.name, tools=[tool.name for tool in tools])
-        )
-    if connected:
-        atexit.register(runtime.shutdown)
+        _ensure_shutdown_hook()
+        registered = _register_tools(cfg)
+        if registered.error is not None:
+            lines.append(f"mcp: {registered.error}")
+        _set_status(registered)
     return lines
+
+
+def authorize_server(name: str) -> str:
+    cfg = _configs.get(name)
+    if cfg is None:
+        return f"mcp: unknown server {name!r}"
+    current = next((s for s in server_statuses if s.name == name), None)
+    if current is not None and current.error is None:
+        return f"mcp: {name}: already connected ({len(current.tools)} tools)"
+    try:
+        runtime.connect(cfg, interactive=True)
+    except McpServerError as exc:
+        _set_status(
+            ServerStatus(
+                name=name,
+                error=str(exc),
+                needs_auth=isinstance(exc, McpAuthRequiredError),
+            )
+        )
+        return f"mcp: {exc}"
+    _pending_auth.pop(name, None)
+    _ensure_shutdown_hook()
+    registered = _register_tools(cfg)
+    _set_status(registered)
+    if registered.error is not None:
+        return f"mcp: {registered.error}"
+    return f"mcp: connected {name} ({len(registered.tools)} tools)"

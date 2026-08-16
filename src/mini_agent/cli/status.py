@@ -111,6 +111,13 @@ def format_status_report(session_id: str) -> list[str | Text]:
         lines.append("")
         lines.append(Text("MCP Servers:", style="bold"))
         for server in server_statuses:
+            if server.needs_auth:
+                lines.append(
+                    Text(
+                        f"- {server.name}: authorization required (run /mcp to connect)"
+                    )
+                )
+                continue
             if server.error is not None:
                 lines.append(Text(f"- {server.name}: failed ({server.error})"))
                 continue

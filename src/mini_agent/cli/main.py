@@ -24,6 +24,7 @@ from .image_messages import (
     build_user_content,
     count_images_in_history,
 )
+from .mcp import print_mcp_hint, prompt_mcp
 from .models import prompt_model
 from .prompt_session import build_session
 from .sessions import (
@@ -53,6 +54,7 @@ def _run_non_interactive(prompt: str) -> None:
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     print_welcome_banner()
+    print_mcp_hint()
     history: list[MessageParam] = []
     current_session_id = session_manager.new_id()
     session, pre_run, attached_images, sent_image_count = build_session(prompt)
@@ -96,6 +98,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             clear_terminal()
             print_welcome_banner()
+            print_mcp_hint()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(
@@ -116,6 +119,10 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if command == "/copy":
             copy_last_assistant_text(history)
             print()
+            attached_images.clear()
+            continue
+        if command == "/mcp":
+            prompt_mcp()
             attached_images.clear()
             continue
 

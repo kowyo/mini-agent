@@ -19,6 +19,7 @@ COMMANDS = {
     "/model": "Select a model",
     "/copy": "Copy the last assistant response to clipboard",
     "/status": "Show current session configuration and token usage",
+    "/mcp": "Authorize and list MCP servers",
     "/exit": "exit the session",
 }
 
