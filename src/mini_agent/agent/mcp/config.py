@@ -29,7 +29,15 @@ class StdioServerConfig:
     timeout: float = DEFAULT_TOOL_TIMEOUT
 
 
-ServerConfig = StdioServerConfig
+@dataclass
+class HttpServerConfig:
+    name: str
+    url: str
+    headers: dict[str, str] = field(default_factory=dict)
+    timeout: float = DEFAULT_TOOL_TIMEOUT
+
+
+ServerConfig = StdioServerConfig | HttpServerConfig
 
 
 def _parse_entry(name: str, entry: object) -> ServerConfig:
@@ -39,6 +47,19 @@ def _parse_entry(name: str, entry: object) -> ServerConfig:
     if not isinstance(timeout, int | float) or timeout <= 0:
         raise ValueError('"timeout" must be a positive number')
     entry_type = entry.get("type")
+    if entry_type == "http":
+        url = entry.get("url")
+        if not isinstance(url, str) or not url:
+            raise ValueError('http server requires a "url" string')
+        headers = entry.get("headers", {})
+        if not isinstance(headers, dict):
+            raise ValueError('"headers" must be an object')
+        return HttpServerConfig(
+            name=name,
+            url=expand_vars(url),
+            headers={str(k): expand_vars(str(v)) for k, v in headers.items()},
+            timeout=float(timeout),
+        )
     if entry_type is not None:
         raise ValueError(f'unsupported type "{entry_type}"')
     command = entry.get("command")

@@ -1,16 +1,17 @@
 import asyncio
 import contextlib
 import threading
-from collections.abc import Coroutine
-from contextlib import AbstractAsyncContextManager
+from collections.abc import AsyncIterator, Coroutine
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
 from mcp import Client, MCPError, StdioServerParameters
 from mcp.client.stdio import TransportStreams, stdio_client
+from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 from mcp_types import CONNECTION_CLOSED, CallToolResult, Tool
 
-from .config import ServerConfig, StdioServerConfig
+from .config import HttpServerConfig, ServerConfig, StdioServerConfig
 
 CONNECT_TIMEOUT = 10.0
 SHUTDOWN_TIMEOUT = 15.0
@@ -28,13 +29,20 @@ class _ServerHandle:
     timeout: float
 
 
+@asynccontextmanager
+async def _http_transport(cfg: HttpServerConfig) -> AsyncIterator[TransportStreams]:
+    http = create_mcp_http_client(headers=cfg.headers or None)
+    async with http, streamable_http_client(cfg.url, http_client=http) as streams:
+        yield streams
+
+
 def _make_transport(cfg: ServerConfig) -> AbstractAsyncContextManager[TransportStreams]:
     if isinstance(cfg, StdioServerConfig):
         params = StdioServerParameters(
             command=cfg.command, args=cfg.args, env=cfg.env or None
         )
         return stdio_client(params)
-    raise McpServerError(f"{cfg.name}: unsupported server config")
+    return _http_transport(cfg)
 
 
 class McpRuntime:

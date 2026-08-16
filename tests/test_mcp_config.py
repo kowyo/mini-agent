@@ -5,6 +5,7 @@ import pytest
 
 from mini_agent.agent.mcp.config import (
     DEFAULT_TOOL_TIMEOUT,
+    HttpServerConfig,
     StdioServerConfig,
     expand_vars,
     load_mcp_servers,
@@ -54,6 +55,36 @@ def test_defaults(tmp_path: Path) -> None:
     assert servers["srv"].args == []
     assert servers["srv"].env == {}
     assert servers["srv"].timeout == DEFAULT_TOOL_TIMEOUT
+
+
+def test_parses_http_entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_PAT", "token123")
+    path = write_config(
+        tmp_path / "mcp.json",
+        {
+            "github": {
+                "type": "http",
+                "url": "https://api.example.com/mcp",
+                "headers": {"Authorization": "Bearer ${GITHUB_PAT}"},
+            }
+        },
+    )
+    servers, errors = load_mcp_servers([path])
+    assert errors == []
+    assert servers == {
+        "github": HttpServerConfig(
+            name="github",
+            url="https://api.example.com/mcp",
+            headers={"Authorization": "Bearer token123"},
+        )
+    }
+
+
+def test_http_entry_requires_url(tmp_path: Path) -> None:
+    path = write_config(tmp_path / "mcp.json", {"srv": {"type": "http"}})
+    servers, errors = load_mcp_servers([path])
+    assert servers == {}
+    assert len(errors) == 1
 
 
 def test_project_overrides_home_per_server(tmp_path: Path) -> None:

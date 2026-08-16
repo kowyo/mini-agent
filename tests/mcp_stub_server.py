@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 from mcp.server import MCPServer
@@ -32,4 +33,7 @@ def die() -> str:
 
 
 if __name__ == "__main__":
-    server.run()
+    if len(sys.argv) > 1 and sys.argv[1] == "--http":
+        server.run(transport="streamable-http", port=int(sys.argv[2]))
+    else:
+        server.run()
