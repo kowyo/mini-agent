@@ -95,7 +95,12 @@ def test_setup_registers_tools_and_handlers(
 
     try:
         lines = setup_mcp()
-        assert any("connected stub" in line for line in lines)
+        assert lines == []
+        status = mcp_tools.server_statuses
+        assert len(status) == 1
+        assert status[0].name == "stub"
+        assert status[0].error is None
+        assert {"echo", "fail", "sleep", "die"} == set(status[0].tools)
         assert "mcp__stub__echo" in TOOL_HANDLERS
         schema = next(t for t in TOOLS if t["name"] == "mcp__stub__echo")
         assert schema["input_schema"]["properties"]["text"]["type"] == "string"
@@ -119,6 +124,9 @@ def test_setup_reports_failed_server(
         lines = setup_mcp()
         assert len(lines) == 1
         assert "bad" in lines[0]
+        assert len(mcp_tools.server_statuses) == 1
+        assert mcp_tools.server_statuses[0].name == "bad"
+        assert mcp_tools.server_statuses[0].error is not None
         assert all(not name.startswith("mcp__") for name in TOOL_HANDLERS)
     finally:
         runtime.shutdown()

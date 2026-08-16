@@ -43,9 +43,9 @@ An unset variable is left as-is.
 
 ## Behavior
 
-- A `mcp: connected <name> (N tools)` line prints per server at startup;
-  a server that fails to start is reported and skipped, and the session
-  continues without it.
+- `/status` lists each server with its tool count (or failure reason).
+  A server that fails to start also prints an `mcp:` line at startup, is
+  skipped, and the session continues without it.
 - Servers have 10 seconds to start. Tool calls time out after the
   configured `timeout` and return an error result to the model.
 - If a server crashes mid-session, its next tool call returns an error
@@ -56,8 +56,9 @@ An unset variable is left as-is.
 ## Troubleshooting
 
 - **Server fails to start**: run the `command` with its `args` in a
-  terminal. Anything the server prints to stdout that isn't protocol
-  traffic breaks the connection; its stderr passes through to yours.
+  terminal to see its logs — server stderr is discarded when run by
+  mini-agent. Anything the server prints to stdout that isn't protocol
+  traffic breaks the connection.
 - **`did not start within 10s`**: first runs of `npx`/`uvx` servers may
   download packages; run the command once manually and retry.
 - **Two servers expose the same tool name**: the namespaced names stay

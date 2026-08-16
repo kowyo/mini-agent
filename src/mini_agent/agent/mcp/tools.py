@@ -1,6 +1,7 @@
 import atexit
 import re
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 from mcp_types import CallToolResult, ContentBlock, ImageContent, TextContent
@@ -16,6 +17,16 @@ TRUNCATION_MARKER = "\n[output truncated]"
 _NAME_SANITIZER = re.compile(r"[^A-Za-z0-9_-]")
 
 runtime = McpRuntime()
+
+
+@dataclass
+class ServerStatus:
+    name: str
+    tools: list[str] = field(default_factory=list)
+    error: str | None = None
+
+
+server_statuses: list[ServerStatus] = []
 
 
 def tool_name(server: str, tool: str) -> str:
@@ -78,6 +89,7 @@ def _make_handler(server: str, tool: str) -> Callable[..., object]:
 def setup_mcp() -> list[str]:
     servers, errors = load_mcp_servers()
     lines = [f"mcp: {error}" for error in errors]
+    server_statuses.clear()
     if not servers:
         return lines
     statuses = runtime.connect_all(list(servers.values()))
@@ -86,12 +98,14 @@ def setup_mcp() -> list[str]:
         status = statuses.get(cfg.name)
         if status is not None:
             lines.append(f"mcp: {status}")
+            server_statuses.append(ServerStatus(name=cfg.name, error=str(status)))
             continue
         connected = True
         try:
             tools = runtime.list_tools(cfg.name)
         except McpServerError as exc:
             lines.append(f"mcp: {exc}")
+            server_statuses.append(ServerStatus(name=cfg.name, error=str(exc)))
             continue
         for tool in tools:
             name = _unique_name(tool_name(cfg.name, tool.name))
@@ -103,7 +117,9 @@ def setup_mcp() -> list[str]:
                 }
             )
             TOOL_HANDLERS[name] = _make_handler(cfg.name, tool.name)
-        lines.append(f"mcp: connected {cfg.name} ({len(tools)} tools)")
+        server_statuses.append(
+            ServerStatus(name=cfg.name, tools=[tool.name for tool in tools])
+        )
     if connected:
         atexit.register(runtime.shutdown)
     return lines

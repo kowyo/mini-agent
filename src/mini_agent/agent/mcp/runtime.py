@@ -1,9 +1,11 @@
 import asyncio
 import contextlib
+import os
 import threading
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from mcp import Client, MCPError, StdioServerParameters
@@ -36,12 +38,19 @@ async def _http_transport(cfg: HttpServerConfig) -> AsyncIterator[TransportStrea
         yield streams
 
 
+@asynccontextmanager
+async def _stdio_transport(cfg: StdioServerConfig) -> AsyncIterator[TransportStreams]:
+    params = StdioServerParameters(
+        command=cfg.command, args=cfg.args, env=cfg.env or None
+    )
+    with Path(os.devnull).open("w") as errlog:
+        async with stdio_client(params, errlog=errlog) as streams:
+            yield streams
+
+
 def _make_transport(cfg: ServerConfig) -> AbstractAsyncContextManager[TransportStreams]:
     if isinstance(cfg, StdioServerConfig):
-        params = StdioServerParameters(
-            command=cfg.command, args=cfg.args, env=cfg.env or None
-        )
-        return stdio_client(params)
+        return _stdio_transport(cfg)
     return _http_transport(cfg)
 
 
