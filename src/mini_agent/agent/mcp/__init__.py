@@ -6,6 +6,7 @@ from .tools import (
     pending_auth_count,
     server_statuses,
     setup_mcp,
+    shutdown_mcp,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "pending_auth_count",
     "server_statuses",
     "setup_mcp",
+    "shutdown_mcp",
 ]

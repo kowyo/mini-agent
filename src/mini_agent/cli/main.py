@@ -4,7 +4,7 @@ from anthropic.types import MessageParam
 from rich.console import Console
 
 from ..agent.agent import agent_loop
-from ..agent.mcp import setup_mcp
+from ..agent.mcp import setup_mcp, shutdown_mcp
 from ..config import (
     DISTRIBUTION_NAME,
     DISTRIBUTION_VERSION,
@@ -207,17 +207,20 @@ def main() -> None:
             console.print(line, style=LIGHT_HINT_STYLE_RICH)
         print()
 
-    if args.print_prompt:
-        _run_non_interactive(args.print_prompt)
-        return
-
-    session_id: str | None = args.session_id
-    if session_id == "__LATEST__":
-        sessions = session_manager.list_sessions()
-        if sessions:
-            session_id = sessions[0].session_id
-        else:
-            print("No saved sessions found.")
+    try:
+        if args.print_prompt:
+            _run_non_interactive(args.print_prompt)
             return
 
-    _run_interactive(args.prompt, session_id)
+        session_id: str | None = args.session_id
+        if session_id == "__LATEST__":
+            sessions = session_manager.list_sessions()
+            if sessions:
+                session_id = sessions[0].session_id
+            else:
+                print("No saved sessions found.")
+                return
+
+        _run_interactive(args.prompt, session_id)
+    finally:
+        shutdown_mcp()

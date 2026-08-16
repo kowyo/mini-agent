@@ -94,6 +94,10 @@ def _make_handler(server: str, tool: str) -> Callable[..., object]:
     return handler
 
 
+def shutdown_mcp() -> None:
+    runtime.shutdown()
+
+
 def _ensure_shutdown_hook() -> None:
     global _shutdown_registered
     if not _shutdown_registered:
