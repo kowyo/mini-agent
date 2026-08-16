@@ -1,8 +1,7 @@
 # Plan: MCP support for mini-agent
 
 Implements [#83](https://github.com/kowyo/mini-agent/issues/83). Based on the research in
-[`docs/research/mcp-support.md`](../research/mcp-support.md) and
-[`docs/research/mcp-v2.md`](../research/mcp-v2.md).
+[`docs/research/mcp-support.md`](../research/mcp-support.md).
 
 ## Decisions
 
@@ -16,7 +15,7 @@ Implements [#83](https://github.com/kowyo/mini-agent/issues/83). Based on the re
 | Tool naming | `mcp__<server>__<tool>`, sanitize to `[A-Za-z0-9_-]` | Widely recognized convention; avoids cross-server collisions; satisfies the Anthropic tool-name pattern (§7.3) |
 | Sync↔async bridge | One background event-loop thread owning all MCP I/O (`McpRuntime`) | mini-agent is fully synchronous; stdio sessions must outlive individual calls (§8 A) |
 | Spawn timing | All configured servers connect at startup; a failed server is reported and skipped | Simplest correct v1; lazy connect is a later optimization (§8 C) |
-| Protocol surface | `tools/list` (paginated) + `tools/call` only; ignore `list_changed`, resources, prompts, sampling, roots | Spec-blessed minimum; the rest is optional or deprecated (§3.6, mcp-v2 Q5) |
+| Protocol surface | `tools/list` (paginated) + `tools/call` only; ignore `list_changed`, resources, prompts, sampling, roots | Spec-blessed minimum; the rest is optional or deprecated (§3.6) |
 | Result mapping | text → string / text blocks; image → base64 image block (same shape as `run_read`); `is_error` → `is_error: true` on the tool_result | Fits existing content-block support (§7.6) |
 | Output cap | 50,000 chars, reuse the `MAX_OUTPUT` idea from `base.py:10` | Existing precedent; matches ecosystem caps (§8 cross-cutting) |
 | Timeouts | 10 s connect, 60 s per tool call, per-server `timeout` override in config | Ecosystem defaults (§8 cross-cutting) |
