@@ -47,6 +47,7 @@ mini /resume
 | `/new` | Start a new session |
 | `/resume` | Pick from previous sessions |
 | `/copy` | Copy last assistant message to clipboard |
+| `/mcp` | Authorize and list MCP servers |
 | `/exit`, `q` | Quit |
 
 ## Keyboard Shortcuts

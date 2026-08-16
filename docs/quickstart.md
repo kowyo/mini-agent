@@ -49,3 +49,4 @@ Summarize this repository
 - [Usage](usage.md) - CLI flags, slash commands, and keyboard shortcuts.
 - [Providers](providers.md) - authentication and gateway setup.
 - [Config](config.md) - model and reasoning effort defaults.
+- [MCP](mcp.md) - connect MCP servers for extra tools.
