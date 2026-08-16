@@ -13,6 +13,7 @@ from mcp.client.stdio import TransportStreams, stdio_client
 from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 from mcp_types import CONNECTION_CLOSED, CallToolResult, Tool
 
+from .auth import AUTHORIZATION_TIMEOUT, build_auth
 from .config import HttpServerConfig, ServerConfig, StdioServerConfig
 
 CONNECT_TIMEOUT = 10.0
@@ -21,6 +22,22 @@ SHUTDOWN_TIMEOUT = 15.0
 
 class McpServerError(Exception):
     pass
+
+
+def _needs_oauth(cfg: ServerConfig) -> bool:
+    return isinstance(cfg, HttpServerConfig) and not any(
+        key.lower() == "authorization" for key in cfg.headers
+    )
+
+
+def _connect_timeout(cfg: ServerConfig) -> float:
+    return AUTHORIZATION_TIMEOUT if _needs_oauth(cfg) else CONNECT_TIMEOUT
+
+
+def _leaf_exception(exc: BaseException) -> BaseException:
+    while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+        exc = exc.exceptions[0]
+    return exc
 
 
 @dataclass
@@ -33,7 +50,8 @@ class _ServerHandle:
 
 @asynccontextmanager
 async def _http_transport(cfg: HttpServerConfig) -> AsyncIterator[TransportStreams]:
-    http = create_mcp_http_client(headers=cfg.headers or None)
+    auth = build_auth(cfg) if _needs_oauth(cfg) else None
+    http = create_mcp_http_client(headers=cfg.headers or None, auth=auth)
     async with http, streamable_http_client(cfg.url, http_client=http) as streams:
         yield streams
 
@@ -55,13 +73,8 @@ def _make_transport(cfg: ServerConfig) -> AbstractAsyncContextManager[TransportS
 
 
 class McpRuntime:
-    """Runs all MCP I/O on one background event-loop thread.
-
-    The async SDK binds each client to the task that entered it, so every
-    server gets a dedicated task that holds the connection open until stop
-    is set; synchronous callers submit coroutines to the loop and block on
-    the result.
-    """
+    """Runs MCP I/O on one event-loop thread, one holder task per server
+    (the SDK requires a client to enter and exit in the same task)."""
 
     def __init__(self) -> None:
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -99,27 +112,30 @@ class McpRuntime:
                     ready.set_exception(exc)
 
         task = loop.create_task(_serve())
+        connect_timeout = _connect_timeout(cfg)
         try:
-            client = await asyncio.wait_for(asyncio.shield(ready), CONNECT_TIMEOUT)
+            client = await asyncio.wait_for(asyncio.shield(ready), connect_timeout)
         except TimeoutError:
             stop.set()
             task.cancel()
             raise McpServerError(
-                f"{cfg.name}: did not start within {CONNECT_TIMEOUT:g}s"
+                f"{cfg.name}: did not start within {connect_timeout:g}s"
             ) from None
         except McpServerError:
             raise
         except Exception as exc:
-            raise McpServerError(f"{cfg.name}: {exc}") from exc
+            raise McpServerError(f"{cfg.name}: {_leaf_exception(exc)}") from exc
         return _ServerHandle(client=client, stop=stop, task=task, timeout=cfg.timeout)
 
     def connect(self, cfg: ServerConfig) -> None:
         if cfg.name in self._servers:
             raise McpServerError(f"{cfg.name}: already connected")
-        self._servers[cfg.name] = self._run(self._start(cfg), CONNECT_TIMEOUT + 5)
+        self._servers[cfg.name] = self._run(self._start(cfg), _connect_timeout(cfg) + 5)
 
     def connect_all(self, cfgs: list[ServerConfig]) -> dict[str, McpServerError | None]:
         cfgs = [cfg for cfg in cfgs if cfg.name not in self._servers]
+        if not cfgs:
+            return {}
 
         async def _all() -> list[_ServerHandle | BaseException]:
             return await asyncio.gather(
@@ -127,7 +143,8 @@ class McpRuntime:
             )
 
         statuses: dict[str, McpServerError | None] = {}
-        results = self._run(_all(), CONNECT_TIMEOUT + 5)
+        outer_timeout = max(_connect_timeout(cfg) for cfg in cfgs) + 5
+        results = self._run(_all(), outer_timeout)
         for cfg, result in zip(cfgs, results, strict=True):
             if isinstance(result, _ServerHandle):
                 self._servers[cfg.name] = result

@@ -20,6 +20,17 @@ def expand_vars(value: str) -> str:
     return _VAR_PATTERN.sub(lambda m: os.environ.get(m.group(1), m.group(0)), value)
 
 
+def _expand_required(field_name: str, value: str) -> str:
+    expanded = expand_vars(value)
+    unset = _VAR_PATTERN.findall(expanded)
+    if unset:
+        raise ValueError(
+            f'"{field_name}" references unset environment variable(s): '
+            + ", ".join(unset)
+        )
+    return expanded
+
+
 @dataclass
 class StdioServerConfig:
     name: str
@@ -35,6 +46,8 @@ class HttpServerConfig:
     url: str
     headers: dict[str, str] = field(default_factory=dict)
     timeout: float = DEFAULT_TOOL_TIMEOUT
+    client_id: str | None = None
+    client_secret: str | None = None
 
 
 ServerConfig = StdioServerConfig | HttpServerConfig
@@ -54,11 +67,21 @@ def _parse_entry(name: str, entry: object) -> ServerConfig:
         headers = entry.get("headers", {})
         if not isinstance(headers, dict):
             raise ValueError('"headers" must be an object')
+        client_id = entry.get("client_id")
+        client_secret = entry.get("client_secret")
         return HttpServerConfig(
             name=name,
             url=expand_vars(url),
             headers={str(k): expand_vars(str(v)) for k, v in headers.items()},
             timeout=float(timeout),
+            client_id=(
+                _expand_required("client_id", str(client_id)) if client_id else None
+            ),
+            client_secret=(
+                _expand_required("client_secret", str(client_secret))
+                if client_secret
+                else None
+            ),
         )
     if entry_type is not None:
         raise ValueError(f'unsupported type "{entry_type}"')
