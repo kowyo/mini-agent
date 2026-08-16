@@ -4,10 +4,11 @@ from pathlib import Path
 from rich.style import Style
 from rich.text import Text
 
+from ..agent.mcp.tools import server_statuses
 from ..agent.skills import skill_loader
 from ..agent.system_prompt import context_files as loaded_context_files
 from ..config import config
-from .display.theme import ACCENT_COLOR
+from .display.theme import ACCENT_COLOR, LIGHT_HINT_STYLE_RICH
 from .models import get_max_context_tokens
 from .token import Usage, token_tracker
 
@@ -105,6 +106,27 @@ def format_status_report(session_id: str) -> list[str | Text]:
         lines.append(Text("Skills:", style="bold"))
         for skill in skill_loader.skills:
             lines.append(Text(f"- {skill}"))
+
+    if server_statuses:
+        lines.append("")
+        lines.append(Text("MCP Servers:", style="bold"))
+        for server in server_statuses:
+            if server.needs_auth:
+                lines.append(
+                    Text(
+                        f"- {server.name}: authorization required (run /mcp to connect)"
+                    )
+                )
+                continue
+            if server.error is not None:
+                lines.append(Text(f"- {server.name}: failed ({server.error})"))
+                continue
+            count = len(server.tools)
+            lines.append(Text(f"- {server.name}: {count} tool{'s' * (count != 1)}"))
+            if server.tools:
+                lines.append(
+                    Text(f"  {', '.join(server.tools)}", style=LIGHT_HINT_STYLE_RICH)
+                )
 
     context_line = _format_context_window(usage)
     if context_line:

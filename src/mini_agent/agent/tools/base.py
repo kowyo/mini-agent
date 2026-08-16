@@ -3,7 +3,9 @@ import os
 import signal
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ...config import WORKDIR
 
@@ -13,6 +15,11 @@ MAX_OUTPUT = 50000
 class BashInterruptedError(Exception):
     def __init__(self, partial_output: str) -> None:
         self.partial_output = partial_output
+
+
+@dataclass
+class ToolError:
+    content: str | list[Any]
 
 
 def kill_process_tree(proc: subprocess.Popen) -> None:

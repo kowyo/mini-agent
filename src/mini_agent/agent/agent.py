@@ -11,7 +11,7 @@ from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import client, config
 from .system_prompt import SYSTEM
-from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError
+from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError, ToolError
 
 console = Console()
 
@@ -104,19 +104,23 @@ def agent_loop(messages: list[MessageParam]) -> None:
                             output = (
                                 handler(**block.input)
                                 if handler
-                                else f"Unknown tool: {block.name}"
+                                else ToolError(f"Unknown tool: {block.name}")
                             )
                         except BashInterruptedError as e:
                             output = e.partial_output
                             interrupted = True
 
-                        results.append(
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": block.id,
-                                "content": output,
-                            }
-                        )
+                        is_error = isinstance(output, ToolError)
+                        if isinstance(output, ToolError):
+                            output = output.content
+                        result: ToolResultBlockParam = {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": output,
+                        }
+                        if is_error:
+                            result["is_error"] = True
+                        results.append(result)
                         print_tool_result(block.name, block.input, output)
                         if interrupted:
                             raise KeyboardInterrupt

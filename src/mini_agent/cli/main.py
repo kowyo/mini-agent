@@ -4,6 +4,7 @@ from anthropic.types import MessageParam
 from rich.console import Console
 
 from ..agent.agent import agent_loop
+from ..agent.mcp import setup_mcp, shutdown_mcp
 from ..config import (
     DISTRIBUTION_NAME,
     DISTRIBUTION_VERSION,
@@ -18,10 +19,12 @@ from .display import (
     print_box,
     print_welcome_banner,
 )
+from .display.theme import LIGHT_HINT_STYLE_RICH
 from .image_messages import (
     build_user_content,
     count_images_in_history,
 )
+from .mcp import print_mcp_hint, prompt_mcp
 from .models import prompt_model
 from .prompt_session import build_session
 from .sessions import (
@@ -51,6 +54,7 @@ def _run_non_interactive(prompt: str) -> None:
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     print_welcome_banner()
+    print_mcp_hint()
     history: list[MessageParam] = []
     current_session_id = session_manager.new_id()
     session, pre_run, attached_images, sent_image_count = build_session(prompt)
@@ -94,6 +98,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             clear_terminal()
             print_welcome_banner()
+            print_mcp_hint()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(
@@ -114,6 +119,10 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if command == "/copy":
             copy_last_assistant_text(history)
             print()
+            attached_images.clear()
+            continue
+        if command == "/mcp":
+            prompt_mcp()
             attached_images.clear()
             continue
 
@@ -192,17 +201,26 @@ def main() -> None:
     if args.effort:
         config.set_session_reasoning_effort(args.effort)
 
-    if args.print_prompt:
-        _run_non_interactive(args.print_prompt)
-        return
+    mcp_lines = setup_mcp()
+    if mcp_lines:
+        for line in mcp_lines:
+            console.print(line, style=LIGHT_HINT_STYLE_RICH)
+        print()
 
-    session_id: str | None = args.session_id
-    if session_id == "__LATEST__":
-        sessions = session_manager.list_sessions()
-        if sessions:
-            session_id = sessions[0].session_id
-        else:
-            print("No saved sessions found.")
+    try:
+        if args.print_prompt:
+            _run_non_interactive(args.print_prompt)
             return
 
-    _run_interactive(args.prompt, session_id)
+        session_id: str | None = args.session_id
+        if session_id == "__LATEST__":
+            sessions = session_manager.list_sessions()
+            if sessions:
+                session_id = sessions[0].session_id
+            else:
+                print("No saved sessions found.")
+                return
+
+        _run_interactive(args.prompt, session_id)
+    finally:
+        shutdown_mcp()
