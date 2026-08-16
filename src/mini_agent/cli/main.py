@@ -4,6 +4,7 @@ from anthropic.types import MessageParam
 from rich.console import Console
 
 from ..agent.agent import agent_loop
+from ..agent.mcp import setup_mcp
 from ..config import (
     DISTRIBUTION_NAME,
     DISTRIBUTION_VERSION,
@@ -18,6 +19,7 @@ from .display import (
     print_box,
     print_welcome_banner,
 )
+from .display.theme import LIGHT_HINT_STYLE_RICH
 from .image_messages import (
     build_user_content,
     count_images_in_history,
@@ -191,6 +193,12 @@ def main() -> None:
 
     if args.effort:
         config.set_session_reasoning_effort(args.effort)
+
+    mcp_lines = setup_mcp()
+    if mcp_lines:
+        for line in mcp_lines:
+            console.print(line, style=LIGHT_HINT_STYLE_RICH)
+        print()
 
     if args.print_prompt:
         _run_non_interactive(args.print_prompt)
