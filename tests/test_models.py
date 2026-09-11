@@ -155,3 +155,35 @@ def test_refresh_cache_writes_limits_from_catalog(
         },
         "deepseek/deepseek-flash": {"limit": {"context": 1_000_000, "output": 384_000}},
     }
+
+
+def test_corrupt_cache_is_refreshed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    catalog = {
+        "models": {
+            "deepseek/deepseek-v4.1-flash": {
+                "limit": {"context": 1_000_000, "output": 384_000}
+            }
+        },
+        "providers": {
+            "deepseek": {
+                "models": {
+                    "deepseek-flash": {
+                        "limit": {"context": 1_000_000, "output": 384_000}
+                    }
+                }
+            }
+        },
+    }
+    monkeypatch.setattr(models, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(
+        models.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: _FakeResponse(json.dumps(catalog).encode(), None),
+    )
+    (tmp_path / "catalog.json").write_text("{ not json")
+
+    info = models._ModelInfo()
+
+    assert info.get_best_limit("deepseek-flash", "context") == 1_000_000

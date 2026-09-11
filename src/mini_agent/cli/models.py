@@ -54,7 +54,7 @@ class _ModelInfo:
         try:
             return json.loads(self._cache_path.read_text())
         except FileNotFoundError, json.JSONDecodeError:
-            self.refresh_cache()
+            self.refresh_cache(force=True)
             return self._cache or {}
 
     def get_best_limit(self, model_id: str, key: str) -> int | None:
@@ -70,9 +70,9 @@ class _ModelInfo:
             return None
         return (model.get("limit") or {}).get(key)
 
-    def refresh_cache(self) -> None:
+    def refresh_cache(self, force: bool = False) -> None:
         """Fetch the latest catalog from the remote API and update the local cache."""
-        if self._cache_path.exists():
+        if not force and self._cache_path.exists():
             age = time.time() - self._cache_path.stat().st_mtime
             if age < 3600:
                 return
