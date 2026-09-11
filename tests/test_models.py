@@ -28,7 +28,8 @@ def test_official_provider_alias_is_resolved() -> None:
 
     cache = _flatten_catalog(catalog)
 
-    assert cache["deepseek-flash"]["limit"]["context"] == 1_000_000
+    assert cache["deepseek/deepseek-flash"]["limit"]["context"] == 1_000_000
+    assert "deepseek-flash" not in cache
 
 
 def test_non_official_provider_is_ignored() -> None:
@@ -58,7 +59,7 @@ def test_non_official_provider_is_ignored() -> None:
 
     cache = _flatten_catalog(catalog)
 
-    assert cache["claude-sonnet-4-6"]["limit"]["context"] == 1_000_000
+    assert cache["anthropic/claude-sonnet-4-6"]["limit"]["context"] == 1_000_000
     assert "frogbot/claude-sonnet-4-6" not in cache
 
 
@@ -82,7 +83,7 @@ def test_official_provider_overrides_lab_metadata() -> None:
 
     cache = _flatten_catalog(catalog)
 
-    assert cache["deepseek-v4-flash"]["limit"]["output"] == 131_072
+    assert cache["deepseek/deepseek-v4-flash"]["limit"]["output"] == 131_072
 
 
 def test_lab_metadata_is_kept_without_official_provider() -> None:
@@ -96,7 +97,7 @@ def test_lab_metadata_is_kept_without_official_provider() -> None:
     cache = _flatten_catalog(catalog)
 
     assert cache["tencent/hy3-preview"]["limit"]["context"] == 262_144
-    assert cache["hy3-preview"]["limit"]["context"] == 262_144
+    assert "hy3-preview" not in cache
 
 
 class _FakeResponse:
@@ -144,7 +145,13 @@ def test_refresh_cache_writes_limits_from_catalog(
         lambda *args, **kwargs: _FakeResponse(body, encoding),
     )
 
-    models._ModelInfo().refresh_cache()
+    info = models._ModelInfo()
+    info.refresh_cache()
 
-    cache = json.loads((tmp_path / "catalog.json").read_text())
-    assert cache["deepseek-flash"]["limit"]["context"] == 1_000_000
+    assert info.get_best_limit("deepseek-flash", "context") == 1_000_000
+    assert json.loads((tmp_path / "catalog.json").read_text()) == {
+        "deepseek/deepseek-v4.1-flash": {
+            "limit": {"context": 1_000_000, "output": 384_000}
+        },
+        "deepseek/deepseek-flash": {"limit": {"context": 1_000_000, "output": 384_000}},
+    }

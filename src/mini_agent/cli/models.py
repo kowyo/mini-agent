@@ -25,10 +25,8 @@ def _flatten_catalog(data: dict[str, dict]) -> dict[str, dict]:
     cache: dict[str, dict] = {}
     for model_id, metadata in models.items():
         limit = metadata.get("limit")
-        if limit is None:
-            continue
-        cache[model_id] = {"limit": limit}
-        cache.setdefault(model_id.split("/")[-1], {"limit": limit})
+        if limit is not None:
+            cache[model_id] = {"limit": limit}
 
     for provider_id, provider in providers.items():
         if provider_id not in labs:
@@ -38,8 +36,6 @@ def _flatten_catalog(data: dict[str, dict]) -> dict[str, dict]:
             if limit is None:
                 continue
             cache[f"{provider_id}/{model_id}"] = {"limit": limit}
-            if "/" not in model_id:
-                cache[model_id] = {"limit": limit}
 
     return cache
 
