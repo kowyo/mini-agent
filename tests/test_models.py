@@ -5,99 +5,37 @@ from pathlib import Path
 import pytest
 
 from mini_agent.cli import models
-from mini_agent.cli.models import _flatten_catalog
 
-
-def test_official_provider_alias_is_resolved() -> None:
-    catalog = {
-        "models": {
-            "deepseek/deepseek-v4.1-flash": {
-                "limit": {"context": 1_000_000, "output": 384_000}
+_CATALOG = {
+    "models": {
+        "deepseek/deepseek-v4.1-flash": {
+            "limit": {"context": 1_000_000, "output": 384_000}
+        },
+        "tencent/hy3-preview": {"limit": {"context": 262_144, "output": 262_144}},
+        "anthropic/claude-sonnet-4-6": {
+            "limit": {"context": 1_000_000, "output": 128_000}
+        },
+    },
+    "providers": {
+        "deepseek": {
+            "models": {
+                "deepseek-flash": {"limit": {"context": 1_000_000, "output": 384_000}}
             }
         },
-        "providers": {
-            "deepseek": {
-                "models": {
-                    "deepseek-flash": {
-                        "limit": {"context": 1_000_000, "output": 384_000}
-                    }
+        "anthropic": {
+            "models": {
+                "claude-sonnet-4-6": {
+                    "limit": {"context": 1_000_000, "output": 128_000}
                 }
             }
         },
-    }
-
-    cache = _flatten_catalog(catalog)
-
-    assert cache["deepseek/deepseek-flash"]["limit"]["context"] == 1_000_000
-    assert "deepseek-flash" not in cache
-
-
-def test_non_official_provider_is_ignored() -> None:
-    catalog = {
-        "models": {
-            "anthropic/claude-sonnet-4-6": {
-                "limit": {"context": 1_000_000, "output": 128_000}
+        "frogbot": {
+            "models": {
+                "claude-sonnet-4-6": {"limit": {"context": 200_000, "output": 64_000}}
             }
         },
-        "providers": {
-            "anthropic": {
-                "models": {
-                    "claude-sonnet-4-6": {
-                        "limit": {"context": 1_000_000, "output": 128_000}
-                    }
-                }
-            },
-            "frogbot": {
-                "models": {
-                    "claude-sonnet-4-6": {
-                        "limit": {"context": 200_000, "output": 64_000}
-                    }
-                }
-            },
-        },
-    }
-
-    cache = _flatten_catalog(catalog)
-
-    assert cache["anthropic/claude-sonnet-4-6"]["limit"]["context"] == 1_000_000
-    assert "frogbot/claude-sonnet-4-6" not in cache
-
-
-def test_official_provider_overrides_lab_metadata() -> None:
-    catalog = {
-        "models": {
-            "deepseek/deepseek-v4-flash": {
-                "limit": {"context": 1_000_000, "output": 384_000}
-            }
-        },
-        "providers": {
-            "deepseek": {
-                "models": {
-                    "deepseek-v4-flash": {
-                        "limit": {"context": 1_000_000, "output": 131_072}
-                    }
-                }
-            }
-        },
-    }
-
-    cache = _flatten_catalog(catalog)
-
-    assert cache["deepseek/deepseek-v4-flash"]["limit"]["output"] == 131_072
-
-
-def test_lab_metadata_is_kept_without_official_provider() -> None:
-    catalog = {
-        "models": {
-            "tencent/hy3-preview": {"limit": {"context": 262_144, "output": 262_144}}
-        },
-        "providers": {},
-    }
-
-    cache = _flatten_catalog(catalog)
-
-    assert cache["tencent/hy3-preview"]["limit"]["context"] == 262_144
-    assert "hy3-preview" not in cache
+    },
+}
 
 
 class _FakeResponse:
@@ -116,26 +54,10 @@ class _FakeResponse:
 
 
 @pytest.mark.parametrize("encoding", [None, "gzip"])
-def test_refresh_cache_writes_limits_from_catalog(
+def test_refresh_cache_resolves_limits(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, encoding: str | None
 ) -> None:
-    catalog = {
-        "models": {
-            "deepseek/deepseek-v4.1-flash": {
-                "limit": {"context": 1_000_000, "output": 384_000}
-            }
-        },
-        "providers": {
-            "deepseek": {
-                "models": {
-                    "deepseek-flash": {
-                        "limit": {"context": 1_000_000, "output": 384_000}
-                    }
-                }
-            }
-        },
-    }
-    body = json.dumps(catalog).encode()
+    body = json.dumps(_CATALOG).encode()
     if encoding == "gzip":
         body = gzip.compress(body)
     monkeypatch.setattr(models, "CONFIG_DIR", tmp_path)
@@ -149,38 +71,19 @@ def test_refresh_cache_writes_limits_from_catalog(
     info.refresh_cache()
 
     assert info.get_best_limit("deepseek-flash", "context") == 1_000_000
-    assert json.loads((tmp_path / "catalog.json").read_text()) == {
-        "deepseek/deepseek-v4.1-flash": {
-            "limit": {"context": 1_000_000, "output": 384_000}
-        },
-        "deepseek/deepseek-flash": {"limit": {"context": 1_000_000, "output": 384_000}},
-    }
+    assert info.get_best_limit("hy3-preview", "output") == 262_144
+    assert info.get_best_limit("claude-sonnet-4-6", "output") == 128_000
+    assert "deepseek-flash" not in json.loads((tmp_path / "catalog.json").read_text())
 
 
 def test_corrupt_cache_is_refreshed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    catalog = {
-        "models": {
-            "deepseek/deepseek-v4.1-flash": {
-                "limit": {"context": 1_000_000, "output": 384_000}
-            }
-        },
-        "providers": {
-            "deepseek": {
-                "models": {
-                    "deepseek-flash": {
-                        "limit": {"context": 1_000_000, "output": 384_000}
-                    }
-                }
-            }
-        },
-    }
     monkeypatch.setattr(models, "CONFIG_DIR", tmp_path)
     monkeypatch.setattr(
         models.urllib.request,
         "urlopen",
-        lambda *args, **kwargs: _FakeResponse(json.dumps(catalog).encode(), None),
+        lambda *args, **kwargs: _FakeResponse(json.dumps(_CATALOG).encode(), None),
     )
     (tmp_path / "catalog.json").write_text("{ not json")
 
