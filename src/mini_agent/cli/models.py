@@ -1,3 +1,4 @@
+import gzip
 import json
 import time
 import urllib.request
@@ -12,21 +13,49 @@ from ..config import (
 from .display import clear_prompt_line
 from .display.picker import select_from_list
 
+CATALOG_URL = "https://models.dev/catalog.json"
+
+
+def _flatten_catalog(data: dict[str, dict]) -> dict[str, dict]:
+    """Build a model-id to limits map from the models.dev catalog."""
+    models: dict[str, dict] = data.get("models") or {}
+    providers: dict[str, dict] = data.get("providers") or {}
+    labs = {model_id.split("/")[0] for model_id in models}
+
+    cache: dict[str, dict] = {}
+    for model_id, metadata in models.items():
+        limit = metadata.get("limit")
+        if limit is not None:
+            cache[model_id] = {"limit": limit}
+
+    for provider_id, provider in providers.items():
+        if provider_id not in labs:
+            continue
+        for model_id, model in (provider.get("models") or {}).items():
+            limit = model.get("limit")
+            if limit is None:
+                continue
+            cache[f"{provider_id}/{model_id}"] = {"limit": limit}
+
+    return cache
+
 
 class _ModelInfo:
     def __init__(self) -> None:
-        self._cache_path = CONFIG_DIR / "models.json"
+        self._cache_path = CONFIG_DIR / "catalog.json"
         self._cache: dict[str, dict] | None = None
 
     def _load_cache(self) -> dict[str, dict]:
-        """Load the cache from disk, returning an empty dict on failure."""
         if self._cache is None:
-            try:
-                with self._cache_path.open() as f:
-                    self._cache = json.load(f)
-            except FileNotFoundError, json.JSONDecodeError:
-                self._cache = {}
+            self._cache = self._read_cache()
         return self._cache
+
+    def _read_cache(self) -> dict[str, dict]:
+        try:
+            return json.loads(self._cache_path.read_text())
+        except FileNotFoundError, json.JSONDecodeError:
+            self.refresh_cache(force=True)
+            return self._cache or {}
 
     def get_best_limit(self, model_id: str, key: str) -> int | None:
         """Return the value for *key* (e.g. 'context' or 'output') for a given model."""
@@ -41,23 +70,30 @@ class _ModelInfo:
             return None
         return (model.get("limit") or {}).get(key)
 
-    def refresh_cache(self) -> None:
-        """Fetch the latest model data from the remote API and update the local cache."""
-        if self._cache_path.exists():
+    def refresh_cache(self, force: bool = False) -> None:
+        """Fetch the latest catalog from the remote API and update the local cache."""
+        if not force and self._cache_path.exists():
             age = time.time() - self._cache_path.stat().st_mtime
             if age < 3600:
                 return
         try:
             req = urllib.request.Request(
-                "https://models.dev/models.json",
-                headers={"User-Agent": "Mozilla/5.0"},
+                CATALOG_URL,
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept-Encoding": "gzip",
+                },
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read())
+                body = resp.read()
+                if resp.headers.get("Content-Encoding") == "gzip":
+                    body = gzip.decompress(body)
+                data = json.loads(body)
+            cache = _flatten_catalog(data)
             self._cache_path.parent.mkdir(parents=True, exist_ok=True)
             with self._cache_path.open("w") as f:
-                json.dump(data, f)
-            self._cache = data
+                json.dump(cache, f)
+            self._cache = cache
         except OSError, json.JSONDecodeError:
             pass
 
