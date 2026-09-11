@@ -1,3 +1,4 @@
+import gzip
 import json
 import time
 import urllib.request
@@ -82,10 +83,16 @@ class _ModelInfo:
         try:
             req = urllib.request.Request(
                 CATALOG_URL,
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept-Encoding": "gzip",
+                },
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read())
+                body = resp.read()
+                if resp.headers.get("Content-Encoding") == "gzip":
+                    body = gzip.decompress(body)
+                data = json.loads(body)
             cache = _flatten_catalog(data)
             self._cache_path.parent.mkdir(parents=True, exist_ok=True)
             with self._cache_path.open("w") as f:

@@ -1,3 +1,10 @@
+import gzip
+import json
+from pathlib import Path
+
+import pytest
+
+from mini_agent.cli import models
 from mini_agent.cli.models import _flatten_catalog
 
 
@@ -90,3 +97,54 @@ def test_lab_metadata_is_kept_without_official_provider() -> None:
 
     assert cache["tencent/hy3-preview"]["limit"]["context"] == 262_144
     assert cache["hy3-preview"]["limit"]["context"] == 262_144
+
+
+class _FakeResponse:
+    def __init__(self, body: bytes, encoding: str | None) -> None:
+        self._body = body
+        self.headers = {"Content-Encoding": encoding} if encoding else {}
+
+    def read(self) -> bytes:
+        return self._body
+
+    def __enter__(self) -> _FakeResponse:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+
+@pytest.mark.parametrize("encoding", [None, "gzip"])
+def test_refresh_cache_writes_limits_from_catalog(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, encoding: str | None
+) -> None:
+    catalog = {
+        "models": {
+            "deepseek/deepseek-v4.1-flash": {
+                "limit": {"context": 1_000_000, "output": 384_000}
+            }
+        },
+        "providers": {
+            "deepseek": {
+                "models": {
+                    "deepseek-flash": {
+                        "limit": {"context": 1_000_000, "output": 384_000}
+                    }
+                }
+            }
+        },
+    }
+    body = json.dumps(catalog).encode()
+    if encoding == "gzip":
+        body = gzip.compress(body)
+    monkeypatch.setattr(models, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(
+        models.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: _FakeResponse(body, encoding),
+    )
+
+    models._ModelInfo().refresh_cache()
+
+    cache = json.loads((tmp_path / "catalog.json").read_text())
+    assert cache["deepseek-flash"]["limit"]["context"] == 1_000_000
