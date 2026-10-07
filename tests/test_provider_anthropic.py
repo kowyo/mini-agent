@@ -1,3 +1,4 @@
+import re
 from collections.abc import Iterator
 from typing import cast
 
@@ -257,4 +258,50 @@ def test_message_params_drop_foreign_redacted_thinking() -> None:
 
     assert anthropic._to_message_params(messages, "claude") == [
         {"role": "assistant", "content": [{"type": "text", "text": "answer"}]}
+    ]
+
+
+def test_safe_tool_id_keeps_valid_ids_and_normalizes_others() -> None:
+    assert anthropic._safe_tool_id("toolu_abc123") == "toolu_abc123"
+
+    unsafe = "call_" + "a" * 400 + "|x"
+    normalized = anthropic._safe_tool_id(unsafe)
+
+    assert normalized != unsafe
+    assert re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", normalized) is not None
+
+
+def test_message_params_normalize_tool_ids_across_a_call_and_its_result() -> None:
+    unsafe = "call_" + "b" * 400 + "|y"
+    expected = anthropic._safe_tool_id(unsafe)
+    messages: list[NeutralMessage] = [
+        {
+            "role": "assistant",
+            "provider": "openai-responses",
+            "model": "gpt",
+            "content": [
+                {"type": "tool_use", "id": unsafe, "name": "bash", "input": {}},
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "tool_result", "tool_use_id": unsafe, "content": "ok"}
+            ],
+        },
+    ]
+
+    assert anthropic._to_message_params(messages, "claude") == [
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "tool_use", "id": expected, "name": "bash", "input": {}}
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "tool_result", "tool_use_id": expected, "content": "ok"}
+            ],
+        },
     ]

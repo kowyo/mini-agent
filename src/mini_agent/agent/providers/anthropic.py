@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import re
 import urllib.request
 from collections.abc import Iterable, Iterator
 from types import TracebackType
@@ -44,6 +46,9 @@ from .types import (
 )
 from .types import (
     ThinkingBlock as NeutralThinkingBlock,
+)
+from .types import (
+    ToolResultBlock as NeutralToolResultBlock,
 )
 
 _client: Anthropic | None = None
@@ -92,6 +97,15 @@ def _block_to_neutral(block: ContentBlock) -> Block | None:
     return None
 
 
+_SAFE_TOOL_ID = re.compile(r"[a-zA-Z0-9_-]{1,64}")
+
+
+def _safe_tool_id(tool_id: str) -> str:
+    if _SAFE_TOOL_ID.fullmatch(tool_id):
+        return tool_id
+    return hashlib.sha256(tool_id.encode()).hexdigest()
+
+
 def _is_same_source(message: NeutralMessage, model: str) -> bool:
     return (
         message.get("provider") == "anthropic-messages"
@@ -126,6 +140,24 @@ def _to_message_params(
             elif block["type"] == "redacted_thinking":
                 if same_source:
                     blocks.append(block)
+            elif block["type"] == "tool_use":
+                blocks.append(
+                    {
+                        "type": "tool_use",
+                        "id": _safe_tool_id(block["id"]),
+                        "name": block["name"],
+                        "input": block["input"],
+                    }
+                )
+            elif block["type"] == "tool_result":
+                result: NeutralToolResultBlock = {
+                    "type": "tool_result",
+                    "tool_use_id": _safe_tool_id(block["tool_use_id"]),
+                    "content": block["content"],
+                }
+                if "is_error" in block:
+                    result["is_error"] = block["is_error"]
+                blocks.append(result)
             else:
                 blocks.append(block)
         cleaned.append({"role": message["role"], "content": blocks})
