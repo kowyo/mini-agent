@@ -83,7 +83,7 @@ def _block_to_neutral(block: ContentBlock) -> Block | None:
             "thinking": block.thinking,
         }
         if block.signature:
-            thinking["signature"] = block.signature
+            thinking["thinking_signature"] = block.signature
         return thinking
     if isinstance(block, RedactedThinkingBlock):
         return {"type": "redacted_thinking", "data": block.data}
@@ -113,20 +113,18 @@ def _is_same_source(message: NeutralMessage, model: str) -> bool:
     )
 
 
-def _to_message_params(
-    messages: list[NeutralMessage], model: str
-) -> list[NeutralMessage]:
-    cleaned: list[NeutralMessage] = []
+def _to_message_params(messages: list[NeutralMessage], model: str) -> list[Any]:
+    cleaned: list[Any] = []
     for message in messages:
         content = message["content"]
         if isinstance(content, str):
             cleaned.append(message)
             continue
         same_source = _is_same_source(message, model)
-        blocks: list[Block] = []
+        blocks: list[Any] = []
         for block in content:
             if block["type"] == "thinking":
-                signature = block.get("signature")
+                signature = block.get("thinking_signature")
                 if same_source and signature:
                     blocks.append(
                         {

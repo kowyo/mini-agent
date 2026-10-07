@@ -159,7 +159,7 @@ def test_final_turn_converts_anthropic_blocks_and_usage() -> None:
         turn = stream.get_final_turn()
 
     assert turn.content == [
-        {"type": "thinking", "thinking": "reasoning", "signature": "sig"},
+        {"type": "thinking", "thinking": "reasoning", "thinking_signature": "sig"},
         {"type": "redacted_thinking", "data": "opaque"},
         {"type": "text", "text": "answer"},
         {
@@ -204,8 +204,7 @@ def test_message_params_replay_signed_thinking_for_same_source() -> None:
                 {
                     "type": "thinking",
                     "thinking": "t",
-                    "signature": "sig",
-                    "encrypted_content": "enc",
+                    "thinking_signature": "sig",
                 }
             ],
         }
@@ -226,7 +225,11 @@ def test_message_params_downgrade_foreign_thinking_to_text() -> None:
             "provider": "openai-responses",
             "model": "gpt",
             "content": [
-                {"type": "thinking", "thinking": "foreign", "encrypted_content": "enc"},
+                {
+                    "type": "thinking",
+                    "thinking": "foreign",
+                    "thinking_signature": "enc",
+                },
                 {"type": "text", "text": "answer"},
             ],
         }

@@ -324,7 +324,7 @@ def test_response_stream_events_are_mapped_to_neutral_events() -> None:
     ]
 
 
-def test_output_reasoning_carries_encrypted_content() -> None:
+def test_output_reasoning_carries_the_thinking_signature() -> None:
     output = [
         ResponseReasoningItem(
             id="r1",
@@ -335,7 +335,7 @@ def test_output_reasoning_carries_encrypted_content() -> None:
     ]
 
     assert openai_responses._blocks_from_output(output) == [
-        {"type": "thinking", "thinking": "thought", "encrypted_content": "enc"}
+        {"type": "thinking", "thinking": "thought", "thinking_signature": "enc"}
     ]
 
 
@@ -346,7 +346,11 @@ def test_encrypted_reasoning_is_replayed_for_same_source() -> None:
             "provider": "openai-responses",
             "model": "test-model",
             "content": [
-                {"type": "thinking", "thinking": "thought", "encrypted_content": "enc"},
+                {
+                    "type": "thinking",
+                    "thinking": "thought",
+                    "thinking_signature": "enc",
+                },
                 {
                     "type": "tool_use",
                     "id": "call_1",
@@ -381,7 +385,9 @@ def test_foreign_thinking_is_downgraded_to_text_for_responses() -> None:
             "role": "assistant",
             "provider": "anthropic-messages",
             "model": "claude",
-            "content": [{"type": "thinking", "thinking": "t", "signature": "sig"}],
+            "content": [
+                {"type": "thinking", "thinking": "t", "thinking_signature": "sig"}
+            ],
         }
     ]
 

@@ -137,12 +137,12 @@ def _to_input_items(messages: list[Message], model: str) -> list[dict[str, Any]]
                     }
                 )
             elif block["type"] == "thinking":
-                encrypted = block.get("encrypted_content")
-                if same_source and encrypted:
+                signature = block.get("thinking_signature")
+                if same_source and signature:
                     if parts:
                         items.append({"role": role, "content": parts})
                         parts = []
-                    items.append({"type": "reasoning", "encrypted_content": encrypted})
+                    items.append({"type": "reasoning", "encrypted_content": signature})
                 elif block["thinking"]:
                     parts.append({"type": "input_text", "text": block["thinking"]})
             elif block["type"] == "tool_result":
@@ -194,7 +194,7 @@ def _blocks_from_output(items: Iterable[object]) -> list[Block]:
             if text or item.encrypted_content:
                 block: ThinkingBlock = {"type": "thinking", "thinking": text}
                 if item.encrypted_content:
-                    block["encrypted_content"] = item.encrypted_content
+                    block["thinking_signature"] = item.encrypted_content
                 blocks.append(block)
     return blocks
 
