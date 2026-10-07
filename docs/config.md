@@ -5,6 +5,7 @@ separately in `mcp.json` — see [mcp.md](mcp.md).
 
 | Key | Default | Values |
 |---|---|---|
+| `provider` | `anthropic-messages` | `anthropic-messages`, `openai-responses` |
 | `model_id` | `claude-sonnet-4-6` | Any model ID from `/v1/models` |
 | `reasoning_effort` | `high` | `disabled`, `adaptive`, `low`, `medium`, `high`, `xhigh`, `max` |
 | `cache_control` | `false` | `true`, `false` |
@@ -12,10 +13,13 @@ separately in `mcp.json` — see [mcp.md](mcp.md).
 ## Example
 
 ```toml
+provider = "anthropic-messages"
 model_id = "gemini-3.5-flash"
 reasoning_effort = "high"
 cache_control = true
 ```
+
+See [providers.md](providers.md) for the environment variables each provider uses.
 
 ## Behavior
 
