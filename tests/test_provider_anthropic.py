@@ -11,6 +11,7 @@ from anthropic.types import (
     Message,
     RawContentBlockDeltaEvent,
     RawContentBlockStartEvent,
+    RedactedThinkingBlock,
     TextBlock,
     ThinkingBlock,
     ToolUseBlock,
@@ -137,6 +138,7 @@ def test_final_turn_converts_anthropic_blocks_and_usage() -> None:
         id="msg-1",
         content=[
             ThinkingBlock(type="thinking", thinking="reasoning", signature="sig"),
+            RedactedThinkingBlock(type="redacted_thinking", data="opaque"),
             TextBlock(type="text", text="answer"),
             ToolUseBlock(
                 type="tool_use", id="tool-1", name="bash", input={"command": "ls"}
@@ -153,7 +155,8 @@ def test_final_turn_converts_anthropic_blocks_and_usage() -> None:
         turn = stream.get_final_turn()
 
     assert turn.content == [
-        {"type": "thinking", "thinking": "reasoning"},
+        {"type": "thinking", "thinking": "reasoning", "signature": "sig"},
+        {"type": "redacted_thinking", "data": "opaque"},
         {"type": "text", "text": "answer"},
         {
             "type": "tool_use",

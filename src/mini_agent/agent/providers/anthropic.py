@@ -14,6 +14,7 @@ from anthropic.types import (
     Message,
     RawContentBlockDeltaEvent,
     RawContentBlockStartEvent,
+    RedactedThinkingBlock,
     TextBlock,
     ThinkingBlock,
     ToolUseBlock,
@@ -40,6 +41,9 @@ from .types import (
 )
 from .types import (
     Message as NeutralMessage,
+)
+from .types import (
+    ThinkingBlock as NeutralThinkingBlock,
 )
 
 _client: Anthropic | None = None
@@ -69,7 +73,15 @@ def _block_to_neutral(block: ContentBlock) -> Block | None:
     if isinstance(block, TextBlock):
         return {"type": "text", "text": block.text}
     if isinstance(block, ThinkingBlock):
-        return {"type": "thinking", "thinking": block.thinking}
+        thinking: NeutralThinkingBlock = {
+            "type": "thinking",
+            "thinking": block.thinking,
+        }
+        if block.signature:
+            thinking["signature"] = block.signature
+        return thinking
+    if isinstance(block, RedactedThinkingBlock):
+        return {"type": "redacted_thinking", "data": block.data}
     if isinstance(block, ToolUseBlock):
         return {
             "type": "tool_use",

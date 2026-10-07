@@ -14,9 +14,12 @@ from openai.types.responses import (
     ResponseReasoningSummaryPartAddedEvent,
     ResponseReasoningSummaryPartDoneEvent,
     ResponseReasoningSummaryTextDeltaEvent,
+    ResponseReasoningTextDeltaEvent,
+    ResponseReasoningTextDoneEvent,
     ResponseTextDeltaEvent,
     ResponseUsage,
 )
+from openai.types.responses.response_reasoning_item import Content as ReasoningContent
 from openai.types.responses.response_reasoning_item import Summary as ReasoningSummary
 from openai.types.responses.response_reasoning_summary_part_added_event import (
     Part as ReasoningSummaryPart,
@@ -318,6 +321,57 @@ def test_response_stream_events_are_mapped_to_neutral_events() -> None:
         BlockStart(kind="thinking"),
         ThinkingDelta(text="hmm"),
         BlockStop(),
+    ]
+
+
+def test_reasoning_text_events_become_thinking() -> None:
+    events: list[object] = [
+        ResponseReasoningTextDeltaEvent(
+            type="response.reasoning_text.delta",
+            item_id="r1",
+            output_index=0,
+            content_index=0,
+            sequence_number=1,
+            delta="think ",
+        ),
+        ResponseReasoningTextDeltaEvent(
+            type="response.reasoning_text.delta",
+            item_id="r1",
+            output_index=0,
+            content_index=0,
+            sequence_number=2,
+            delta="more",
+        ),
+        ResponseReasoningTextDoneEvent(
+            type="response.reasoning_text.done",
+            item_id="r1",
+            output_index=0,
+            content_index=0,
+            sequence_number=3,
+            text="think more",
+        ),
+    ]
+
+    assert list(openai_responses._events_from_response_stream(iter(events))) == [
+        BlockStart(kind="thinking"),
+        ThinkingDelta(text="think "),
+        ThinkingDelta(text="more"),
+        BlockStop(),
+    ]
+
+
+def test_reasoning_output_content_becomes_thinking() -> None:
+    output = [
+        ResponseReasoningItem(
+            id="r1",
+            type="reasoning",
+            summary=[],
+            content=[ReasoningContent(type="reasoning_text", text="raw thought")],
+        )
+    ]
+
+    assert openai_responses._blocks_from_output(output) == [
+        {"type": "thinking", "thinking": "raw thought"}
     ]
 
 

@@ -12,6 +12,12 @@ class TextBlock(TypedDict):
 class ThinkingBlock(TypedDict):
     type: Literal["thinking"]
     thinking: str
+    signature: NotRequired[str]
+
+
+class RedactedThinkingBlock(TypedDict):
+    type: Literal["redacted_thinking"]
+    data: str
 
 
 class ToolCallBlock(TypedDict):
@@ -39,7 +45,14 @@ class ToolResultBlock(TypedDict):
     is_error: NotRequired[bool]
 
 
-Block = TextBlock | ThinkingBlock | ToolCallBlock | ImageBlock | ToolResultBlock
+Block = (
+    TextBlock
+    | ThinkingBlock
+    | RedactedThinkingBlock
+    | ToolCallBlock
+    | ImageBlock
+    | ToolResultBlock
+)
 
 
 class Message(TypedDict):

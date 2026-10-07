@@ -16,6 +16,8 @@ from openai.types.responses import (
     ResponseReasoningSummaryPartAddedEvent,
     ResponseReasoningSummaryPartDoneEvent,
     ResponseReasoningSummaryTextDeltaEvent,
+    ResponseReasoningTextDeltaEvent,
+    ResponseReasoningTextDoneEvent,
     ResponseTextDeltaEvent,
     ResponseUsage,
 )
@@ -174,6 +176,9 @@ def _blocks_from_output(items: Iterable[object]) -> list[Block]:
             for summary in item.summary:
                 if summary.text:
                     blocks.append({"type": "thinking", "thinking": summary.text})
+            for part in item.content or []:
+                if part.text:
+                    blocks.append({"type": "thinking", "thinking": part.text})
     return blocks
 
 
@@ -195,6 +200,7 @@ def _usage_from_response(usage: ResponseUsage | None) -> Usage:
 
 
 def _events_from_response_stream(stream: Iterable[object]) -> Iterator[StreamEvent]:
+    reasoning_text_open = False
     for event in stream:
         if isinstance(event, ResponseContentPartAddedEvent):
             if getattr(event.part, "type", None) == "output_text":
@@ -208,6 +214,14 @@ def _events_from_response_stream(stream: Iterable[object]) -> Iterator[StreamEve
         elif isinstance(event, ResponseReasoningSummaryTextDeltaEvent):
             yield ThinkingDelta(text=event.delta)
         elif isinstance(event, ResponseReasoningSummaryPartDoneEvent):
+            yield BlockStop()
+        elif isinstance(event, ResponseReasoningTextDeltaEvent):
+            if not reasoning_text_open:
+                reasoning_text_open = True
+                yield BlockStart(kind="thinking")
+            yield ThinkingDelta(text=event.delta)
+        elif isinstance(event, ResponseReasoningTextDoneEvent):
+            reasoning_text_open = False
             yield BlockStop()
 
 
