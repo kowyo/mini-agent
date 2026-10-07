@@ -2,6 +2,7 @@ import json
 from types import SimpleNamespace
 from typing import cast
 
+import pytest
 from openai.lib.streaming.responses import ResponseStream, ResponseStreamManager
 from openai.types.responses import (
     ResponseContentPartAddedEvent,
@@ -67,17 +68,25 @@ def _wrap(response: object) -> openai_responses._OpenAIStream:
     return openai_responses._OpenAIStream(manager)
 
 
-def test_reasoning_params_map_effort_and_request_a_detailed_summary() -> None:
-    assert openai_responses._reasoning_params("disabled") == {"effort": "none"}
-    assert openai_responses._reasoning_params("low") == {
-        "effort": "low",
+def test_reasoning_passes_openai_effort_values_through_verbatim() -> None:
+    assert openai_responses._reasoning("none") == {
+        "effort": "none",
         "summary": "detailed",
     }
-    assert openai_responses._reasoning_params("max") == {
-        "effort": "max",
+    assert openai_responses._reasoning("minimal") == {
+        "effort": "minimal",
         "summary": "detailed",
     }
-    assert openai_responses._reasoning_params("adaptive") == {"summary": "detailed"}
+    assert openai_responses._reasoning("xhigh") == {
+        "effort": "xhigh",
+        "summary": "detailed",
+    }
+
+
+def test_reasoning_rejects_effort_values_openai_does_not_define() -> None:
+    for effort in ("disabled", "adaptive", "bogus"):
+        with pytest.raises(ValueError, match="not supported"):
+            openai_responses._reasoning(effort)
 
 
 def test_tools_are_serialized_as_responses_functions() -> None:

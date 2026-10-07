@@ -10,7 +10,8 @@ mini-agent talks to the model through one of two wire protocols, selected by the
 
 ## anthropic-messages
 
-Supports any Anthropic-compatible endpoint.
+Supports any Anthropic-compatible endpoint. `reasoning_effort` accepts
+`disabled`, `adaptive`, `low`, `medium`, `high`, `xhigh`, `max`.
 
 | Variable | Auth Header | Use |
 |---|---|---|
@@ -25,11 +26,11 @@ Supports any Anthropic-compatible endpoint.
 | `OPENAI_BASE_URL` | Override the API base URL |
 
 Requests always set `store=false` and send the full conversation history.
-`reasoning_effort` maps to the Responses `reasoning.effort` field: `disabled`
-becomes `none`, `low`/`medium`/`high`/`xhigh`/`max` map by name, and `adaptive`
-leaves the effort to the model. A detailed reasoning summary is requested so
-thinking is shown. `cache_control` and the derived max-output token limit do
-not apply to this provider.
+`reasoning_effort` is passed through as `reasoning.effort` unchanged, so this
+provider only accepts OpenAI's own values: `none`, `minimal`, `low`, `medium`,
+`high`, `xhigh`, `max`. A detailed reasoning summary is requested so thinking
+is shown. `cache_control` and the derived max-output token limit do not apply
+to this provider.
 
 ## Config File
 

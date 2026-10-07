@@ -13,15 +13,6 @@ DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_PROVIDER = "anthropic-messages"
 PROVIDERS = ["anthropic-messages", "openai-responses"]
 DEFAULT_REASONING_EFFORT = "high"
-REASONING_EFFORT_LEVELS = [
-    "disabled",
-    "adaptive",
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-]
 CONFIG_DIR = DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"

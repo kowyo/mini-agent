@@ -6,7 +6,6 @@ import urllib.request
 from ..agent.providers import get_provider
 from ..config import (
     CONFIG_DIR,
-    REASONING_EFFORT_LEVELS,
     config,
 )
 from .display import clear_prompt_line
@@ -153,14 +152,11 @@ def select_model(model_ids: list[str]) -> str | None:
 
 
 def select_reasoning_effort() -> str | None:
+    levels = get_provider().effort_levels
     current = config.get_reasoning_effort()
-    selected_index = (
-        REASONING_EFFORT_LEVELS.index(current)
-        if current in REASONING_EFFORT_LEVELS
-        else 0
-    )
+    selected_index = levels.index(current) if current in levels else 0
     return select_from_list(
-        REASONING_EFFORT_LEVELS,
+        levels,
         "Select reasoning effort",
         selected_index=selected_index,
         clear_after=True,

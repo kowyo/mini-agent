@@ -7,7 +7,7 @@ separately in `mcp.json` — see [mcp.md](mcp.md).
 |---|---|---|
 | `provider` | `anthropic-messages` | `anthropic-messages`, `openai-responses` |
 | `model_id` | `claude-sonnet-4-6` | Any model ID from `/v1/models` |
-| `reasoning_effort` | `high` | `disabled`, `adaptive`, `low`, `medium`, `high`, `xhigh`, `max` |
+| `reasoning_effort` | `high` | Depends on `provider` — see [providers.md](providers.md) |
 | `cache_control` | `false` | `true`, `false` |
 
 ## Example

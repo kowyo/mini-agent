@@ -50,23 +50,25 @@ def _get_client() -> OpenAI:
     return _client
 
 
-_EFFORT_TO_REASONING = {
-    "disabled": "none",
-    "low": "low",
-    "medium": "medium",
-    "high": "high",
-    "xhigh": "xhigh",
-    "max": "max",
-}
+REASONING_EFFORTS: tuple[str, ...] = (
+    "none",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+)
 
 
-def _reasoning_params(effort: str) -> dict[str, Any]:
-    if effort == "disabled":
-        return {"effort": "none"}
-    mapped = _EFFORT_TO_REASONING.get(effort)
-    if mapped is None:
-        return {"summary": "detailed"}
-    return {"effort": mapped, "summary": "detailed"}
+def _reasoning(effort: str) -> dict[str, str]:
+    if effort not in REASONING_EFFORTS:
+        raise ValueError(
+            f"reasoning_effort {effort!r} is not supported by the "
+            f"openai-responses provider; expected one of "
+            f"{', '.join(REASONING_EFFORTS)}."
+        )
+    return {"effort": effort, "summary": "detailed"}
 
 
 def _to_tools(tools: list[ToolSpec]) -> list[dict[str, Any]]:
@@ -251,6 +253,8 @@ class _OpenAIStream:
 
 
 class OpenAIResponsesProvider:
+    effort_levels: tuple[str, ...] = REASONING_EFFORTS
+
     def stream(
         self,
         *,
@@ -267,7 +271,7 @@ class OpenAIResponsesProvider:
             "instructions": system,
             "input": _to_input_items(messages),
             "store": False,
-            "reasoning": _reasoning_params(effort),
+            "reasoning": _reasoning(effort),
         }
         if tools:
             kwargs["tools"] = _to_tools(tools)

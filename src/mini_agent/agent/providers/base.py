@@ -21,6 +21,8 @@ class MessageStream(Protocol):
 
 
 class Provider(Protocol):
+    effort_levels: tuple[str, ...]
+
     def stream(
         self,
         *,

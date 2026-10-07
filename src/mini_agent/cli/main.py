@@ -4,11 +4,11 @@ from rich.console import Console
 
 from ..agent.agent import agent_loop
 from ..agent.mcp import setup_mcp, shutdown_mcp
+from ..agent.providers import get_provider
 from ..agent.providers.types import Message
 from ..config import (
     DISTRIBUTION_NAME,
     DISTRIBUTION_VERSION,
-    REASONING_EFFORT_LEVELS,
     config,
 )
 from .clipboard import copy_last_assistant_text
@@ -168,7 +168,7 @@ def main() -> None:
         "-e",
         "--effort",
         type=str,
-        choices=REASONING_EFFORT_LEVELS,
+        choices=get_provider().effort_levels,
         help="Set the effort level for the current session",
     )
     parser.add_argument(

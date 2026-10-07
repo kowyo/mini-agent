@@ -152,6 +152,16 @@ class _AnthropicStream:
 
 
 class AnthropicMessagesProvider:
+    effort_levels: tuple[str, ...] = (
+        "disabled",
+        "adaptive",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+    )
+
     def stream(
         self,
         *,
