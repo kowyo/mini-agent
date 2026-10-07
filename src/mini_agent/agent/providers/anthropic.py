@@ -92,25 +92,40 @@ def _block_to_neutral(block: ContentBlock) -> Block | None:
     return None
 
 
-def _to_message_params(messages: list[NeutralMessage]) -> list[NeutralMessage]:
+def _is_same_source(message: NeutralMessage, model: str) -> bool:
+    return (
+        message.get("provider") == "anthropic-messages"
+        and message.get("model") == model
+    )
+
+
+def _to_message_params(
+    messages: list[NeutralMessage], model: str
+) -> list[NeutralMessage]:
     cleaned: list[NeutralMessage] = []
     for message in messages:
         content = message["content"]
         if isinstance(content, str):
             cleaned.append(message)
             continue
+        same_source = _is_same_source(message, model)
         blocks: list[Block] = []
         for block in content:
             if block["type"] == "thinking":
                 signature = block.get("signature")
-                if not signature:
-                    continue
-                thinking: NeutralThinkingBlock = {
-                    "type": "thinking",
-                    "thinking": block["thinking"],
-                    "signature": signature,
-                }
-                blocks.append(thinking)
+                if same_source and signature:
+                    blocks.append(
+                        {
+                            "type": "thinking",
+                            "thinking": block["thinking"],
+                            "signature": signature,
+                        }
+                    )
+                elif not same_source and block["thinking"]:
+                    blocks.append({"type": "text", "text": block["thinking"]})
+            elif block["type"] == "redacted_thinking":
+                if same_source:
+                    blocks.append(block)
             else:
                 blocks.append(block)
         cleaned.append({"role": message["role"], "content": blocks})
@@ -216,7 +231,7 @@ class AnthropicMessagesProvider:
             "model": model,
             "max_tokens": max_tokens,
             "system": system,
-            "messages": _to_message_params(messages),
+            "messages": _to_message_params(messages, model),
             "tools": tools,
         }
         if cache_control:

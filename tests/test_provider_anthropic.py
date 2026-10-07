@@ -193,10 +193,12 @@ def test_final_turn_without_tool_use_ends_the_turn() -> None:
     assert turn.tool_calls == []
 
 
-def test_message_params_drop_encrypted_content_but_keep_signature() -> None:
+def test_message_params_replay_signed_thinking_for_same_source() -> None:
     messages: list[NeutralMessage] = [
         {
             "role": "assistant",
+            "provider": "anthropic-messages",
+            "model": "claude",
             "content": [
                 {
                     "type": "thinking",
@@ -208,7 +210,7 @@ def test_message_params_drop_encrypted_content_but_keep_signature() -> None:
         }
     ]
 
-    assert anthropic._to_message_params(messages) == [
+    assert anthropic._to_message_params(messages, "claude") == [
         {
             "role": "assistant",
             "content": [{"type": "thinking", "thinking": "t", "signature": "sig"}],
@@ -216,10 +218,12 @@ def test_message_params_drop_encrypted_content_but_keep_signature() -> None:
     ]
 
 
-def test_message_params_drop_thinking_without_a_signature() -> None:
+def test_message_params_downgrade_foreign_thinking_to_text() -> None:
     messages: list[NeutralMessage] = [
         {
             "role": "assistant",
+            "provider": "openai-responses",
+            "model": "gpt",
             "content": [
                 {"type": "thinking", "thinking": "foreign", "encrypted_content": "enc"},
                 {"type": "text", "text": "answer"},
@@ -227,6 +231,30 @@ def test_message_params_drop_thinking_without_a_signature() -> None:
         }
     ]
 
-    assert anthropic._to_message_params(messages) == [
+    assert anthropic._to_message_params(messages, "claude") == [
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "foreign"},
+                {"type": "text", "text": "answer"},
+            ],
+        }
+    ]
+
+
+def test_message_params_drop_foreign_redacted_thinking() -> None:
+    messages: list[NeutralMessage] = [
+        {
+            "role": "assistant",
+            "provider": "openai-responses",
+            "model": "gpt",
+            "content": [
+                {"type": "redacted_thinking", "data": "opaque"},
+                {"type": "text", "text": "answer"},
+            ],
+        }
+    ]
+
+    assert anthropic._to_message_params(messages, "claude") == [
         {"role": "assistant", "content": [{"type": "text", "text": "answer"}]}
     ]

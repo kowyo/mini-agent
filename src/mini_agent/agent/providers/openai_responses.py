@@ -98,7 +98,7 @@ def _tool_output(content: str | list[TextBlock | ImageBlock]) -> str:
     return "\n".join(block["text"] for block in content if block["type"] == "text")
 
 
-def _to_input_items(messages: list[Message]) -> list[dict[str, Any]]:
+def _to_input_items(messages: list[Message], model: str) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for message in messages:
         content = message["content"]
@@ -107,6 +107,10 @@ def _to_input_items(messages: list[Message]) -> list[dict[str, Any]]:
             items.append({"role": role, "content": content})
             continue
 
+        same_source = (
+            message.get("provider") == "openai-responses"
+            and message.get("model") == model
+        )
         parts: list[dict[str, Any]] = []
         for block in content:
             if block["type"] == "text":
@@ -134,11 +138,13 @@ def _to_input_items(messages: list[Message]) -> list[dict[str, Any]]:
                 )
             elif block["type"] == "thinking":
                 encrypted = block.get("encrypted_content")
-                if encrypted:
+                if same_source and encrypted:
                     if parts:
                         items.append({"role": role, "content": parts})
                         parts = []
                     items.append({"type": "reasoning", "encrypted_content": encrypted})
+                elif block["thinking"]:
+                    parts.append({"type": "input_text", "text": block["thinking"]})
             elif block["type"] == "tool_result":
                 if parts:
                     items.append({"role": role, "content": parts})
@@ -295,7 +301,7 @@ class OpenAIResponsesProvider:
         kwargs: dict[str, Any] = {
             "model": model,
             "instructions": system,
-            "input": _to_input_items(messages),
+            "input": _to_input_items(messages, model),
             "store": False,
             "reasoning": _reasoning(effort),
         }

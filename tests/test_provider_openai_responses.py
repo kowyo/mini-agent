@@ -147,7 +147,7 @@ def test_tool_loop_history_becomes_responses_items() -> None:
         },
     ]
 
-    assert openai_responses._to_input_items(messages) == [
+    assert openai_responses._to_input_items(messages, "test-model") == [
         {"role": "user", "content": "prompt"},
         {
             "role": "assistant",
@@ -172,7 +172,7 @@ def test_trailing_text_message_collapses_to_a_string() -> None:
         {"role": "assistant", "content": [{"type": "text", "text": "done"}]}
     ]
 
-    assert openai_responses._to_input_items(messages) == [
+    assert openai_responses._to_input_items(messages, "test-model") == [
         {"role": "assistant", "content": "done"}
     ]
 
@@ -194,7 +194,7 @@ def test_user_image_is_sent_as_a_data_url() -> None:
         }
     ]
 
-    assert openai_responses._to_input_items(messages) == [
+    assert openai_responses._to_input_items(messages, "test-model") == [
         {
             "role": "user",
             "content": [
@@ -339,10 +339,12 @@ def test_output_reasoning_carries_encrypted_content() -> None:
     ]
 
 
-def test_encrypted_reasoning_is_replayed_as_an_input_item() -> None:
+def test_encrypted_reasoning_is_replayed_for_same_source() -> None:
     messages: list[Message] = [
         {
             "role": "assistant",
+            "provider": "openai-responses",
+            "model": "test-model",
             "content": [
                 {"type": "thinking", "thinking": "thought", "encrypted_content": "enc"},
                 {
@@ -361,7 +363,7 @@ def test_encrypted_reasoning_is_replayed_as_an_input_item() -> None:
         },
     ]
 
-    assert openai_responses._to_input_items(messages) == [
+    assert openai_responses._to_input_items(messages, "test-model") == [
         {"type": "reasoning", "encrypted_content": "enc"},
         {
             "type": "function_call",
@@ -373,15 +375,19 @@ def test_encrypted_reasoning_is_replayed_as_an_input_item() -> None:
     ]
 
 
-def test_anthropic_signature_thinking_is_not_replayed_to_responses() -> None:
+def test_foreign_thinking_is_downgraded_to_text_for_responses() -> None:
     messages: list[Message] = [
         {
             "role": "assistant",
+            "provider": "anthropic-messages",
+            "model": "claude",
             "content": [{"type": "thinking", "thinking": "t", "signature": "sig"}],
         }
     ]
 
-    assert openai_responses._to_input_items(messages) == []
+    assert openai_responses._to_input_items(messages, "test-model") == [
+        {"role": "assistant", "content": "t"}
+    ]
 
 
 def test_reasoning_text_events_become_thinking() -> None:
