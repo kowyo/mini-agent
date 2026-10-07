@@ -3,6 +3,7 @@ import sys
 import time
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 server = MCPServer("stub")
 
@@ -16,7 +17,7 @@ def echo(text: str) -> str:
 @server.tool()
 def fail() -> str:
     """Always fails."""
-    raise ValueError("intentional failure")
+    raise ToolError("intentional failure")
 
 
 @server.tool()
