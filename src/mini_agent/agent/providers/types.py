@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from ...cli.token import Usage
 
@@ -32,11 +32,11 @@ class ImageBlock(TypedDict):
     source: ImageSource
 
 
-class ToolResultBlock(TypedDict, total=False):
+class ToolResultBlock(TypedDict):
     type: Literal["tool_result"]
     tool_use_id: str
     content: str | list[TextBlock | ImageBlock]
-    is_error: bool
+    is_error: NotRequired[bool]
 
 
 Block = TextBlock | ThinkingBlock | ToolCallBlock | ImageBlock | ToolResultBlock
