@@ -189,6 +189,7 @@ class _AnthropicStream:
 
 
 class AnthropicMessagesProvider:
+    name = "anthropic-messages"
     effort_levels: tuple[str, ...] = (
         "disabled",
         "adaptive",

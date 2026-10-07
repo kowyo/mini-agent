@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..agent.providers.types import Message
-from ..config import SESSION_DIR, config
+from ..config import SESSION_DIR
 from .clipboard import extract_text_content
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
@@ -27,6 +27,17 @@ def serialize_content(content: str | Iterable[object]) -> list[object]:
     if isinstance(content, str):
         return [{"type": "text", "text": content}]
     return list(content)
+
+
+def deserialize_message(message: dict[str, Any]) -> Message:
+    entry: Message = {"role": message["role"], "content": message["content"]}
+    if "provider" in message:
+        entry["provider"] = message["provider"]
+    if "model" in message:
+        entry["model"] = message["model"]
+    if "effort" in message:
+        entry["effort"] = message["effort"]
+    return entry
 
 
 def session_title(history: list[Message]) -> str:
@@ -117,7 +128,12 @@ class SessionManager:
                 "timestamp": int(now.timestamp() * 1000),
             }
             if message["role"] == "assistant":
-                msg_body["model"] = config.get_model()
+                if "provider" in message:
+                    msg_body["provider"] = message["provider"]
+                if "model" in message:
+                    msg_body["model"] = message["model"]
+                if "effort" in message:
+                    msg_body["effort"] = message["effort"]
                 if round_usages and saved_asst < len(round_usages):
                     u = round_usages[saved_asst]
                     msg_body["usage"] = {
@@ -170,7 +186,7 @@ class SessionManager:
             except json.JSONDecodeError:
                 continue
             msg = entry["message"]
-            history.append({"role": msg["role"], "content": msg["content"]})
+            history.append(deserialize_message(msg))
             if msg["role"] == "assistant":
                 u = msg.get("usage")
                 if u:
@@ -212,7 +228,7 @@ class SessionManager:
                     for line in entry_lines:
                         entry = json.loads(line)
                         msg = entry["message"]
-                        history.append({"role": msg["role"], "content": msg["content"]})
+                        history.append(deserialize_message(msg))
                         ts = msg.get("timestamp", 0)
                         if ts > max_ts:
                             max_ts = ts

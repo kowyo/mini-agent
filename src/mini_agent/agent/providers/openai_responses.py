@@ -278,6 +278,7 @@ class _OpenAIStream:
 
 
 class OpenAIResponsesProvider:
+    name = "openai-responses"
     effort_levels: tuple[str, ...] = REASONING_EFFORTS
 
     def stream(

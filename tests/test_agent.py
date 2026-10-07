@@ -47,6 +47,8 @@ class ErrorStreamStub:
 
 
 class ProviderStub:
+    name = "test-provider"
+
     def __init__(self, streams: list[object]) -> None:
         self._streams = iter(streams)
 

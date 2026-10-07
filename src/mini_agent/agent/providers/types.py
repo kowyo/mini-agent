@@ -59,6 +59,9 @@ Block = (
 class Message(TypedDict):
     role: Literal["user", "assistant"]
     content: str | list[Block]
+    provider: NotRequired[str]
+    model: NotRequired[str]
+    effort: NotRequired[str]
 
 
 class ToolSpec(TypedDict):

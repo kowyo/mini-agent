@@ -54,7 +54,15 @@ def agent_loop(messages: list[Message]) -> None:
                 _discard_incomplete_turn(messages, turn_start)
                 return
 
-            messages.append({"role": "assistant", "content": turn.content})
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": turn.content,
+                    "provider": provider.name,
+                    "model": model,
+                    "effort": effort,
+                }
+            )
             token_tracker.update(turn.usage)
 
             results: list[Block] = []
