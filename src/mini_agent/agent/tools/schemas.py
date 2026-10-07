@@ -1,8 +1,7 @@
-from anthropic.types import ToolParam
-
+from ..providers.types import ToolSpec
 from .file import MAX_BYTES, MAX_LINES
 
-TOOLS: list[ToolParam] = [
+TOOLS: list[ToolSpec] = [
     {
         "name": "bash",
         "description": "Execute bash commands.",

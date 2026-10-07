@@ -1,29 +1,28 @@
-from anthropic.types import (
-    MessageParam,
-    ToolResultBlockParam,
-    ToolUseBlock,
-)
 from rich.console import Console
 from rich.status import Status
 
 from ..cli.display import display_stream_events, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
-from ..cli.token import Usage, token_tracker
-from ..config import client, config
+from ..cli.token import token_tracker
+from ..config import config
+from .providers import get_provider
+from .providers.types import Block, Message, ToolResultBlock
 from .system_prompt import SYSTEM
 from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError, ToolError
 
 console = Console()
 
 
-def _discard_incomplete_turn(messages: list[MessageParam], turn_start: int) -> None:
+def _discard_incomplete_turn(messages: list[Message], turn_start: int) -> None:
     del messages[turn_start:]
 
 
-def agent_loop(messages: list[MessageParam]) -> None:
+def agent_loop(messages: list[Message]) -> None:
     turn_start = max(len(messages) - 1, 0)
+    provider = get_provider()
     model = config.get_model()
     max_tokens = get_max_output_tokens(model) or 32768
+    effort = config.get_reasoning_effort()
 
     working_status: Status | None = None
     thinking_status: Status | None = None
@@ -34,36 +33,19 @@ def agent_loop(messages: list[MessageParam]) -> None:
             thinking_status = console.status("Thinking")
             thinking_status.start()
 
-            effort = config.get_reasoning_effort()
-            if effort == "disabled":
-                thinking_param = None
-                output_config = None
-            elif effort == "adaptive":
-                thinking_param = {"type": "adaptive", "display": "summarized"}
-                output_config = None
-            else:
-                thinking_param = {"type": "adaptive", "display": "summarized"}
-                output_config = {"effort": effort}
-
             try:
-                stream_kwargs: dict = {
-                    "model": model,
-                    "max_tokens": max_tokens,
-                    "system": SYSTEM,
-                    "messages": messages,
-                    "tools": TOOLS,
-                }
-                if config.get_cache_control():
-                    stream_kwargs["cache_control"] = {"type": "ephemeral"}
-                if thinking_param is not None:
-                    stream_kwargs["thinking"] = thinking_param
-                    if output_config is not None:
-                        stream_kwargs["output_config"] = output_config
-
-                with client.messages.stream(**stream_kwargs) as stream:
+                with provider.stream(
+                    model=model,
+                    system=SYSTEM,
+                    messages=messages,
+                    tools=TOOLS,
+                    effort=effort,
+                    cache_control=config.get_cache_control(),
+                    max_tokens=max_tokens,
+                ) as stream:
                     thinking_status.stop()
                     display_stream_events(stream)
-                    response = stream.get_final_message()
+                    turn = stream.get_final_turn()
 
             except Exception as e:
                 thinking_status.stop()
@@ -72,69 +54,69 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 _discard_incomplete_turn(messages, turn_start)
                 return
 
-            messages.append({"role": "assistant", "content": response.content})
-            usage = response.usage
-            cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
-            cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
-            token_tracker.update(
-                Usage(
-                    input_tokens=usage.input_tokens,
-                    cache_creation_input_tokens=cache_create,
-                    cache_read_input_tokens=cache_read,
-                    output_tokens=usage.output_tokens,
-                )
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": turn.content,
+                    "provider": provider.name,
+                    "model": model,
+                    "effort": effort,
+                }
             )
+            token_tracker.update(turn.usage)
 
-            results: list[ToolResultBlockParam] = []
+            results: list[Block] = []
+            completed_ids: set[str] = set()
             try:
-                for block in response.content:
-                    if isinstance(block, ToolUseBlock):
-                        if working_status is None:
-                            working_status = console.status("Working")
-                            working_status.start()
-                        handler = TOOL_HANDLERS.get(block.name)
-                        print_tool_start(block.name, block.input)
+                for block in turn.content:
+                    if block["type"] != "tool_use":
+                        continue
+                    if working_status is None:
+                        working_status = console.status("Working")
+                        working_status.start()
+                    handler = TOOL_HANDLERS.get(block["name"])
+                    print_tool_start(block["name"], block["input"])
 
-                        if working_status is not None:
-                            working_status.stop()
-                            working_status = None
+                    if working_status is not None:
+                        working_status.stop()
+                        working_status = None
 
-                        interrupted = False
-                        try:
-                            output = (
-                                handler(**block.input)
-                                if handler
-                                else ToolError(f"Unknown tool: {block.name}")
-                            )
-                        except BashInterruptedError as e:
-                            output = e.partial_output
-                            interrupted = True
+                    interrupted = False
+                    try:
+                        output = (
+                            handler(**block["input"])
+                            if handler
+                            else ToolError(f"Unknown tool: {block['name']}")
+                        )
+                    except BashInterruptedError as e:
+                        output = e.partial_output
+                        interrupted = True
 
-                        is_error = isinstance(output, ToolError)
-                        if isinstance(output, ToolError):
-                            output = output.content
-                        result: ToolResultBlockParam = {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": output,
-                        }
-                        if is_error:
-                            result["is_error"] = True
-                        results.append(result)
-                        print_tool_result(block.name, block.input, output)
-                        if interrupted:
-                            raise KeyboardInterrupt
+                    is_error = isinstance(output, ToolError)
+                    if isinstance(output, ToolError):
+                        output = output.content
+                    result: ToolResultBlock = {
+                        "type": "tool_result",
+                        "tool_use_id": block["id"],
+                        "content": output,
+                    }
+                    if is_error:
+                        result["is_error"] = True
+                    results.append(result)
+                    completed_ids.add(block["id"])
+                    print_tool_result(block["name"], block["input"], output)
+                    if interrupted:
+                        raise KeyboardInterrupt
             except KeyboardInterrupt:
-                completed_ids = {r["tool_use_id"] for r in results}
-                for remaining in response.content:
+                for remaining in turn.content:
                     if (
-                        isinstance(remaining, ToolUseBlock)
-                        and remaining.id not in completed_ids
+                        remaining["type"] == "tool_use"
+                        and remaining["id"] not in completed_ids
                     ):
                         results.append(
                             {
                                 "type": "tool_result",
-                                "tool_use_id": remaining.id,
+                                "tool_use_id": remaining["id"],
                                 "content": "Command aborted",
                             }
                         )
@@ -147,7 +129,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
             if results:
                 messages.append({"role": "user", "content": results})
-            if response.stop_reason != "tool_use":
+            if turn.stop_reason != "tool_use":
                 return
 
     except KeyboardInterrupt:

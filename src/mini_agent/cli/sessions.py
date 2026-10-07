@@ -6,10 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from anthropic.types import MessageParam
-from pydantic import BaseModel
-
-from ..config import SESSION_DIR, config
+from ..agent.providers.types import Message
+from ..config import SESSION_DIR
 from .clipboard import extract_text_content
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
@@ -21,25 +19,28 @@ class StoredSession:
     session_id: str
     title: str
     updated_at: str
-    history: list[MessageParam]
+    history: list[Message]
     round_usages: list[Usage]
 
 
 def serialize_content(content: str | Iterable[object]) -> list[object]:
     if isinstance(content, str):
         return [{"type": "text", "text": content}]
-    serialized_blocks: list[object] = []
-    for block in content:
-        if isinstance(block, BaseModel):
-            dumped = block.model_dump(mode="json", exclude_none=True)
-            dumped.pop("parsed_output", None)
-            serialized_blocks.append(dumped)
-        else:
-            serialized_blocks.append(block)
-    return serialized_blocks
+    return list(content)
 
 
-def session_title(history: list[MessageParam]) -> str:
+def deserialize_message(message: dict[str, Any]) -> Message:
+    entry: Message = {"role": message["role"], "content": message["content"]}
+    if "provider" in message:
+        entry["provider"] = message["provider"]
+    if "model" in message:
+        entry["model"] = message["model"]
+    if "effort" in message:
+        entry["effort"] = message["effort"]
+    return entry
+
+
+def session_title(history: list[Message]) -> str:
     for message in history:
         if message["role"] == "user":
             text = extract_text_content(message["content"])
@@ -85,7 +86,7 @@ class SessionManager:
     def save(
         self,
         session_id: str,
-        history: list[MessageParam],
+        history: list[Message],
         round_usages: list[Usage] | None = None,
         cwd: str | None = None,
     ) -> None:
@@ -127,7 +128,12 @@ class SessionManager:
                 "timestamp": int(now.timestamp() * 1000),
             }
             if message["role"] == "assistant":
-                msg_body["model"] = config.get_model()
+                if "provider" in message:
+                    msg_body["provider"] = message["provider"]
+                if "model" in message:
+                    msg_body["model"] = message["model"]
+                if "effort" in message:
+                    msg_body["effort"] = message["effort"]
                 if round_usages and saved_asst < len(round_usages):
                     u = round_usages[saved_asst]
                     msg_body["usage"] = {
@@ -166,13 +172,13 @@ class SessionManager:
             "\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n"
         )
 
-    def load(self, session_id: str) -> tuple[list[MessageParam], list[Usage]]:
+    def load(self, session_id: str) -> tuple[list[Message], list[Usage]]:
         path = self.find_file(session_id)
         if path is None:
             return [], []
 
         lines = [line for line in path.read_text().splitlines() if line.strip()]
-        history: list[MessageParam] = []
+        history: list[Message] = []
         round_usages: list[Usage] = []
         for line in lines[1:]:
             try:
@@ -180,7 +186,7 @@ class SessionManager:
             except json.JSONDecodeError:
                 continue
             msg = entry["message"]
-            history.append({"role": msg["role"], "content": msg["content"]})
+            history.append(deserialize_message(msg))
             if msg["role"] == "assistant":
                 u = msg.get("usage")
                 if u:
@@ -217,12 +223,12 @@ class SessionManager:
                         continue
                     entry_lines = lines[1:]
                     max_ts = 0
-                    history: list[MessageParam] = []
+                    history: list[Message] = []
                     round_usages: list[Usage] = []
                     for line in entry_lines:
                         entry = json.loads(line)
                         msg = entry["message"]
-                        history.append({"role": msg["role"], "content": msg["content"]})
+                        history.append(deserialize_message(msg))
                         ts = msg.get("timestamp", 0)
                         if ts > max_ts:
                             max_ts = ts
@@ -307,8 +313,8 @@ def select_session(
 def prompt_resume(
     manager: SessionManager,
     current_session_id: str,
-    history: list[MessageParam],
-) -> tuple[str, list[MessageParam], bool]:
+    history: list[Message],
+) -> tuple[str, list[Message], bool]:
     clear_terminal()
     sessions = manager.list_sessions()
     if not sessions:

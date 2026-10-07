@@ -2,12 +2,10 @@ import gzip
 import json
 import time
 import urllib.request
-from urllib.parse import urlparse
 
+from ..agent.providers import get_provider
 from ..config import (
     CONFIG_DIR,
-    REASONING_EFFORT_LEVELS,
-    client,
     config,
 )
 from .display import clear_prompt_line
@@ -109,43 +107,8 @@ def get_max_output_tokens(model_id: str) -> int | None:
     return _model_info.get_best_limit(model_id, "output")
 
 
-def _fetch_models_sdk() -> list[str]:
-    model_ids: list[str] = []
-    page = client.models.list(limit=100)
-    model_ids.extend(m.id for m in page.data)
-    while page.has_more:
-        page = page.get_next_page()
-        model_ids.extend(m.id for m in page.data)
-    return sorted(model_ids)
-
-
-def _fetch_models_manual() -> list[str]:
-    parsed = urlparse(str(client.base_url))
-    base_url = f"{parsed.scheme}://{parsed.netloc}"
-    url = f"{base_url}/v1/models"
-
-    headers: dict[str, str] = {"anthropic-version": "2023-06-01"}
-    if client.auth_token:
-        headers["Authorization"] = f"Bearer {client.auth_token}"
-    elif client.api_key:
-        headers["x-api-key"] = client.api_key
-
-    req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read())
-
-    return sorted(m["id"] for m in data.get("data", []))
-
-
 def fetch_models() -> list[str]:
-    try:
-        return _fetch_models_sdk()
-    except Exception:
-        pass
-    try:
-        return _fetch_models_manual()
-    except Exception:
-        return []
+    return get_provider().list_models()
 
 
 def format_model(model_id: str) -> str:
@@ -189,14 +152,11 @@ def select_model(model_ids: list[str]) -> str | None:
 
 
 def select_reasoning_effort() -> str | None:
+    levels = get_provider().effort_levels
     current = config.get_reasoning_effort()
-    selected_index = (
-        REASONING_EFFORT_LEVELS.index(current)
-        if current in REASONING_EFFORT_LEVELS
-        else 0
-    )
+    selected_index = levels.index(current) if current in levels else 0
     return select_from_list(
-        REASONING_EFFORT_LEVELS,
+        levels,
         "Select reasoning effort",
         selected_index=selected_index,
         clear_after=True,

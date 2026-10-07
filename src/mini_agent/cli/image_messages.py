@@ -1,22 +1,21 @@
-from anthropic.types import ImageBlockParam, MessageParam, TextBlockParam
-
+from ..agent.providers.types import Block, ImageBlock, Message, TextBlock
 from .clipboard import format_image_indicator
 
 
-def count_images_in_history(history: list[MessageParam]) -> int:
+def count_images_in_history(history: list[Message]) -> int:
     image_count = 0
     for message in history:
         if message["role"] != "user" or not isinstance(message["content"], list):
             continue
         for block in message["content"]:
-            if isinstance(block, dict) and block.get("type") == "image":
+            if block["type"] == "image":
                 image_count += 1
     return image_count
 
 
 def prune_attached_images(
     query: str,
-    attached_images: list[tuple[str, ImageBlockParam]],
+    attached_images: list[tuple[str, ImageBlock]],
 ) -> None:
     attached_images[:] = [
         (path, image_block)
@@ -27,19 +26,19 @@ def prune_attached_images(
 
 def build_user_content(
     query: str,
-    attached_images: list[tuple[str, ImageBlockParam]],
+    attached_images: list[tuple[str, ImageBlock]],
     sent_image_count: list[int],
-) -> str | list[ImageBlockParam | TextBlockParam]:
+) -> str | list[Block]:
     if attached_images:
         prune_attached_images(query, attached_images)
 
     if not attached_images:
         return query
 
-    content: list[ImageBlockParam | TextBlockParam] = []
+    content: list[Block] = []
     content.extend(image_block for _, image_block in attached_images)
     if query.strip():
-        text_block: TextBlockParam = {"type": "text", "text": query}
+        text_block: TextBlock = {"type": "text", "text": query}
         content.append(text_block)
 
     sent_image_count[0] += len(attached_images)

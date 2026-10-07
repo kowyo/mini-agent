@@ -1,10 +1,8 @@
 import importlib.metadata
-import os
 import tomllib
 from pathlib import Path
 
 import tomli_w
-from anthropic import Anthropic
 from dotenv import load_dotenv
 
 DISTRIBUTION_NAME = "mini-agent"
@@ -12,16 +10,9 @@ DISTRIBUTION_VERSION = importlib.metadata.version(DISTRIBUTION_NAME)
 
 DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
 DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_PROVIDER = "anthropic-messages"
+PROVIDERS = ["anthropic-messages", "openai-responses"]
 DEFAULT_REASONING_EFFORT = "high"
-REASONING_EFFORT_LEVELS = [
-    "disabled",
-    "adaptive",
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-]
 CONFIG_DIR = DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 CONFIG_FILE = CONFIG_DIR / "config.toml"
@@ -40,16 +31,12 @@ SKILLS_DIRS = [
 
 load_dotenv(CONFIG_DIR / ".env")
 
-if os.getenv("ANTHROPIC_API_KEY"):
-    os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
-
-client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
-
 
 class Config:
     def __init__(self) -> None:
         self._model: str | None = None
         self._session_model_override: str | None = None
+        self._provider: str | None = None
         self._reasoning_effort: str | None = None
         self._session_reasoning_effort_override: str | None = None
         self._cache_control: bool | None = None
@@ -77,6 +64,12 @@ class Config:
         cfg["model_id"] = model_id
         CONFIG_FILE.write_text(tomli_w.dumps(cfg))
         self._model = model_id
+
+    def get_provider(self) -> str:
+        if self._provider is None:
+            cfg = self._load_config()
+            self._provider = str(cfg.get("provider", DEFAULT_PROVIDER))
+        return self._provider
 
     def set_session_reasoning_effort(self, effort: str) -> None:
         self._session_reasoning_effort_override = effort
