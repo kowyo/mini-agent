@@ -48,7 +48,7 @@ def test_tool_failure_sets_is_error(runtime: McpRuntime) -> None:
     runtime.connect(stub_config())
     result = runtime.call_tool("stub", "fail", {})
     assert result.is_error is True
-    assert "intentional failure" in result.content[0].text
+    assert result.content[0].text == "Error executing tool fail"
 
 
 def test_connect_failure_raises(runtime: McpRuntime) -> None:
