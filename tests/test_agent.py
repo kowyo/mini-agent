@@ -1,10 +1,10 @@
 from collections.abc import Iterator
-from types import SimpleNamespace
 
 import pytest
-from anthropic.types import MessageParam, ToolUseBlock
 
 from mini_agent.agent import agent
+from mini_agent.agent.providers.types import AssistantTurn, Message
+from mini_agent.cli.token import Usage
 
 
 class StatusStub:
@@ -15,21 +15,21 @@ class StatusStub:
         pass
 
 
-class ResponseStreamStub:
-    def __init__(self, response: SimpleNamespace) -> None:
-        self.response = response
+class ProviderStreamStub:
+    def __init__(self, turn: AssistantTurn) -> None:
+        self._turn = turn
 
-    def __enter__(self) -> ResponseStreamStub:
+    def __enter__(self) -> ProviderStreamStub:
         return self
 
     def __exit__(self, *args: object) -> None:
-        pass
+        return None
 
     def __iter__(self) -> Iterator[object]:
         return iter(())
 
-    def get_final_message(self) -> SimpleNamespace:
-        return self.response
+    def get_final_turn(self) -> AssistantTurn:
+        return self._turn
 
 
 class ErrorStreamStub:
@@ -37,44 +37,63 @@ class ErrorStreamStub:
         return self
 
     def __exit__(self, *args: object) -> None:
-        pass
+        return None
 
     def __iter__(self) -> Iterator[object]:
         raise RuntimeError("The response stream failed")
 
+    def get_final_turn(self) -> AssistantTurn:
+        raise AssertionError("unreachable")
 
-def test_tool_error_sets_is_error_on_the_tool_result(
+
+class ProviderStub:
+    def __init__(self, streams: list[object]) -> None:
+        self._streams = iter(streams)
+
+    def stream(self, **kwargs: object) -> object:
+        return next(self._streams)
+
+    def list_models(self) -> list[str]:
+        return []
+
+
+def _usage() -> Usage:
+    return Usage(
+        input_tokens=1,
+        cache_creation_input_tokens=0,
+        cache_read_input_tokens=0,
+        output_tokens=1,
+    )
+
+
+def _install(
     monkeypatch: pytest.MonkeyPatch,
+    provider: ProviderStub,
 ) -> None:
-    tool_use = ToolUseBlock(type="tool_use", id="tool-1", name="failing", input={})
-    first = SimpleNamespace(
-        content=[tool_use],
-        stop_reason="tool_use",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
-    )
-    second = SimpleNamespace(
-        content=[],
-        stop_reason="end_turn",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
-    )
-    streams = iter([ResponseStreamStub(first), ResponseStreamStub(second)])
-
-    monkeypatch.setattr(
-        agent,
-        "client",
-        SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
-        ),
-    )
+    monkeypatch.setattr(agent, "get_provider", lambda: provider)
+    monkeypatch.setattr(agent, "get_max_output_tokens", lambda model: None)
     monkeypatch.setattr(agent.console, "status", lambda message: StatusStub())
     monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
     monkeypatch.setattr(
         agent, "print_tool_result", lambda name, input_data, output: None
     )
+
+
+def test_tool_error_sets_is_error_on_the_tool_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = AssistantTurn(
+        content=[{"type": "tool_use", "id": "tool-1", "name": "failing", "input": {}}],
+        stop_reason="tool_use",
+        usage=_usage(),
+    )
+    second = AssistantTurn(content=[], stop_reason="end_turn", usage=_usage())
+    provider = ProviderStub([ProviderStreamStub(first), ProviderStreamStub(second)])
+    _install(monkeypatch, provider)
     monkeypatch.setitem(
         agent.TOOL_HANDLERS, "failing", lambda **kw: agent.ToolError("it broke")
     )
-    messages: list[MessageParam] = [{"role": "user", "content": "Question"}]
+    messages: list[Message] = [{"role": "user", "content": "Question"}]
     previous_usages = list(agent.token_tracker.round_usages)
 
     try:
@@ -97,32 +116,15 @@ def test_tool_error_sets_is_error_on_the_tool_result(
 def test_unknown_tool_is_reported_as_an_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    tool_use = ToolUseBlock(type="tool_use", id="tool-1", name="missing", input={})
-    first = SimpleNamespace(
-        content=[tool_use],
+    first = AssistantTurn(
+        content=[{"type": "tool_use", "id": "tool-1", "name": "missing", "input": {}}],
         stop_reason="tool_use",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+        usage=_usage(),
     )
-    second = SimpleNamespace(
-        content=[],
-        stop_reason="end_turn",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
-    )
-    streams = iter([ResponseStreamStub(first), ResponseStreamStub(second)])
-
-    monkeypatch.setattr(
-        agent,
-        "client",
-        SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
-        ),
-    )
-    monkeypatch.setattr(agent.console, "status", lambda message: StatusStub())
-    monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
-    monkeypatch.setattr(
-        agent, "print_tool_result", lambda name, input_data, output: None
-    )
-    messages: list[MessageParam] = [{"role": "user", "content": "Question"}]
+    second = AssistantTurn(content=[], stop_reason="end_turn", usage=_usage())
+    provider = ProviderStub([ProviderStreamStub(first), ProviderStreamStub(second)])
+    _install(monkeypatch, provider)
+    messages: list[Message] = [{"role": "user", "content": "Question"}]
     previous_usages = list(agent.token_tracker.round_usages)
 
     try:
@@ -145,33 +147,20 @@ def test_unknown_tool_is_reported_as_an_error(
 def test_stream_error_is_reported_and_discards_the_entire_incomplete_turn(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    tool_use = ToolUseBlock(type="tool_use", id="tool-1", name="unknown", input={})
-    response = SimpleNamespace(
-        content=[tool_use],
+    turn = AssistantTurn(
+        content=[{"type": "tool_use", "id": "tool-1", "name": "unknown", "input": {}}],
         stop_reason="tool_use",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+        usage=_usage(),
     )
-    streams = iter([ResponseStreamStub(response), ErrorStreamStub()])
+    provider = ProviderStub([ProviderStreamStub(turn), ErrorStreamStub()])
+    _install(monkeypatch, provider)
     errors: list[tuple[object, dict[str, object]]] = []
-
-    monkeypatch.setattr(
-        agent,
-        "client",
-        SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
-        ),
-    )
-    monkeypatch.setattr(agent.console, "status", lambda message: StatusStub())
     monkeypatch.setattr(
         agent.console,
         "print",
         lambda message=None, **kwargs: errors.append((message, kwargs)),
     )
-    monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
-    monkeypatch.setattr(
-        agent, "print_tool_result", lambda name, input_data, output: None
-    )
-    previous_messages: list[MessageParam] = [
+    previous_messages: list[Message] = [
         {"role": "user", "content": "Previous question"},
         {"role": "assistant", "content": "Previous answer"},
     ]

@@ -1,10 +1,10 @@
 import argparse
 
-from anthropic.types import MessageParam
 from rich.console import Console
 
 from ..agent.agent import agent_loop
 from ..agent.mcp import setup_mcp, shutdown_mcp
+from ..agent.providers.types import Message
 from ..config import (
     DISTRIBUTION_NAME,
     DISTRIBUTION_VERSION,
@@ -44,7 +44,7 @@ session_manager = SessionManager()
 
 
 def _run_non_interactive(prompt: str) -> None:
-    history: list[MessageParam] = [{"role": "user", "content": prompt}]
+    history: list[Message] = [{"role": "user", "content": prompt}]
     session_id = session_manager.new_id()
     history_len = len(history)
     agent_loop(history)
@@ -55,7 +55,7 @@ def _run_non_interactive(prompt: str) -> None:
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     print_welcome_banner()
     print_mcp_hint()
-    history: list[MessageParam] = []
+    history: list[Message] = []
     current_session_id = session_manager.new_id()
     session, pre_run, attached_images, sent_image_count = build_session(prompt)
 

@@ -1,10 +1,8 @@
 import importlib.metadata
-import os
 import tomllib
 from pathlib import Path
 
 import tomli_w
-from anthropic import Anthropic
 from dotenv import load_dotenv
 
 DISTRIBUTION_NAME = "mini-agent"
@@ -41,11 +39,6 @@ SKILLS_DIRS = [
 ]
 
 load_dotenv(CONFIG_DIR / ".env")
-
-if os.getenv("ANTHROPIC_API_KEY"):
-    os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
-
-client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
 
 
 class Config:

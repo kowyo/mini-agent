@@ -4,13 +4,13 @@ from html import escape
 from pathlib import Path
 from typing import Any, cast
 
-from anthropic.types import MessageParam
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import print_formatted_text
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
 
+from ...agent.providers.types import Message
 from ...config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION, config
 from ..clipboard import extract_text_content
 from .box import print_box
@@ -49,7 +49,7 @@ def print_welcome_banner() -> None:
     print_box(console, lines)
 
 
-def print_session_history(history: list[MessageParam]) -> None:
+def print_session_history(history: list[Message]) -> None:
     clear_terminal()
     print_welcome_banner()
 

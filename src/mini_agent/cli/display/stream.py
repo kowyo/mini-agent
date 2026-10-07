@@ -1,54 +1,55 @@
 import sys
+from collections.abc import Iterable
 
-import anthropic.lib.streaming
-from anthropic.types import TextDelta, ThinkingDelta
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 
+from ...agent.providers.types import (
+    BlockStart,
+    BlockStop,
+    StreamEvent,
+    TextDelta,
+    ThinkingDelta,
+)
 from .theme import THINKING_STYLE_RICH
 
 console = Console()
 
 
-def display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None:
-    """Drive live Markdown display from stream events.
-
-    The SDK accumulates events into the final ``Message`` in parallel,
-    so this function only handles visual output.
-    """
+def display_stream_events(stream: Iterable[StreamEvent]) -> None:
+    """Render live Markdown from provider-neutral stream events."""
 
     live: Live | None = None
     text = ""
 
     try:
         for event in stream:
-            if event.type == "content_block_start":
+            if isinstance(event, BlockStart):
                 text = ""
-
-            elif event.type == "content_block_delta":
-                delta = event.delta
-                if isinstance(delta, TextDelta):
-                    chunk, style = delta.text, None
-                elif isinstance(delta, ThinkingDelta):
-                    chunk, style = delta.thinking, THINKING_STYLE_RICH
-                else:
-                    continue
-                text += chunk
-                if live is None:
-                    live = Live(
-                        Markdown(""),
-                        console=console,
-                        refresh_per_second=15,
-                    )
-                    live.start()
-                live.update(Markdown(text, style=style or ""))
-
-            elif event.type == "content_block_stop" and live is not None:
-                live.stop()
-                live = None
-                console.print()
-                sys.stdout.flush()
+                continue
+            if isinstance(event, TextDelta):
+                chunk, style = event.text, None
+            elif isinstance(event, ThinkingDelta):
+                chunk, style = event.text, THINKING_STYLE_RICH
+            elif isinstance(event, BlockStop):
+                if live is not None:
+                    live.stop()
+                    live = None
+                    console.print()
+                    sys.stdout.flush()
+                continue
+            else:
+                continue
+            text += chunk
+            if live is None:
+                live = Live(
+                    Markdown(""),
+                    console=console,
+                    refresh_per_second=15,
+                )
+                live.start()
+            live.update(Markdown(text, style=style or ""))
     finally:
         if live is not None:
             live.stop()

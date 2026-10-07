@@ -8,8 +8,9 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, cast
 
-from anthropic.types import ImageBlockParam, MessageParam
 from PIL import Image, ImageGrab
+
+from ..agent.providers.types import ImageBlock, Message
 
 
 def format_image_indicator(path: str) -> str:
@@ -81,7 +82,7 @@ def image_to_base64(image: Image.Image, format: str = "PNG") -> str:
     return base64.b64encode(buffer.read()).decode("utf-8")
 
 
-def create_image_content(image: Image.Image) -> ImageBlockParam:
+def create_image_content(image: Image.Image) -> ImageBlock:
     base64_data = image_to_base64(image, "PNG")
 
     return {
@@ -137,7 +138,7 @@ def copy_to_clipboard(text: str) -> bool:
         return False
 
 
-def copy_last_assistant_text(history: Iterable[MessageParam]) -> None:
+def copy_last_assistant_text(history: Iterable[Message]) -> None:
     for message in reversed(list(history)):
         if message["role"] == "assistant":
             text = extract_text_content(message["content"])
