@@ -214,3 +214,19 @@ def test_message_params_drop_encrypted_content_but_keep_signature() -> None:
             "content": [{"type": "thinking", "thinking": "t", "signature": "sig"}],
         }
     ]
+
+
+def test_message_params_drop_thinking_without_a_signature() -> None:
+    messages: list[NeutralMessage] = [
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "thinking", "thinking": "foreign", "encrypted_content": "enc"},
+                {"type": "text", "text": "answer"},
+            ],
+        }
+    ]
+
+    assert anthropic._to_message_params(messages) == [
+        {"role": "assistant", "content": [{"type": "text", "text": "answer"}]}
+    ]

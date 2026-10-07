@@ -102,13 +102,14 @@ def _to_message_params(messages: list[NeutralMessage]) -> list[NeutralMessage]:
         blocks: list[Block] = []
         for block in content:
             if block["type"] == "thinking":
+                signature = block.get("signature")
+                if not signature:
+                    continue
                 thinking: NeutralThinkingBlock = {
                     "type": "thinking",
                     "thinking": block["thinking"],
+                    "signature": signature,
                 }
-                signature = block.get("signature")
-                if signature:
-                    thinking["signature"] = signature
                 blocks.append(thinking)
             else:
                 blocks.append(block)
