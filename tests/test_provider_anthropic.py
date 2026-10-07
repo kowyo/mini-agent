@@ -31,6 +31,9 @@ from mini_agent.agent.providers.types import (
     TextDelta,
     ThinkingDelta,
 )
+from mini_agent.agent.providers.types import (
+    Message as NeutralMessage,
+)
 
 
 class _Stream:
@@ -188,3 +191,26 @@ def test_final_turn_without_tool_use_ends_the_turn() -> None:
 
     assert turn.stop_reason == "end_turn"
     assert turn.tool_calls == []
+
+
+def test_message_params_drop_encrypted_content_but_keep_signature() -> None:
+    messages: list[NeutralMessage] = [
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "thinking",
+                    "thinking": "t",
+                    "signature": "sig",
+                    "encrypted_content": "enc",
+                }
+            ],
+        }
+    ]
+
+    assert anthropic._to_message_params(messages) == [
+        {
+            "role": "assistant",
+            "content": [{"type": "thinking", "thinking": "t", "signature": "sig"}],
+        }
+    ]

@@ -324,6 +324,66 @@ def test_response_stream_events_are_mapped_to_neutral_events() -> None:
     ]
 
 
+def test_output_reasoning_carries_encrypted_content() -> None:
+    output = [
+        ResponseReasoningItem(
+            id="r1",
+            type="reasoning",
+            summary=[ReasoningSummary(type="summary_text", text="thought")],
+            encrypted_content="enc",
+        )
+    ]
+
+    assert openai_responses._blocks_from_output(output) == [
+        {"type": "thinking", "thinking": "thought", "encrypted_content": "enc"}
+    ]
+
+
+def test_encrypted_reasoning_is_replayed_as_an_input_item() -> None:
+    messages: list[Message] = [
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "thinking", "thinking": "thought", "encrypted_content": "enc"},
+                {
+                    "type": "tool_use",
+                    "id": "call_1",
+                    "name": "bash",
+                    "input": {"command": "ls"},
+                },
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "tool_result", "tool_use_id": "call_1", "content": "ok"}
+            ],
+        },
+    ]
+
+    assert openai_responses._to_input_items(messages) == [
+        {"type": "reasoning", "encrypted_content": "enc"},
+        {
+            "type": "function_call",
+            "call_id": "call_1",
+            "name": "bash",
+            "arguments": json.dumps({"command": "ls"}),
+        },
+        {"type": "function_call_output", "call_id": "call_1", "output": "ok"},
+    ]
+
+
+def test_anthropic_signature_thinking_is_not_replayed_to_responses() -> None:
+    messages: list[Message] = [
+        {
+            "role": "assistant",
+            "content": [{"type": "thinking", "thinking": "t", "signature": "sig"}],
+        }
+    ]
+
+    assert openai_responses._to_input_items(messages) == []
+
+
 def test_reasoning_text_events_become_thinking() -> None:
     events: list[object] = [
         ResponseReasoningTextDeltaEvent(

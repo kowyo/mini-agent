@@ -13,6 +13,7 @@ class ThinkingBlock(TypedDict):
     type: Literal["thinking"]
     thinking: str
     signature: NotRequired[str]
+    encrypted_content: NotRequired[str]
 
 
 class RedactedThinkingBlock(TypedDict):

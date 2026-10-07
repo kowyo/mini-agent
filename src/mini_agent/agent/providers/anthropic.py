@@ -92,6 +92,30 @@ def _block_to_neutral(block: ContentBlock) -> Block | None:
     return None
 
 
+def _to_message_params(messages: list[NeutralMessage]) -> list[NeutralMessage]:
+    cleaned: list[NeutralMessage] = []
+    for message in messages:
+        content = message["content"]
+        if isinstance(content, str):
+            cleaned.append(message)
+            continue
+        blocks: list[Block] = []
+        for block in content:
+            if block["type"] == "thinking":
+                thinking: NeutralThinkingBlock = {
+                    "type": "thinking",
+                    "thinking": block["thinking"],
+                }
+                signature = block.get("signature")
+                if signature:
+                    thinking["signature"] = signature
+                blocks.append(thinking)
+            else:
+                blocks.append(block)
+        cleaned.append({"role": message["role"], "content": blocks})
+    return cleaned
+
+
 def _usage_from_message(message: Message) -> Usage:
     usage = message.usage
     return Usage(
@@ -190,7 +214,7 @@ class AnthropicMessagesProvider:
             "model": model,
             "max_tokens": max_tokens,
             "system": system,
-            "messages": messages,
+            "messages": _to_message_params(messages),
             "tools": tools,
         }
         if cache_control:

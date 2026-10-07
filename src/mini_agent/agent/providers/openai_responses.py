@@ -35,6 +35,7 @@ from .types import (
     StreamEvent,
     TextBlock,
     TextDelta,
+    ThinkingBlock,
     ThinkingDelta,
     ToolSpec,
 )
@@ -131,6 +132,13 @@ def _to_input_items(messages: list[Message]) -> list[dict[str, Any]]:
                         "arguments": json.dumps(block["input"]),
                     }
                 )
+            elif block["type"] == "thinking":
+                encrypted = block.get("encrypted_content")
+                if encrypted:
+                    if parts:
+                        items.append({"role": role, "content": parts})
+                        parts = []
+                    items.append({"type": "reasoning", "encrypted_content": encrypted})
             elif block["type"] == "tool_result":
                 if parts:
                     items.append({"role": role, "content": parts})
@@ -173,12 +181,15 @@ def _blocks_from_output(items: Iterable[object]) -> list[Block]:
                 }
             )
         elif isinstance(item, ResponseReasoningItem):
-            for summary in item.summary:
-                if summary.text:
-                    blocks.append({"type": "thinking", "thinking": summary.text})
-            for part in item.content or []:
-                if part.text:
-                    blocks.append({"type": "thinking", "thinking": part.text})
+            text = "\n".join(
+                [summary.text for summary in item.summary if summary.text]
+                + [part.text for part in item.content or [] if part.text]
+            )
+            if text or item.encrypted_content:
+                block: ThinkingBlock = {"type": "thinking", "thinking": text}
+                if item.encrypted_content:
+                    block["encrypted_content"] = item.encrypted_content
+                blocks.append(block)
     return blocks
 
 
