@@ -24,9 +24,12 @@ Supports any Anthropic-compatible endpoint.
 | `OPENAI_API_KEY` | Bearer credential |
 | `OPENAI_BASE_URL` | Override the API base URL |
 
-Requests always set `store=false` and send the full conversation history. The
-Anthropic-only settings — `reasoning_effort`, `cache_control`, and the derived
-max-output token limit — do not apply to this provider.
+Requests always set `store=false` and send the full conversation history.
+`reasoning_effort` maps to the Responses `reasoning.effort` field: `disabled`
+becomes `none`, `low`/`medium`/`high`/`xhigh`/`max` map by name, and `adaptive`
+leaves the effort to the model. A detailed reasoning summary is requested so
+thinking is shown. `cache_control` and the derived max-output token limit do
+not apply to this provider.
 
 ## Config File
 

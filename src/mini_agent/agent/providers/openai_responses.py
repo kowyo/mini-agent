@@ -50,6 +50,25 @@ def _get_client() -> OpenAI:
     return _client
 
 
+_EFFORT_TO_REASONING = {
+    "disabled": "none",
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "xhigh": "xhigh",
+    "max": "max",
+}
+
+
+def _reasoning_params(effort: str) -> dict[str, Any]:
+    if effort == "disabled":
+        return {"effort": "none"}
+    mapped = _EFFORT_TO_REASONING.get(effort)
+    if mapped is None:
+        return {"summary": "detailed"}
+    return {"effort": mapped, "summary": "detailed"}
+
+
 def _to_tools(tools: list[ToolSpec]) -> list[dict[str, Any]]:
     return [
         {
@@ -248,6 +267,7 @@ class OpenAIResponsesProvider:
             "instructions": system,
             "input": _to_input_items(messages),
             "store": False,
+            "reasoning": _reasoning_params(effort),
         }
         if tools:
             kwargs["tools"] = _to_tools(tools)

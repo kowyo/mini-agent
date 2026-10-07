@@ -67,6 +67,19 @@ def _wrap(response: object) -> openai_responses._OpenAIStream:
     return openai_responses._OpenAIStream(manager)
 
 
+def test_reasoning_params_map_effort_and_request_a_detailed_summary() -> None:
+    assert openai_responses._reasoning_params("disabled") == {"effort": "none"}
+    assert openai_responses._reasoning_params("low") == {
+        "effort": "low",
+        "summary": "detailed",
+    }
+    assert openai_responses._reasoning_params("max") == {
+        "effort": "max",
+        "summary": "detailed",
+    }
+    assert openai_responses._reasoning_params("adaptive") == {"summary": "detailed"}
+
+
 def test_tools_are_serialized_as_responses_functions() -> None:
     tools: list[ToolSpec] = [
         {
