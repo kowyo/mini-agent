@@ -1,12 +1,9 @@
 import os
 import subprocess
-from html import escape
 from pathlib import Path
 from typing import Any, cast
 
 from anthropic.types import MessageParam
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.shortcuts import print_formatted_text
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
@@ -16,8 +13,8 @@ from ..clipboard import extract_text_content
 from .box import print_box
 from .diff import format_edit_diff
 from .theme import (
+    ACCENT_COLOR,
     LIGHT_HINT_STYLE_RICH,
-    PROMPT_TOOLKIT_ACCENT_COLOR,
     THINKING_STYLE_RICH,
 )
 
@@ -89,10 +86,8 @@ def print_session_history(history: list[MessageParam]) -> None:
             text = extract_text_content(content)
             if text:
                 lines = text.splitlines()
-                print_formatted_text(
-                    HTML(
-                        f'<style color="{PROMPT_TOOLKIT_ACCENT_COLOR}">&gt; </style>{escape(lines[0])}'
-                    )
+                console.print(
+                    Text.assemble(("> ", ACCENT_COLOR), lines[0]), highlight=False
                 )
                 for line in lines[1:]:
                     print(line)
