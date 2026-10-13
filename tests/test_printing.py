@@ -35,6 +35,20 @@ def test_toggled_tool_output_is_printed_in_full(
     assert "ctrl+o to expand" not in printed
 
 
+def test_toggled_tool_output_is_capped_at_expanded_line_limit(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = "\n".join(f"line {i}" for i in range(1, 151))
+
+    printing.toggle_full_tool_output()
+    printing.print_tool_result("mcp__server__tool", {}, output)
+
+    printed = capsys.readouterr().out
+    assert "line 100\n" in printed
+    assert "line 101" not in printed
+    assert "… +50 lines" in printed
+
+
 def test_session_history_redraws_live_sdk_blocks(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
