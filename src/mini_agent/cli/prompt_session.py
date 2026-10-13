@@ -1,8 +1,8 @@
 from collections.abc import Callable
 
-from anthropic.types import ImageBlockParam
+from anthropic.types import ImageBlockParam, MessageParam
 from prompt_toolkit import PromptSession
-from prompt_toolkit.application import get_app
+from prompt_toolkit.application import get_app, run_in_terminal
 from prompt_toolkit.completion import merge_completers
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
@@ -10,7 +10,13 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
 from .clipboard import format_image_indicator, get_clipboard_image
-from .display import COMPLETION_STYLE, CommandCompleter, FileCompleter
+from .display import (
+    COMPLETION_STYLE,
+    CommandCompleter,
+    FileCompleter,
+    print_session_history,
+    toggle_full_tool_output,
+)
 from .display.theme import PROMPT_TOOLKIT_ACCENT_COLOR
 from .display.toolbar import get_status_toolbar
 
@@ -30,6 +36,7 @@ def _sync_attached_images_with_buffer(
 
 
 def build_session(
+    get_history: Callable[[], list[MessageParam]],
     prompt: str | None = None,
 ) -> tuple[
     PromptSession,
@@ -76,6 +83,11 @@ def build_session(
             event.current_buffer.text,
             attached_images,
         )
+
+    @bindings.add("c-o")
+    def toggle_tool_output(event: KeyPressEvent) -> None:
+        toggle_full_tool_output()
+        run_in_terminal(lambda: print_session_history(get_history()))
 
     @bindings.add("c-v")
     def paste_clipboard_image(event: KeyPressEvent) -> None:

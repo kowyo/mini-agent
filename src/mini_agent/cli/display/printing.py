@@ -20,6 +20,16 @@ from .theme import (
 
 console = Console()
 
+TOOL_RESULT_PREVIEW_CHARS = 200
+
+_full_tool_output = False
+
+
+def toggle_full_tool_output() -> bool:
+    global _full_tool_output
+    _full_tool_output = not _full_tool_output
+    return _full_tool_output
+
 
 def clear_terminal() -> None:
     subprocess.run(
@@ -188,4 +198,9 @@ def print_tool_result(
         return
 
     output_str = output if isinstance(output, str) else str(output)
-    print(f"{output_str[:200]}\n")
+    if _full_tool_output or len(output_str) <= TOOL_RESULT_PREVIEW_CHARS:
+        print(f"{output_str}\n")
+        return
+    print(output_str[:TOOL_RESULT_PREVIEW_CHARS])
+    console.print("… (ctrl+o to expand)", style=LIGHT_HINT_STYLE_RICH)
+    print()

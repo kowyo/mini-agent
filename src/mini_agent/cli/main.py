@@ -57,7 +57,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     print_mcp_hint()
     history: list[MessageParam] = []
     current_session_id = session_manager.new_id()
-    session, pre_run, attached_images, sent_image_count = build_session(prompt)
+    session, pre_run, attached_images, sent_image_count = build_session(
+        lambda: history, prompt
+    )
 
     if session_id is not None:
         current_session_id = session_id
