@@ -1,4 +1,5 @@
 import pytest
+from anthropic.types import TextBlock, ToolUseBlock
 
 from mini_agent.cli.display import printing
 
@@ -32,3 +33,37 @@ def test_toggled_tool_output_is_printed_in_full(
     printed = capsys.readouterr().out
     assert output in printed
     assert "ctrl+o to expand" not in printed
+
+
+def test_session_history_redraws_live_sdk_blocks(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(printing, "clear_terminal", lambda: None)
+    history = [
+        {"role": "user", "content": "list pages"},
+        {
+            "role": "assistant",
+            "content": [
+                TextBlock(type="text", text="Let me list pages."),
+                ToolUseBlock(
+                    type="tool_use",
+                    id="t1",
+                    name="mcp__chrome-devtools__list_pages",
+                    input={},
+                ),
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "tool_result", "tool_use_id": "t1", "content": "## Pages"}
+            ],
+        },
+    ]
+
+    printing.print_session_history(history)
+
+    printed = capsys.readouterr().out
+    assert "Let me list pages." in printed
+    assert "> mcp__chrome-devtools__list_pages - {}" in printed
+    assert "## Pages" in printed

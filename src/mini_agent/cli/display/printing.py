@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from anthropic.types import MessageParam
+from pydantic import BaseModel
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
@@ -105,7 +106,12 @@ def print_session_history(history: list[MessageParam]) -> None:
             continue
 
         if message["role"] == "assistant" and isinstance(content, list):
-            for block in content:
+            for raw_block in content:
+                block = (
+                    raw_block.model_dump()
+                    if isinstance(raw_block, BaseModel)
+                    else raw_block
+                )
                 if not isinstance(block, dict):
                     continue
                 if block.get("type") == "text":
