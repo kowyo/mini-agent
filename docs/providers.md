@@ -1,38 +1,45 @@
 # Providers
 
-mini-agent supports any Anthropic-compatible endpoint.
+mini-agent supports any Anthropic-compatible endpoint. Define each endpoint
+as a provider in `~/.mini-agent/config.toml` and pick the active one with
+`provider`.
 
-| Variable | Auth Header | Use |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | `x-api-key` | Anthropic API or compatible providers |
-| `ANTHROPIC_AUTH_TOKEN` | `Authorization: Bearer` | Custom gateways (paired with `ANTHROPIC_BASE_URL`) |
+```toml
+provider = "deepseek"
 
-## Environment Variables
+[providers.colorist]
+name = "Colorist Staging"
+base_url = "https://colorist.example.com"
+api_key_env = "COLORIST_API_KEY"
 
-```bash
-# Anthropic API
-export ANTHROPIC_API_KEY=sk-ant-api03-...
-
-# Custom gateway
-export ANTHROPIC_AUTH_TOKEN=...
-export ANTHROPIC_BASE_URL=https://gateway.example.com
+[providers.deepseek]
+name = "DeepSeek"
+base_url = "https://api.deepseek.com/anthropic"
+api_key_env = "DEEPSEEK_API_KEY"
 ```
 
+| Field | Description |
+|---|---|
+| `[providers.<id>]` | Provider ID used by `provider` and `--provider` |
+| `name` | Display name shown in `/provider` and `/status` |
+| `base_url` | Anthropic-compatible API base URL |
+| `api_key_env` | Environment variable holding the API key |
 
-## Config File
-
-Persist in `~/.mini-agent/.env`:
+Keep every key in `~/.mini-agent/.env`:
 
 ```bash
-# Anthropic API
-ANTHROPIC_API_KEY=sk-ant-api03-...
-
-# Custom gateway
-ANTHROPIC_AUTH_TOKEN=...
-ANTHROPIC_BASE_URL=https://gateway.example.com
+COLORIST_API_KEY=...
+DEEPSEEK_API_KEY=...
 ```
 
-## Priority Order
+The key is sent as `Authorization: Bearer <key>`. Shell environment
+variables override `~/.mini-agent/.env`.
 
-1. Shell environment variables override `~/.mini-agent/.env`
-2. `ANTHROPIC_API_KEY` takes priority over `ANTHROPIC_AUTH_TOKEN`
+## Switching
+
+- `/provider` picks a provider and saves it to `config.toml`.
+- `mini --provider <id>` uses a provider for the current session only.
+- When `provider` is unset, the first provider in `config.toml` is used.
+
+The model stays the same when you switch providers; run `/model` to pick one
+the new provider serves.
