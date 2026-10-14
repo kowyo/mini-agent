@@ -27,6 +27,7 @@ from .image_messages import (
 from .mcp import print_mcp_hint, prompt_mcp
 from .models import prompt_model
 from .prompt_session import build_session
+from .providers import prompt_provider
 from .sessions import (
     SessionManager,
     print_session_history,
@@ -113,6 +114,10 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             prompt_model()
             attached_images.clear()
             continue
+        if command == "/provider":
+            prompt_provider()
+            attached_images.clear()
+            continue
         if command == "/status":
             print_box(console, format_status_report(current_session_id))
             print()
@@ -174,6 +179,11 @@ def main() -> None:
         help="Set the effort level for the current session",
     )
     parser.add_argument(
+        "--provider",
+        type=str,
+        help="Provider ID from config.toml for the current session",
+    )
+    parser.add_argument(
         "-p",
         "--print",
         dest="print_prompt",
@@ -202,6 +212,14 @@ def main() -> None:
 
     if args.effort:
         config.set_session_reasoning_effort(args.effort)
+
+    if args.provider:
+        config.set_session_provider(args.provider)
+
+    try:
+        config.get_provider()
+    except ValueError as e:
+        parser.exit(1, f"{e}\n")
 
     mcp_lines = setup_mcp()
     if mcp_lines:

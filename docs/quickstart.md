@@ -20,14 +20,22 @@ uv tool install git+https://github.com/kowyo/mini-agent.git@main
 
 ## Authenticate
 
-Set an API key before launching:
+Add a provider to `~/.mini-agent/config.toml`:
 
-```bash
-export ANTHROPIC_API_KEY=sk-ant-api03-...
-mini
+```toml
+[providers.gateway]
+name = "My Gateway"
+base_url = "https://gateway.example.com"
+api_key_env = "GATEWAY_API_KEY"
 ```
 
-Or persist in `~/.mini-agent/.env`. See [Providers](providers.md) for gateway configuration.
+Then put its key in `~/.mini-agent/.env`:
+
+```bash
+GATEWAY_API_KEY=...
+```
+
+See [Providers](providers.md) for multiple providers and switching.
 
 ## First session
 
@@ -47,6 +55,6 @@ Summarize this repository
 ## Next steps
 
 - [Usage](usage.md) - CLI flags, slash commands, and keyboard shortcuts.
-- [Providers](providers.md) - authentication and gateway setup.
-- [Config](config.md) - model and reasoning effort defaults.
+- [Providers](providers.md) - provider setup and switching.
+- [Config](config.md) - provider, model, and reasoning effort defaults.
 - [MCP](mcp.md) - connect MCP servers for extra tools.

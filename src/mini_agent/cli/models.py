@@ -7,8 +7,8 @@ from urllib.parse import urlparse
 from ..config import (
     CONFIG_DIR,
     REASONING_EFFORT_LEVELS,
-    client,
     config,
+    get_client,
 )
 from .display import clear_prompt_line
 from .display.picker import select_from_list
@@ -111,7 +111,7 @@ def get_max_output_tokens(model_id: str) -> int | None:
 
 def _fetch_models_sdk() -> list[str]:
     model_ids: list[str] = []
-    page = client.models.list(limit=100)
+    page = get_client().models.list(limit=100)
     model_ids.extend(m.id for m in page.data)
     while page.has_more:
         page = page.get_next_page()
@@ -120,15 +120,15 @@ def _fetch_models_sdk() -> list[str]:
 
 
 def _fetch_models_manual() -> list[str]:
+    client = get_client()
     parsed = urlparse(str(client.base_url))
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     url = f"{base_url}/v1/models"
 
-    headers: dict[str, str] = {"anthropic-version": "2023-06-01"}
-    if client.auth_token:
-        headers["Authorization"] = f"Bearer {client.auth_token}"
-    elif client.api_key:
-        headers["x-api-key"] = client.api_key
+    headers: dict[str, str] = {
+        "anthropic-version": "2023-06-01",
+        "Authorization": f"Bearer {client.auth_token}",
+    }
 
     req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=30) as resp:

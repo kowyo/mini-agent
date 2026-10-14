@@ -1,9 +1,12 @@
+from pathlib import Path
+
 import pytest
 
 from mini_agent.agent.mcp.tools import ServerStatus
 from mini_agent.cli import status
 from mini_agent.cli.status import format_usage_report
 from mini_agent.cli.token import Usage
+from mini_agent.config import Config
 
 
 def test_usage_report_shows_cache_hit_rate() -> None:
@@ -19,7 +22,15 @@ def test_usage_report_shows_cache_hit_rate() -> None:
     assert report[-1].plain == "Cache Hit Rate: 89.5%"
 
 
-def test_status_report_lists_mcp_servers(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_status_report_lists_mcp_servers(
+    monkeypatch: pytest.MonkeyPatch, config_file: Path
+) -> None:
+    config_file.write_text(
+        '[providers.deepseek]\nname = "DeepSeek"\n'
+        'base_url = "https://api.deepseek.com/anthropic"\n'
+        'api_key_env = "DEEPSEEK_API_KEY"\n'
+    )
+    monkeypatch.setattr(status, "config", Config())
     monkeypatch.setattr(
         status,
         "server_statuses",

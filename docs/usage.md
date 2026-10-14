@@ -11,12 +11,13 @@ mini [options] [prompt]
 | default | Interactive mode |
 | `-p`, `--print` | Print response and exit; also reads piped stdin |
 | `-m`, `--model` | Model for the current session |
+| `--provider` | Provider ID from `config.toml` for the current session |
 | `-e`, `--effort` | Reasoning effort: `disabled`, `adaptive`, `low`, `medium`, `high`, `xhigh`, `max` |
 | `-r`, `--resume [id]` | Resume a session by ID, or latest if no ID |
 | `-v`, `--version` | Show version |
 
 > [!NOTE]
-> `--model` and `--effort` override for the current session only.
+> `--model`, `--effort`, and `--provider` override for the current session only.
 
 ### Example
 
@@ -29,6 +30,9 @@ mini -r
 
 # Custom model and effort
 mini -m claude-opus-4-1 -e high
+
+# Another provider for this session
+mini --provider deepseek -m deepseek-v4-flash
 
 # Interactive with initial prompt
 mini "Refactor this file"
@@ -43,7 +47,8 @@ mini /resume
 | Command | Description |
 |---------|-------------|
 | `/model` | Switch model and reasoning effort |
-| `/status` | Show model, session, tokens, and context window |
+| `/provider` | Switch provider |
+| `/status` | Show provider, model, session, tokens, and context window |
 | `/new` | Start a new session |
 | `/resume` | Pick from previous sessions |
 | `/copy` | Copy last assistant message to clipboard |
