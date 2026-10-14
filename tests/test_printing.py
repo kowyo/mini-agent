@@ -91,6 +91,20 @@ def test_read_file_shows_only_the_image(
     assert capsys.readouterr().out.startswith("\x1b_Ga=T,f=100")
 
 
+def test_read_file_image_falls_back_to_placeholder(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "shot.png"
+    Image.new("RGB", (8, 8)).save(path)
+
+    printing.print_tool_result("read_file", {"path": str(path)}, run_read(str(path)))
+
+    printed = capsys.readouterr().out
+    assert "[image/png]" in printed
+    assert "\x1b_G" not in printed
+
+
 def test_session_history_redraws_live_tool_calls(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
