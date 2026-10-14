@@ -202,6 +202,9 @@ def print_tool_result(
         return
 
     if name in ("read_file", "write_file", "activate_skill"):
+        if name == "read_file":
+            for image in _split_tool_output(output)[1]:
+                print(image)
         print()
         return
 

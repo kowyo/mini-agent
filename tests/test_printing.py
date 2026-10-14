@@ -1,11 +1,13 @@
 import base64
 import io
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from anthropic.types import ToolUseBlock
 from PIL import Image
 
+from mini_agent.agent.tools.file import run_read
 from mini_agent.cli.display import printing
 
 
@@ -73,6 +75,20 @@ def test_tool_result_images_render_inline(
     printed = capsys.readouterr().out
     assert printed.startswith("Took a screenshot\n\x1b_Ga=T,f=100")
     assert "[image/png]" not in printed
+
+
+def test_read_file_shows_only_the_image(
+    capsys: pytest.CaptureFixture[str],
+    terminal_env: Callable[..., None],
+    tmp_path: Path,
+) -> None:
+    terminal_env(TERM_PROGRAM="kitty")
+    path = tmp_path / "shot.png"
+    Image.new("RGB", (8, 8)).save(path)
+
+    printing.print_tool_result("read_file", {"path": str(path)}, run_read(str(path)))
+
+    assert capsys.readouterr().out.startswith("\x1b_Ga=T,f=100")
 
 
 def test_session_history_redraws_live_tool_calls(
