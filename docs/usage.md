@@ -4,6 +4,7 @@
 
 ```bash
 mini [options] [prompt]
+mini update
 ```
 
 | Flag | Description |
@@ -15,6 +16,7 @@ mini [options] [prompt]
 | `-e`, `--effort` | Reasoning effort: `disabled`, `adaptive`, `low`, `medium`, `high`, `xhigh`, `max` |
 | `-r`, `--resume [id]` | Resume a session by ID, or latest if no ID |
 | `-v`, `--version` | Show version |
+| `update` | Update to the latest release |
 
 > [!NOTE]
 > `--model`, `--effort`, and `--provider` override for the current session only.
@@ -36,6 +38,9 @@ mini --provider deepseek -m deepseek-v4-flash
 
 # Interactive with initial prompt
 mini "Refactor this file"
+
+# Update to the latest release
+mini update
 
 # Jump to slash command
 mini /model

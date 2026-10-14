@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 from anthropic.types import MessageParam
 from rich.console import Console
@@ -38,6 +39,7 @@ from .status import (
     format_usage_report,
 )
 from .token import token_tracker
+from .update import run_update
 
 console = Console()
 
@@ -158,7 +160,14 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="A minimal agent.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "A minimal agent.\n\n"
+            "commands:\n"
+            "  update                Update to the latest release"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "-v",
         "--version",
@@ -206,6 +215,9 @@ def main() -> None:
         help="Start interactive session with initial prompt",
     )
     args = parser.parse_args()
+
+    if args.prompt == "update":
+        sys.exit(run_update())
 
     if args.model:
         config.set_session_model(args.model)

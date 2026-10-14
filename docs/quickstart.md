@@ -18,6 +18,16 @@ powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/scrip
 uv tool install git+https://github.com/kowyo/mini-agent.git@main
 ```
 
+**Update**
+
+```bash
+mini update
+```
+
+On macOS and Linux this installs the latest release with `uv`. Windows cannot
+replace `mini.exe` while it runs, so `mini update` prints the installer command
+to run instead.
+
 ## Authenticate
 
 Add a provider to `~/.mini-agent/config.toml`:
