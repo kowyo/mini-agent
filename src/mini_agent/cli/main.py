@@ -205,7 +205,7 @@ def main() -> None:
         "prompt",
         nargs="?",
         type=str,
-        help="Start interactive session with initial prompt, or 'update' to update mini",
+        help="Start interactive session with initial prompt",
     )
     args = parser.parse_args()
 
