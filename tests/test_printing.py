@@ -9,44 +9,42 @@ def collapsed_tool_output(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(printing, "_full_tool_output", False)
 
 
-def test_long_tool_output_is_truncated_with_expand_hint(
+def test_long_tool_output_is_collapsed_to_preview_lines(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    output = "x" * 300
+    output = "\n".join(f"line {i}" for i in range(1, 16))
 
     printing.print_tool_result("mcp__server__tool", {}, output)
 
     printed = capsys.readouterr().out
-    assert "x" * 200 in printed
-    assert "x" * 201 not in printed
-    assert "ctrl+o to expand" in printed
+    assert "line 10\n" in printed
+    assert "line 11" not in printed
+    assert "… (5 more lines, ctrl+o to expand)" in printed
+
+
+def test_short_tool_output_is_printed_without_hint(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = "\n".join(f"line {i}" for i in range(1, 11))
+
+    printing.print_tool_result("mcp__server__tool", {}, output)
+
+    printed = capsys.readouterr().out
+    assert "line 10" in printed
+    assert "ctrl+o to expand" not in printed
 
 
 def test_toggled_tool_output_is_printed_in_full(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    output = "x" * 300
+    output = "\n".join(f"line {i}" for i in range(1, 151))
 
     assert printing.toggle_full_tool_output() is True
     printing.print_tool_result("mcp__server__tool", {}, output)
 
     printed = capsys.readouterr().out
-    assert output in printed
+    assert "line 150" in printed
     assert "ctrl+o to expand" not in printed
-
-
-def test_toggled_tool_output_is_capped_at_expanded_line_limit(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    output = "\n".join(f"line {i}" for i in range(1, 151))
-
-    printing.toggle_full_tool_output()
-    printing.print_tool_result("mcp__server__tool", {}, output)
-
-    printed = capsys.readouterr().out
-    assert "line 100\n" in printed
-    assert "line 101" not in printed
-    assert "… +50 lines" in printed
 
 
 def test_session_history_redraws_live_sdk_blocks(

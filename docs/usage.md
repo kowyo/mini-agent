@@ -54,7 +54,7 @@ mini /resume
 
 | Shortcut | Description |
 |----------|-------------|
-| <kbd>Ctrl</kbd>+<kbd>O</kbd> | Toggle expanded tool output (up to 100 lines) and redraw the transcript |
+| <kbd>Ctrl</kbd>+<kbd>O</kbd> | Toggle full tool output and redraw the transcript |
 | <kbd>Ctrl</kbd>+<kbd>V</kbd> | Paste image from clipboard |
 | <kbd>Esc</kbd>+<kbd>Enter</kbd> / <kbd>Meta</kbd>+<kbd>Enter</kbd> | Insert newline |
 

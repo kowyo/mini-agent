@@ -21,8 +21,7 @@ from .theme import (
 
 console = Console()
 
-TOOL_RESULT_PREVIEW_CHARS = 200
-TOOL_RESULT_EXPANDED_LINES = 100
+TOOL_RESULT_PREVIEW_LINES = 10
 
 _full_tool_output = False
 
@@ -205,17 +204,13 @@ def print_tool_result(
         return
 
     output_str = output if isinstance(output, str) else str(output)
-    if _full_tool_output:
-        lines = output_str.splitlines()
-        print("\n".join(lines[:TOOL_RESULT_EXPANDED_LINES]))
-        hidden_lines = len(lines) - TOOL_RESULT_EXPANDED_LINES
-        if hidden_lines > 0:
-            console.print(f"… +{hidden_lines} lines", style=LIGHT_HINT_STYLE_RICH)
-        print()
-        return
-    if len(output_str) <= TOOL_RESULT_PREVIEW_CHARS:
+    lines = output_str.splitlines()
+    hidden_lines = len(lines) - TOOL_RESULT_PREVIEW_LINES
+    if _full_tool_output or hidden_lines <= 0:
         print(f"{output_str}\n")
         return
-    print(output_str[:TOOL_RESULT_PREVIEW_CHARS])
-    console.print("… (ctrl+o to expand)", style=LIGHT_HINT_STYLE_RICH)
+    print("\n".join(lines[:TOOL_RESULT_PREVIEW_LINES]))
+    console.print(
+        f"… ({hidden_lines} more lines, ctrl+o to expand)", style=LIGHT_HINT_STYLE_RICH
+    )
     print()
