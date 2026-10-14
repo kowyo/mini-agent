@@ -1,6 +1,6 @@
 # mini-agent
 
-https://github.com/user-attachments/assets/155e9256-8138-410b-9253-97d33e031045
+https://github.com/user-attachments/assets/cbb2af68-e342-4994-9b71-5c6a0c25a526
 
 A minimal agent running in your terminal.
 
