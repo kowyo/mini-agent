@@ -98,6 +98,37 @@ def test_done_items_survive_terminal_output(terminal_output: object) -> None:
     assert response.is_closed
 
 
+@pytest.mark.parametrize("terminal_output", [[TEXT, TOOL], [TOOL]])
+def test_terminal_only_tool_is_recovered(terminal_output: list[dict[str, Any]]) -> None:
+    response = httpx.Response(
+        200,
+        headers={"content-type": "text/event-stream"},
+        content=sse(
+            {"type": "response.output_item.done", "output_index": 0, "item": TEXT},
+            {
+                "type": "response.output_item.added",
+                "output_index": 2,
+                "item": {**TOOL, "arguments": ""},
+            },
+            completed(terminal_output),
+        ),
+    )
+    with (
+        httpx.Client(transport=httpx.MockTransport(lambda _: response)) as http,
+        ChatGPTClient(
+            http_client=http, credentials=lambda: CREDENTIALS
+        ).messages.stream(**KWARGS) as stream,
+    ):
+        events = list(stream)
+        final = stream.get_final_message()
+    assert final.stop_reason == "tool_use"
+    assert final.content[0].text == "Hello!"
+    assert final.content[1].id == "call_1"
+    assert final.content[1].input == {"command": "pwd"}
+    assert len([e for e in events if e.type == "content_block_start"]) == 2
+    assert len([e for e in events if e.type == "content_block_stop"]) == 2
+
+
 @pytest.mark.parametrize("terminal_output", [None, {}, [None]])
 def test_invalid_terminal_output_without_done_items(terminal_output: object) -> None:
     terminal = completed([])

@@ -405,6 +405,7 @@ class ChatGPTStream:
                     yield event("content_block_stop", index=active[key])
 
         items: dict[int, dict[str, Any]] = {}
+        item_indices: dict[str, int] = {}
         try:
             yield event(
                 "message_start",
@@ -424,6 +425,8 @@ class ChatGPTStream:
                 index = data.get("output_index", 0)
                 if kind == "response.output_item.added":
                     item = data["item"]
+                    if isinstance(item.get("id"), str):
+                        item_indices[item["id"]] = index
                     if item["type"] == "function_call":
                         yield from start(
                             (index, "tool", 0),
@@ -487,6 +490,8 @@ class ChatGPTStream:
                     )
                 elif kind == "response.output_item.done":
                     items[index] = data["item"]
+                    if isinstance(data["item"].get("id"), str):
+                        item_indices[data["item"]["id"]] = index
                     yield from finish(index, data["item"])
                 elif kind in ("response.failed", "response.incomplete", "error"):
                     raise ChatGPTError(f"Codex stream reported {kind}")
@@ -496,15 +501,22 @@ class ChatGPTStream:
                         raise ChatGPTError("Codex response did not complete")
                     # Item-done events are authoritative, even when the terminal
                     # event omits output or contains an empty/partial snapshot.
-                    if items:
-                        indexed_output = sorted(items.items())
-                    else:
-                        output = response.get("output")
-                        if not isinstance(output, list) or any(
-                            not isinstance(item, dict) for item in output
-                        ):
-                            raise ChatGPTError("Codex returned invalid terminal output")
-                        indexed_output = list(enumerate(output))
+                    output = response.get("output")
+                    valid_output = isinstance(output, list) and all(
+                        isinstance(item, dict) for item in output
+                    )
+                    if not items and not valid_output:
+                        raise ChatGPTError("Codex returned invalid terminal output")
+                    # Recover terminal-only items without replacing done items.
+                    # IDs retain the original stream index for partial snapshots.
+                    if valid_output:
+                        for terminal_index, item in enumerate(output):
+                            item_index = item_indices.get(
+                                item.get("id"), terminal_index
+                            )
+                            if item_index not in items:
+                                items[item_index] = item
+                    indexed_output = sorted(items.items())
                     blocks = _blocks([item for _, item in indexed_output])
                     for item_index, item in indexed_output:
                         yield from finish(item_index, item)
