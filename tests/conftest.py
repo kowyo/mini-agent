@@ -1,6 +1,9 @@
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
+
+from mini_agent import config
 
 TERMINAL_ENV_VARS = (
     "TERM",
@@ -23,3 +26,11 @@ def terminal_env(monkeypatch: pytest.MonkeyPatch) -> Callable[..., None]:
             monkeypatch.setenv(name, value)
 
     return set_env
+
+
+@pytest.fixture(autouse=True)
+def config_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    path = tmp_path / "config.toml"
+    monkeypatch.setattr(config, "CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(config, "CONFIG_FILE", path)
+    return path
