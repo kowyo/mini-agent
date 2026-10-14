@@ -26,6 +26,7 @@ def test_collapsed_tool_output_bounds_long_lines_and_images(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(printing, "_full_tool_output", False)
+    monkeypatch.setattr(printing.console, "width", 80)
     image = {
         "type": "image",
         "source": {"type": "base64", "media_type": "image/png", "data": "A" * 5000},
