@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 from anthropic.types import MessageParam
 from rich.console import Console
@@ -38,6 +39,7 @@ from .status import (
     format_usage_report,
 )
 from .token import token_tracker
+from .update import run_update
 
 console = Console()
 
@@ -203,9 +205,12 @@ def main() -> None:
         "prompt",
         nargs="?",
         type=str,
-        help="Start interactive session with initial prompt",
+        help="Start interactive session with initial prompt, or 'update' to update mini",
     )
     args = parser.parse_args()
+
+    if args.prompt == "update":
+        sys.exit(run_update())
 
     if args.model:
         config.set_session_model(args.model)
