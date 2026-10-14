@@ -77,7 +77,7 @@ def test_tool_result_images_render_inline(
     assert "[image/png]" not in printed
 
 
-def test_read_file_shows_only_the_image(
+def test_read_file_shows_label_and_image(
     capsys: pytest.CaptureFixture[str],
     terminal_env: Callable[..., None],
     tmp_path: Path,
@@ -88,7 +88,8 @@ def test_read_file_shows_only_the_image(
 
     printing.print_tool_result("read_file", {"path": str(path)}, run_read(str(path)))
 
-    assert capsys.readouterr().out.startswith("\x1b_Ga=T,f=100")
+    printed = capsys.readouterr().out
+    assert printed.startswith("Read image file [image/png]\n\x1b_Ga=T,f=100")
 
 
 def test_read_file_image_falls_back_to_placeholder(

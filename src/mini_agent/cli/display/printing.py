@@ -204,11 +204,9 @@ def print_tool_result(
     if name in ("read_file", "write_file", "activate_skill"):
         if name == "read_file" and isinstance(output, list):
             output_str, images = _split_tool_output(output)
-            if images:
-                for image in images:
-                    print(image)
-            else:
-                print(output_str)
+            print(output_str)
+            for image in images:
+                print(image)
         print()
         return
 
