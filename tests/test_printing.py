@@ -1,5 +1,10 @@
+import base64
+import io
+from collections.abc import Callable
+
 import pytest
 from anthropic.types import ToolUseBlock
+from PIL import Image
 
 from mini_agent.cli.display import printing
 
@@ -40,6 +45,34 @@ def test_collapsed_tool_output_bounds_long_lines_and_images(
     assert "[image/png]" in printed
     assert len(printed) < 2000
     assert "more lines, ctrl+o to expand" in printed
+
+
+@pytest.mark.parametrize("full_output", [False, True])
+def test_tool_result_images_render_inline(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    terminal_env: Callable[..., None],
+    full_output: bool,
+) -> None:
+    terminal_env(TERM_PROGRAM="kitty")
+    monkeypatch.setattr(printing, "_full_tool_output", full_output)
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8)).save(buffer, "PNG")
+    image = {
+        "type": "image",
+        "source": {
+            "type": "base64",
+            "media_type": "image/png",
+            "data": base64.b64encode(buffer.getvalue()).decode(),
+        },
+    }
+    output = [{"type": "text", "text": "Took a screenshot"}, image]
+
+    printing.print_tool_result("mcp__chrome__take_screenshot", {}, output)
+
+    printed = capsys.readouterr().out
+    assert printed.startswith("Took a screenshot\n\x1b_Ga=T,f=100")
+    assert "[image/png]" not in printed
 
 
 def test_session_history_redraws_live_tool_calls(
