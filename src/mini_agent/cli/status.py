@@ -64,6 +64,7 @@ def format_status_report(session_id: str) -> list[str | Text]:
     lines: list[str | Text] = []
 
     status_items = [
+        ("Provider:       ", config.get_provider().name),
         ("Model:          ", f"{config.get_model()} {config.get_reasoning_effort()}"),
         ("Directory:      ", str(Path.cwd())),
         ("Session:        ", session_id),

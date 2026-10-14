@@ -61,8 +61,8 @@ def test_tool_error_sets_is_error_on_the_tool_result(
 
     monkeypatch.setattr(
         agent,
-        "client",
-        SimpleNamespace(
+        "get_client",
+        lambda: SimpleNamespace(
             messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
         ),
     )
@@ -112,8 +112,8 @@ def test_unknown_tool_is_reported_as_an_error(
 
     monkeypatch.setattr(
         agent,
-        "client",
-        SimpleNamespace(
+        "get_client",
+        lambda: SimpleNamespace(
             messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
         ),
     )
@@ -156,8 +156,8 @@ def test_stream_error_is_reported_and_discards_the_entire_incomplete_turn(
 
     monkeypatch.setattr(
         agent,
-        "client",
-        SimpleNamespace(
+        "get_client",
+        lambda: SimpleNamespace(
             messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
         ),
     )

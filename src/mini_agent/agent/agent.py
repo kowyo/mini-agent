@@ -9,7 +9,7 @@ from rich.status import Status
 from ..cli.display import display_stream_events, print_tool_result, print_tool_start
 from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
-from ..config import client, config
+from ..config import config, get_client
 from .system_prompt import SYSTEM
 from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError, ToolError
 
@@ -60,7 +60,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     if output_config is not None:
                         stream_kwargs["output_config"] = output_config
 
-                with client.messages.stream(**stream_kwargs) as stream:
+                with get_client().messages.stream(**stream_kwargs) as stream:
                     thinking_status.stop()
                     display_stream_events(stream)
                     response = stream.get_final_message()

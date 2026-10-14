@@ -17,6 +17,7 @@ COMMANDS = {
     "/new": "Start a new session",
     "/resume": "Resume a previous session",
     "/model": "Select a model",
+    "/provider": "Select a provider",
     "/copy": "Copy the last assistant response to clipboard",
     "/status": "Show current session configuration and token usage",
     "/mcp": "Authorize and list MCP servers",
