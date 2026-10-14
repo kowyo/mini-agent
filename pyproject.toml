@@ -8,6 +8,7 @@ authors = [{ name = "Kowyo", email = "kowyo@outlook.com" }]
 dependencies = [
     "anthropic>=1.9.0",
     "cryptography<46.0.4 ; sys_platform == 'win32' and platform_machine == 'ARM64'",
+    "httpx>=0.28.1",
     "mcp>=2.2.0",
     "pillow>=12.3.0",
     "prompt-toolkit>=3.0.53",

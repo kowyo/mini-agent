@@ -30,6 +30,20 @@ to run instead.
 
 ## Authenticate
 
+### ChatGPT account
+
+```bash
+mini /login
+```
+
+Open the displayed verification URL, enter the code, and approve access with
+an eligible ChatGPT account. Enable device-code authorization in your ChatGPT
+security settings if prompted. A successful login saves `provider = "chatgpt"`
+and `model_id = "gpt-5.4"`; no API key or provider table is required.
+Cancellation or failed authentication leaves your provider and model unchanged.
+
+### Anthropic-compatible API key
+
 Add a provider to `~/.mini-agent/config.toml`:
 
 ```toml

@@ -42,6 +42,12 @@ mini "Refactor this file"
 # Update to the latest release
 mini update
 
+# Authenticate with ChatGPT (works before any provider is configured)
+mini /login
+
+# Remove mini-agent ChatGPT credentials
+mini /logout
+
 # Jump to slash command
 mini /model
 mini /resume
@@ -53,6 +59,8 @@ mini /resume
 |---------|-------------|
 | `/model` | Switch model and reasoning effort |
 | `/provider` | Switch provider |
+| `/login` | Authorize ChatGPT and save its provider/default model |
+| `/logout` | Delete only mini-agent’s local ChatGPT credentials |
 | `/status` | Show provider, model, session, tokens, and context window |
 | `/new` | Start a new session |
 | `/resume` | Pick from previous sessions |

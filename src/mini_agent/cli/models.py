@@ -4,6 +4,8 @@ import time
 import urllib.request
 from urllib.parse import urlparse
 
+from anthropic import Anthropic
+
 from ..config import (
     CONFIG_DIR,
     REASONING_EFFORT_LEVELS,
@@ -111,7 +113,10 @@ def get_max_output_tokens(model_id: str) -> int | None:
 
 def _fetch_models_sdk() -> list[str]:
     model_ids: list[str] = []
-    page = get_client().models.list(limit=100)
+    client = get_client()
+    if not isinstance(client, Anthropic):
+        return []
+    page = client.models.list(limit=100)
     model_ids.extend(m.id for m in page.data)
     while page.has_more:
         page = page.get_next_page()
@@ -121,6 +126,8 @@ def _fetch_models_sdk() -> list[str]:
 
 def _fetch_models_manual() -> list[str]:
     client = get_client()
+    if not isinstance(client, Anthropic):
+        return []
     parsed = urlparse(str(client.base_url))
     base_url = f"{parsed.scheme}://{parsed.netloc}"
     url = f"{base_url}/v1/models"
@@ -138,6 +145,10 @@ def _fetch_models_manual() -> list[str]:
 
 
 def fetch_models() -> list[str]:
+    if config.get_provider().id == "chatgpt":
+        # The ChatGPT backend has no Anthropic models API. Keep a small local
+        # list and the picker's manual entry for account-specific availability.
+        return ["gpt-5.4"]
     try:
         return _fetch_models_sdk()
     except Exception:

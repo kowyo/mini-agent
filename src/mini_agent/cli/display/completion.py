@@ -18,6 +18,8 @@ COMMANDS = {
     "/resume": "Resume a previous session",
     "/model": "Select a model",
     "/provider": "Select a provider",
+    "/login": "Log in to ChatGPT",
+    "/logout": "Remove mini-agent's local ChatGPT credentials",
     "/copy": "Copy the last assistant response to clipboard",
     "/status": "Show current session configuration and token usage",
     "/mcp": "Authorize and list MCP servers",
