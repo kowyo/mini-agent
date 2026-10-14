@@ -14,6 +14,7 @@ from ...config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION, config
 from ..clipboard import extract_text_content
 from .box import print_box
 from .diff import format_edit_diff
+from .terminal_image import render_image
 from .theme import (
     ACCENT_COLOR,
     LIGHT_HINT_STYLE_RICH,
@@ -201,13 +202,26 @@ def print_tool_result(
         return
 
     if name in ("read_file", "write_file", "activate_skill"):
+        if name == "read_file" and isinstance(output, list):
+            output_str, images = _split_tool_output(output)
+            print(output_str)
+            for image in images:
+                print(image)
         print()
         return
 
-    output_str = _tool_output_text(output)
-    if _full_tool_output:
-        print(f"{output_str}\n")
-        return
+    output_str, images = _split_tool_output(output)
+    if output_str or not images:
+        if _full_tool_output:
+            print(output_str)
+        else:
+            _print_tool_output_preview(output_str)
+    for image in images:
+        print(image)
+    print()
+
+
+def _print_tool_output_preview(output_str: str) -> None:
     visual_lines = [
         chunk
         for line in output_str.splitlines()
@@ -220,15 +234,21 @@ def print_tool_result(
             f"… ({hidden_lines} more lines, ctrl+o to expand)",
             style=LIGHT_HINT_STYLE_RICH,
         )
-    print()
 
 
-def _tool_output_text(output: str | list[Any]) -> str:
+def _split_tool_output(output: str | list[Any]) -> tuple[str, list[str]]:
     if isinstance(output, str):
-        return output
-    return "\n".join(
-        str(block.get("text", ""))
-        if block.get("type") == "text"
-        else f"[{block.get('source', {}).get('media_type', block.get('type'))}]"
-        for block in output
-    )
+        return output, []
+    texts: list[str] = []
+    images: list[str] = []
+    for block in output:
+        source = block.get("source", {})
+        if block.get("type") == "text":
+            texts.append(str(block.get("text", "")))
+        elif block.get("type") == "image" and (
+            image := render_image(source["data"], console.width)
+        ):
+            images.append(image)
+        else:
+            texts.append(f"[{source.get('media_type', block.get('type'))}]")
+    return "\n".join(texts), images
