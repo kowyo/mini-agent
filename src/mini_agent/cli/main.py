@@ -160,7 +160,14 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="A minimal agent.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "A minimal agent.\n\n"
+            "commands:\n"
+            "  update                Update to the latest release"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "-v",
         "--version",
