@@ -423,7 +423,6 @@ class ChatGPTStream:
                 kind = data.get("type", "")
                 index = data.get("output_index", 0)
                 if kind == "response.output_item.added":
-                    items[index] = data["item"]
                     item = data["item"]
                     if item["type"] == "function_call":
                         yield from start(
@@ -495,9 +494,19 @@ class ChatGPTStream:
                     response = data["response"]
                     if response.get("status", "completed") != "completed":
                         raise ChatGPTError("Codex response did not complete")
-                    output = response.get("output", [items[i] for i in sorted(items)])
-                    blocks = _blocks(output)
-                    for item_index, item in enumerate(output):
+                    # Item-done events are authoritative, even when the terminal
+                    # event omits output or contains an empty/partial snapshot.
+                    if items:
+                        indexed_output = sorted(items.items())
+                    else:
+                        output = response.get("output")
+                        if not isinstance(output, list) or any(
+                            not isinstance(item, dict) for item in output
+                        ):
+                            raise ChatGPTError("Codex returned invalid terminal output")
+                        indexed_output = list(enumerate(output))
+                    blocks = _blocks([item for _, item in indexed_output])
+                    for item_index, item in indexed_output:
                         yield from finish(item_index, item)
                     for key, block_index in active.items():
                         if key not in closed:

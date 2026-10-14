@@ -61,6 +61,63 @@ def sse(*events: dict[str, Any]) -> bytes:
     ).encode()
 
 
+@pytest.mark.parametrize("terminal_output", [None, [], [TEXT], "omitted"])
+def test_done_items_survive_terminal_output(terminal_output: object) -> None:
+    terminal = completed([])
+    if terminal_output == "omitted":
+        terminal["response"].pop("output")
+    else:
+        terminal["response"]["output"] = terminal_output
+    response = httpx.Response(
+        200,
+        headers={"content-type": "text/event-stream"},
+        content=sse(
+            {"type": "response.output_item.done", "output_index": 0, "item": REASONING},
+            {"type": "response.output_item.done", "output_index": 2, "item": TEXT},
+            {"type": "response.output_item.done", "output_index": 4, "item": TOOL},
+            terminal,
+        ),
+    )
+    with (
+        httpx.Client(transport=httpx.MockTransport(lambda _: response)) as http,
+        ChatGPTClient(
+            http_client=http, credentials=lambda: CREDENTIALS
+        ).messages.stream(**KWARGS) as stream,
+    ):
+        events = list(stream)
+        final = stream.get_final_message()
+    assert final.stop_reason == "tool_use"
+    assert [block.type for block in final.content] == ["thinking", "text", "tool_use"]
+    assert final.content[0].thinking == "Think"
+    assert final.content[1].text == "Hello!"
+    assert final.content[2].id == "call_1"
+    assert final.content[2].input == {"command": "pwd"}
+    # Sparse output indices must not produce duplicate content blocks at completion.
+    assert len([e for e in events if e.type == "content_block_start"]) == 3
+    assert len([e for e in events if e.type == "content_block_stop"]) == 3
+    assert response.is_closed
+
+
+@pytest.mark.parametrize("terminal_output", [None, {}, [None]])
+def test_invalid_terminal_output_without_done_items(terminal_output: object) -> None:
+    terminal = completed([])
+    terminal["response"]["output"] = terminal_output
+    response = httpx.Response(
+        200,
+        headers={"content-type": "text/event-stream"},
+        content=sse(terminal),
+    )
+    with (
+        httpx.Client(transport=httpx.MockTransport(lambda _: response)) as http,
+        ChatGPTClient(
+            http_client=http, credentials=lambda: CREDENTIALS
+        ).messages.stream(**KWARGS) as stream,
+        pytest.raises(ChatGPTError, match="invalid terminal output"),
+    ):
+        stream.get_final_message()
+    assert response.is_closed
+
+
 def test_text_request_stream_and_usage() -> None:
     requests = []
     response = httpx.Response(

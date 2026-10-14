@@ -186,7 +186,7 @@ def _load() -> Credentials:
         )
     except FileNotFoundError:
         raise OAuthError("ChatGPT is not logged in. Run /login first.") from None
-    except ValueError, KeyError, TypeError:
+    except ValueError, KeyError, TypeError, OverflowError:
         raise OAuthError("ChatGPT credentials are invalid. Run /login again.") from None
 
 

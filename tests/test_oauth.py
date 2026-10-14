@@ -219,6 +219,26 @@ def test_missing_corrupt_and_logout(tmp_path: Path) -> None:
     assert other.read_text() == "unrelated"
 
 
+def test_oversized_stored_expiry_is_invalid(tmp_path: Path) -> None:
+    path = tmp_path / "chatgpt-auth.json"
+    path.write_text(
+        json.dumps(
+            {
+                "access_token": "secret",
+                "refresh_token": "refresh",
+                "account_id": "account",
+                "expires_at": 10**400,
+            }
+        )
+    )
+    before = path.read_bytes()
+    with pytest.raises(oauth.OAuthError, match="credentials are invalid") as error:
+        oauth.get_credentials()
+    assert "secret" not in str(error.value)
+    assert path.read_bytes() == before
+    assert not (tmp_path / "chatgpt-auth.lock").exists()
+
+
 @pytest.mark.parametrize("expiry", [None, True, float("nan"), -1, 0])
 def test_invalid_expiry(monkeypatch: pytest.MonkeyPatch, expiry: object) -> None:
     monkeypatch.setattr(oauth.time, "time", lambda: 1000)
@@ -336,14 +356,29 @@ def test_atomic_write_failure_keeps_store(
 def test_overlapping_refresh_callers_rotate_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import os
     from concurrent.futures import ThreadPoolExecutor
     from threading import Event
 
     with oauth._locked():
         oauth._save(oauth.Credentials("old", "refresh", "account", 1001))
     entered = Event()
+    contended = Event()
     release = Event()
     calls = []
+    original_open = oauth.os.open
+
+    def observed_open(
+        path: str | os.PathLike[str], flags: int, mode: int = 0o777
+    ) -> int:
+        try:
+            return original_open(path, flags, mode)
+        except FileExistsError:
+            # Signal only after the second caller actually encounters the lock.
+            contended.set()
+            raise
+
+    monkeypatch.setattr(oauth.os, "open", observed_open)
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request)
@@ -364,6 +399,8 @@ def test_overlapping_refresh_callers_rotate_once(
         try:
             assert entered.wait(timeout=5)
             second = pool.submit(oauth.get_credentials)
+            assert contended.wait(timeout=5)
+            assert len(calls) == 1
         finally:
             release.set()
         assert first.result(timeout=5) == second.result(timeout=5)
