@@ -8,6 +8,7 @@ from .printing import (
     print_tool_result,
     print_tool_start,
     print_welcome_banner,
+    toggle_full_tool_output,
 )
 from .stream import display_stream_events
 from .theme import ACCENT_COLOR
@@ -25,6 +26,7 @@ __all__ = [
     "print_tool_result",
     "print_tool_start",
     "print_welcome_banner",
+    "toggle_full_tool_output",
     "display_stream_events",
     "ACCENT_COLOR",
 ]

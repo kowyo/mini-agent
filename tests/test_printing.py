@@ -1,0 +1,53 @@
+import pytest
+from anthropic.types import ToolUseBlock
+
+from mini_agent.cli.display import printing
+
+
+def test_ctrl_o_toggles_collapsed_tool_output(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(printing, "_full_tool_output", False)
+    output = "\n".join(f"line {i}" for i in range(1, 16))
+
+    printing.print_tool_result("mcp__server__tool", {}, output)
+    collapsed = capsys.readouterr().out
+    printing.toggle_full_tool_output()
+    printing.print_tool_result("mcp__server__tool", {}, output)
+    expanded = capsys.readouterr().out
+
+    assert "line 11" not in collapsed
+    assert "… (5 more lines, ctrl+o to expand)" in collapsed
+    assert "line 15" in expanded
+    assert "ctrl+o to expand" not in expanded
+
+
+def test_collapsed_tool_output_bounds_long_lines_and_images(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(printing, "_full_tool_output", False)
+    monkeypatch.setattr(printing.console, "width", 80)
+    image = {
+        "type": "image",
+        "source": {"type": "base64", "media_type": "image/png", "data": "A" * 5000},
+    }
+    output = [image, {"type": "text", "text": "x" * 2000}]
+
+    printing.print_tool_result("mcp__server__tool", {}, output)
+
+    printed = capsys.readouterr().out
+    assert "A" * 100 not in printed
+    assert "[image/png]" in printed
+    assert len(printed) < 2000
+    assert "more lines, ctrl+o to expand" in printed
+
+
+def test_session_history_redraws_live_tool_calls(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(printing, "clear_terminal", lambda: None)
+    tool_use = ToolUseBlock(type="tool_use", id="t1", name="mcp__x__list", input={})
+
+    printing.print_session_history([{"role": "assistant", "content": [tool_use]}])
+
+    assert "> mcp__x__list - {}" in capsys.readouterr().out

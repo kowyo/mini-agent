@@ -1,12 +1,11 @@
 import os
 import subprocess
-from html import escape
 from pathlib import Path
 from typing import Any, cast
 
 from anthropic.types import MessageParam
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.shortcuts import print_formatted_text
+from pydantic import BaseModel
+from rich.cells import chop_cells
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
@@ -16,12 +15,22 @@ from ..clipboard import extract_text_content
 from .box import print_box
 from .diff import format_edit_diff
 from .theme import (
+    ACCENT_COLOR,
     LIGHT_HINT_STYLE_RICH,
-    PROMPT_TOOLKIT_ACCENT_COLOR,
     THINKING_STYLE_RICH,
 )
 
 console = Console()
+
+TOOL_RESULT_PREVIEW_LINES = 10
+
+_full_tool_output = False
+
+
+def toggle_full_tool_output() -> bool:
+    global _full_tool_output
+    _full_tool_output = not _full_tool_output
+    return _full_tool_output
 
 
 def clear_terminal() -> None:
@@ -89,10 +98,8 @@ def print_session_history(history: list[MessageParam]) -> None:
             text = extract_text_content(content)
             if text:
                 lines = text.splitlines()
-                print_formatted_text(
-                    HTML(
-                        f'<style color="{PROMPT_TOOLKIT_ACCENT_COLOR}">&gt; </style>{escape(lines[0])}'
-                    )
+                console.print(
+                    Text.assemble(("> ", ACCENT_COLOR), lines[0]), highlight=False
                 )
                 for line in lines[1:]:
                     print(line)
@@ -100,7 +107,12 @@ def print_session_history(history: list[MessageParam]) -> None:
             continue
 
         if message["role"] == "assistant" and isinstance(content, list):
-            for block in content:
+            for raw_block in content:
+                block = (
+                    raw_block.model_dump()
+                    if isinstance(raw_block, BaseModel)
+                    else raw_block
+                )
                 if not isinstance(block, dict):
                     continue
                 if block.get("type") == "text":
@@ -192,5 +204,31 @@ def print_tool_result(
         print()
         return
 
-    output_str = output if isinstance(output, str) else str(output)
-    print(f"{output_str[:200]}\n")
+    output_str = _tool_output_text(output)
+    if _full_tool_output:
+        print(f"{output_str}\n")
+        return
+    visual_lines = [
+        chunk
+        for line in output_str.splitlines()
+        for chunk in chop_cells(line, console.width) or [""]
+    ]
+    print("\n".join(visual_lines[:TOOL_RESULT_PREVIEW_LINES]))
+    hidden_lines = len(visual_lines) - TOOL_RESULT_PREVIEW_LINES
+    if hidden_lines > 0:
+        console.print(
+            f"… ({hidden_lines} more lines, ctrl+o to expand)",
+            style=LIGHT_HINT_STYLE_RICH,
+        )
+    print()
+
+
+def _tool_output_text(output: str | list[Any]) -> str:
+    if isinstance(output, str):
+        return output
+    return "\n".join(
+        str(block.get("text", ""))
+        if block.get("type") == "text"
+        else f"[{block.get('source', {}).get('media_type', block.get('type'))}]"
+        for block in output
+    )
