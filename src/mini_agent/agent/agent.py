@@ -1,8 +1,12 @@
+from typing import cast
+
+from anthropic import Anthropic
 from anthropic.types import (
     MessageParam,
     ToolResultBlockParam,
     ToolUseBlock,
 )
+from pydantic import BaseModel
 from rich.console import Console
 from rich.status import Status
 
@@ -18,6 +22,35 @@ console = Console()
 
 def _discard_incomplete_turn(messages: list[MessageParam], turn_start: int) -> None:
     del messages[turn_start:]
+
+
+def _anthropic_history(messages: list[MessageParam]) -> list[MessageParam]:
+    """Strip Codex replay metadata when switching back to an API provider."""
+    history: list[MessageParam] = []
+    for message in messages:
+        content = message["content"]
+        if isinstance(content, str):
+            history.append(message)
+            continue
+        blocks = []
+        for raw in content:
+            block = (
+                raw.model_dump(exclude_none=True)
+                if isinstance(raw, BaseModel)
+                else dict(raw)
+            )
+            if block.get("type") == "thinking" and (
+                "codex_reasoning" in block
+                or str(block.get("signature", "")).startswith("codex-reasoning:")
+            ):
+                continue
+            block.pop("codex_item_id", None)
+            blocks.append(block)
+        if blocks:
+            history.append(
+                cast(MessageParam, {"role": message["role"], "content": blocks})
+            )
+    return history
 
 
 def agent_loop(messages: list[MessageParam]) -> None:
@@ -60,7 +93,10 @@ def agent_loop(messages: list[MessageParam]) -> None:
                     if output_config is not None:
                         stream_kwargs["output_config"] = output_config
 
-                with get_client().messages.stream(**stream_kwargs) as stream:
+                client = get_client()
+                if isinstance(client, Anthropic):
+                    stream_kwargs["messages"] = _anthropic_history(messages)
+                with client.messages.stream(**stream_kwargs) as stream:
                     thinking_status.stop()
                     display_stream_events(stream)
                     response = stream.get_final_message()

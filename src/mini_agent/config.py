@@ -4,7 +4,10 @@ import tomllib
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from .chatgpt import ChatGPTClient
 
 import tomli_w
 from anthropic import Anthropic
@@ -15,6 +18,7 @@ DISTRIBUTION_VERSION = importlib.metadata.version(DISTRIBUTION_NAME)
 
 DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
 DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_CHATGPT_MODEL = "gpt-5.4"
 DEFAULT_REASONING_EFFORT = "high"
 REASONING_EFFORT_LEVELS = [
     "disabled",
@@ -50,6 +54,14 @@ class Provider:
     name: str
     base_url: str
     api_key_env: str
+
+
+CHATGPT_PROVIDER = Provider(
+    id="chatgpt",
+    name="ChatGPT",
+    base_url="https://chatgpt.com/backend-api/codex",
+    api_key_env="",
+)
 
 
 class Config:
@@ -121,6 +133,8 @@ class Config:
             )
             self._providers = {}
             for provider_id, table in tables.items():
+                if provider_id == CHATGPT_PROVIDER.id:
+                    continue
                 try:
                     self._providers[provider_id] = Provider(
                         id=provider_id,
@@ -132,22 +146,37 @@ class Config:
                     raise ValueError(
                         f"providers.{provider_id} in {CONFIG_FILE} is missing {e}"
                     ) from None
-        return list(self._providers.values())
+        return [*self._providers.values(), CHATGPT_PROVIDER]
 
     def set_session_provider(self, provider_id: str) -> None:
         self._session_provider_override = provider_id
 
     def get_provider(self) -> Provider:
         providers = {provider.id: provider for provider in self.get_providers()}
-        if not providers:
-            raise ValueError(f"No providers configured in {CONFIG_FILE}")
         if self._provider_id is None:
             saved = self._load_config().get("provider")
-            self._provider_id = str(saved) if saved else next(iter(providers))
+            configured = [p for p in providers if p != CHATGPT_PROVIDER.id]
+            if not saved and not configured and not self._session_provider_override:
+                raise ValueError(
+                    f"No providers configured in {CONFIG_FILE}; run mini /login to use ChatGPT"
+                )
+            self._provider_id = str(saved) if saved else next(iter(configured), "")
         provider_id = self._session_provider_override or self._provider_id
         if provider_id not in providers:
             raise ValueError(f"Unknown provider: {provider_id}")
         return providers[provider_id]
+
+    def save_provider_and_model(self, provider_id: str, model_id: str) -> None:
+        """Persist a successful login's selection together, preserving other settings."""
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        cfg = self._load_config()
+        cfg["provider"] = provider_id
+        cfg["model_id"] = model_id
+        CONFIG_FILE.write_text(tomli_w.dumps(cfg))
+        self._session_provider_override = None
+        self._session_model_override = None
+        self._provider_id = provider_id
+        self._model = model_id
 
     def save_provider(self, provider_id: str) -> None:
         self._session_provider_override = None
@@ -169,5 +198,10 @@ def _build_client(provider: Provider) -> Anthropic:
     return Anthropic(base_url=provider.base_url, auth_token=api_key)
 
 
-def get_client() -> Anthropic:
-    return _build_client(config.get_provider())
+def get_client() -> Anthropic | ChatGPTClient:
+    provider = config.get_provider()
+    if provider.id == CHATGPT_PROVIDER.id:
+        from .chatgpt import ChatGPTClient
+
+        return ChatGPTClient()
+    return _build_client(provider)

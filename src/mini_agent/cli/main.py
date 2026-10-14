@@ -12,6 +12,7 @@ from ..config import (
     REASONING_EFFORT_LEVELS,
     config,
 )
+from .auth import prompt_login, prompt_logout
 from .clipboard import copy_last_assistant_text
 from .display import (
     ACCENT_COLOR,
@@ -116,6 +117,14 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             prompt_model()
             attached_images.clear()
             continue
+        if command == "/login":
+            prompt_login()
+            attached_images.clear()
+            continue
+        if command == "/logout":
+            prompt_logout()
+            attached_images.clear()
+            continue
         if command == "/provider":
             prompt_provider()
             attached_images.clear()
@@ -164,7 +173,9 @@ def main() -> None:
         description=(
             "A minimal agent.\n\n"
             "commands:\n"
-            "  update                Update to the latest release"
+            "  update                Update to the latest release\n"
+            "  /login                Log in to ChatGPT and select its default model\n"
+            "  /logout               Remove mini-agent's ChatGPT credentials"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -218,6 +229,13 @@ def main() -> None:
 
     if args.prompt == "update":
         sys.exit(run_update())
+
+    if args.prompt == "/login":
+        prompt_login()
+        return
+    if args.prompt == "/logout":
+        prompt_logout()
+        return
 
     if args.model:
         config.set_session_model(args.model)

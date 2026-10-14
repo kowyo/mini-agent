@@ -1,7 +1,8 @@
 import sys
+from collections.abc import Iterable
 
-import anthropic.lib.streaming
-from anthropic.types import TextDelta, ThinkingDelta
+from anthropic.lib.streaming import MessageStreamEvent
+from anthropic.types import RawMessageStreamEvent, TextDelta, ThinkingDelta
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
@@ -11,10 +12,12 @@ from .theme import THINKING_STYLE_RICH
 console = Console()
 
 
-def display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None:
+def display_stream_events(
+    stream: Iterable[MessageStreamEvent | RawMessageStreamEvent],
+) -> None:
     """Drive live Markdown display from stream events.
 
-    The SDK accumulates events into the final ``Message`` in parallel,
+    The provider accumulates events into the final ``Message`` in parallel,
     so this function only handles visual output.
     """
 

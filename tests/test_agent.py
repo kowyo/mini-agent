@@ -187,3 +187,65 @@ def test_stream_error_is_reported_and_discards_the_entire_incomplete_turn(
         ]
     finally:
         agent.token_tracker.restore(previous_usages)
+
+
+@pytest.mark.parametrize("serialized", [False, True])
+def test_codex_replay_metadata_is_not_sent_to_anthropic(serialized: bool) -> None:
+    from anthropic.types import ThinkingBlock
+
+    from mini_agent.cli.sessions import serialize_content
+
+    thinking = ThinkingBlock(
+        type="thinking",
+        thinking="Summary",
+        signature="codex-reasoning:encoded",
+        codex_reasoning={"type": "reasoning"},
+    )
+    tool = ToolUseBlock(
+        type="tool_use",
+        id="call-1",
+        name="read",
+        input={"path": "README.md"},
+        codex_item_id="fc-1",
+    )
+    history: list[MessageParam] = [
+        {"role": "user", "content": "Read it"},
+        {"role": "assistant", "content": [thinking, tool]},
+        {
+            "role": "user",
+            "content": [
+                {"type": "tool_result", "tool_use_id": "call-1", "content": "contents"}
+            ],
+        },
+    ]
+    if serialized:
+        history[1]["content"] = serialize_content(history[1]["content"])
+    converted = agent._anthropic_history(history)
+    assert converted[1]["content"] == [
+        {
+            "type": "tool_use",
+            "id": "call-1",
+            "name": "read",
+            "input": {"path": "README.md"},
+        }
+    ]
+    assert converted[2] == history[2]
+    assert tool.model_extra == {"codex_item_id": "fc-1"}
+    assert len(history[1]["content"]) == 2
+
+
+def test_anthropic_reasoning_is_preserved() -> None:
+    history: list[MessageParam] = [
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "thinking",
+                    "thinking": "Summary",
+                    "signature": "anthropic-signature",
+                },
+                {"type": "text", "text": "Answer"},
+            ],
+        }
+    ]
+    assert agent._anthropic_history(history) == history
