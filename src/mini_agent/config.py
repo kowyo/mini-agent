@@ -27,6 +27,7 @@ REASONING_EFFORT_LEVELS = [
     "max",
 ]
 API_TYPES = ("message", "response")
+AUTH_TYPES = ("api_key", "chatgpt")
 CONFIG_DIR = _DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 _CONFIG_FILE = CONFIG_DIR / "config.toml"
@@ -53,6 +54,16 @@ class Provider:
     base_url: str
     api_key_env: str | None = None
     api_type: str = "message"
+    auth_type: str = "api_key"
+
+
+CHATGPT_PROVIDER = Provider(
+    id="chatgpt",
+    name="ChatGPT",
+    base_url="https://api.openai.com/v1",
+    api_type="response",
+    auth_type="chatgpt",
+)
 
 
 class _Config:
@@ -124,6 +135,12 @@ class _Config:
                             f"providers.{provider_id}.api_type must be one of "
                             f"{', '.join(API_TYPES)}"
                         )
+                    auth_type = str(table.get("auth_type", "api_key"))
+                    if auth_type not in AUTH_TYPES:
+                        raise ValueError(
+                            f"providers.{provider_id}.auth_type must be one of "
+                            f"{', '.join(AUTH_TYPES)}"
+                        )
                     self._providers[provider_id] = Provider(
                         id=provider_id,
                         name=str(table["name"]),
@@ -134,11 +151,13 @@ class _Config:
                             else None
                         ),
                         api_type=api_type,
+                        auth_type=auth_type,
                     )
                 except KeyError as e:
                     raise ValueError(
                         f"providers.{provider_id} in {_CONFIG_FILE} is missing {e}"
                     ) from None
+            self._providers.setdefault(CHATGPT_PROVIDER.id, CHATGPT_PROVIDER)
         return list(self._providers.values())
 
     def set_session_provider(self, provider_id: str) -> None:
@@ -169,6 +188,10 @@ config = _Config()
 
 
 def get_api_key(provider: Provider) -> str:
+    if provider.auth_type == "chatgpt":
+        from .chatgpt.credentials import get_access_token
+
+        return get_access_token()
     if provider.api_key_env is None:
         raise ValueError(f"No API key configured for {provider.name}")
     api_key = os.getenv(provider.api_key_env)
@@ -202,4 +225,10 @@ def get_responses_client() -> OpenAI:
     provider = config.get_provider()
     if provider.api_type != "response":
         raise ValueError(f"{provider.name} does not use the response API")
+    if provider.auth_type == "chatgpt":
+        return OpenAI(
+            api_key=get_api_key(provider),
+            base_url=provider.base_url,
+            max_retries=0,
+        )
     return _build_responses_client(provider)

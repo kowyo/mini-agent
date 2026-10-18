@@ -1,3 +1,4 @@
+from ..chatgpt import is_logged_in
 from ..config import Provider, config
 from .display.picker import select_from_list
 
@@ -20,3 +21,5 @@ def prompt_provider() -> None:
         return
     config.save_provider(provider.id)
     print(f"Provider set to {provider.name}\n")
+    if provider.auth_type == "chatgpt" and not is_logged_in():
+        print("Run /login to sign in to ChatGPT.\n")

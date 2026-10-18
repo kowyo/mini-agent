@@ -8,6 +8,7 @@ from ..agent.mcp import setup_mcp, shutdown_mcp
 from ..agent.system_prompt import SYSTEM
 from ..agent.tools import TOOLS
 from ..agent.transcript import Message, Transcript, UserMessage
+from ..chatgpt import ChatGPTAuthError, is_logged_in, login, logout
 from ..config import (
     DISTRIBUTION_NAME,
     DISTRIBUTION_VERSION,
@@ -28,7 +29,7 @@ from .image_messages import (
     count_images_in_history,
 )
 from .mcp import print_mcp_hint, prompt_mcp
-from .models import prompt_model
+from .models import _fetch_models, prompt_model
 from .prompt_session import build_session
 from .providers import prompt_provider
 from .sessions import (
@@ -63,6 +64,8 @@ def _run_non_interactive(prompt: str) -> None:
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     print_welcome_banner()
+    if config.get_provider().auth_type == "chatgpt" and not is_logged_in():
+        print("ChatGPT is not signed in. Run /login.\n")
     print_mcp_hint()
     history: list[Message] = []
     transcript = Transcript(system=SYSTEM, tools=TOOLS, messages=history)
@@ -127,6 +130,38 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/provider":
             prompt_provider()
+            attached_images.clear()
+            continue
+        if command == "/login":
+            try:
+                record = login()
+            except ChatGPTAuthError as error:
+                print(f"{error}\n")
+                attached_images.clear()
+                continue
+            config.set_session_provider("chatgpt")
+            print(f"Signed in to ChatGPT as {record.label}.\n")
+            try:
+                models = _fetch_models()
+            except Exception as error:
+                print(f"Could not fetch ChatGPT models: {error}\n")
+            else:
+                if config.get_model() not in models:
+                    prompt_model()
+            attached_images.clear()
+            continue
+        if command == "/logout":
+            warning = logout()
+            if warning:
+                print(f"{warning}\n")
+            else:
+                print("Signed out of ChatGPT.\n")
+            if config.get_provider().auth_type == "chatgpt":
+                for provider in config.get_providers():
+                    if provider.auth_type != "chatgpt":
+                        config.set_session_provider(provider.id)
+                        print(f"Provider set to {provider.name}.\n")
+                        break
             attached_images.clear()
             continue
         if command == "/status":
