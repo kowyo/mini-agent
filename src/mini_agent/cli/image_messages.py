@@ -14,7 +14,7 @@ def count_images_in_history(history: list[MessageParam]) -> int:
     return image_count
 
 
-def prune_attached_images(
+def _prune_attached_images(
     query: str,
     attached_images: list[tuple[str, ImageBlockParam]],
 ) -> None:
@@ -31,7 +31,7 @@ def build_user_content(
     sent_image_count: list[int],
 ) -> str | list[ImageBlockParam | TextBlockParam]:
     if attached_images:
-        prune_attached_images(query, attached_images)
+        _prune_attached_images(query, attached_images)
 
     if not attached_images:
         return query

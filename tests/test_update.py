@@ -71,4 +71,4 @@ def test_windows_prints_installer_command_instead_of_installing(
 
     assert update.run_update() == 0
     assert uv_calls == []
-    assert update.WINDOWS_UPDATE_COMMAND in capsys.readouterr().out
+    assert update._WINDOWS_UPDATE_COMMAND in capsys.readouterr().out

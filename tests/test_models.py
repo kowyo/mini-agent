@@ -68,11 +68,11 @@ def test_refresh_cache_resolves_limits(
     )
 
     info = models._ModelInfo()
-    info.refresh_cache()
+    info._refresh_cache()
 
-    assert info.get_best_limit("deepseek-flash", "context") == 1_000_000
-    assert info.get_best_limit("hy3-preview", "output") == 262_144
-    assert info.get_best_limit("claude-sonnet-4-6", "output") == 128_000
+    assert info._get_best_limit("deepseek-flash", "context") == 1_000_000
+    assert info._get_best_limit("hy3-preview", "output") == 262_144
+    assert info._get_best_limit("claude-sonnet-4-6", "output") == 128_000
     assert "deepseek-flash" not in json.loads((tmp_path / "catalog.json").read_text())
 
 
@@ -89,4 +89,4 @@ def test_corrupt_cache_is_refreshed(
 
     info = models._ModelInfo()
 
-    assert info.get_best_limit("deepseek-flash", "context") == 1_000_000
+    assert info._get_best_limit("deepseek-flash", "context") == 1_000_000

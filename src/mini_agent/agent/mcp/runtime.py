@@ -16,8 +16,8 @@ from mcp_types import CONNECTION_CLOSED, CallToolResult, Tool
 from .auth import AUTHORIZATION_TIMEOUT, AuthorizationRequiredError, build_auth
 from .config import HttpServerConfig, ServerConfig, StdioServerConfig
 
-CONNECT_TIMEOUT = 10.0
-SHUTDOWN_TIMEOUT = 15.0
+_CONNECT_TIMEOUT = 10.0
+_SHUTDOWN_TIMEOUT = 15.0
 
 
 class McpServerError(Exception):
@@ -37,7 +37,7 @@ def _needs_oauth(cfg: ServerConfig) -> bool:
 def _connect_timeout(cfg: ServerConfig, interactive: bool) -> float:
     if interactive and _needs_oauth(cfg):
         return AUTHORIZATION_TIMEOUT
-    return CONNECT_TIMEOUT
+    return _CONNECT_TIMEOUT
 
 
 def _leaf_exception(exc: BaseException) -> BaseException:
@@ -262,5 +262,5 @@ class McpRuntime:
 
         future = asyncio.run_coroutine_threadsafe(_stop_all(), loop)
         with contextlib.suppress(Exception):
-            future.result(SHUTDOWN_TIMEOUT)
+            future.result(_SHUTDOWN_TIMEOUT)
         loop.call_soon_threadsafe(loop.stop)

@@ -12,11 +12,11 @@ from ..tools.schemas import TOOLS
 from .config import ServerConfig, load_mcp_servers
 from .runtime import McpAuthRequiredError, McpRuntime, McpServerError
 
-TRUNCATION_MARKER = "\n[output truncated]"
+_TRUNCATION_MARKER = "\n[output truncated]"
 
 _NAME_SANITIZER = re.compile(r"[^A-Za-z0-9_-]")
 
-runtime = McpRuntime()
+_runtime = McpRuntime()
 
 
 @dataclass
@@ -37,7 +37,7 @@ def pending_auth_count() -> int:
     return len(_pending_auth)
 
 
-def tool_name(server: str, tool: str) -> str:
+def _tool_name(server: str, tool: str) -> str:
     return _NAME_SANITIZER.sub("_", f"mcp__{server}__{tool}")
 
 
@@ -53,7 +53,7 @@ def _unique_name(name: str) -> str:
 def _truncate(text: str) -> str:
     if len(text) <= MAX_OUTPUT:
         return text
-    return text[:MAX_OUTPUT] + TRUNCATION_MARKER
+    return text[:MAX_OUTPUT] + _TRUNCATION_MARKER
 
 
 def _to_block(block: ContentBlock) -> dict[str, Any]:
@@ -71,7 +71,7 @@ def _to_block(block: ContentBlock) -> dict[str, Any]:
     return {"type": "text", "text": _truncate(block.model_dump_json(exclude_none=True))}
 
 
-def map_result(result: CallToolResult) -> str | list[dict[str, Any]] | ToolError:
+def _map_result(result: CallToolResult) -> str | list[dict[str, Any]] | ToolError:
     blocks = [_to_block(block) for block in result.content]
     content: str | list[dict[str, Any]]
     if all(block["type"] == "text" for block in blocks):
@@ -86,22 +86,22 @@ def map_result(result: CallToolResult) -> str | list[dict[str, Any]] | ToolError
 def _make_handler(server: str, tool: str) -> Callable[..., object]:
     def handler(**arguments: object) -> str | list[dict[str, Any]] | ToolError:
         try:
-            result = runtime.call_tool(server, tool, dict(arguments))
+            result = _runtime.call_tool(server, tool, dict(arguments))
         except McpServerError as exc:
             return ToolError(str(exc))
-        return map_result(result)
+        return _map_result(result)
 
     return handler
 
 
 def shutdown_mcp() -> None:
-    runtime.shutdown()
+    _runtime.shutdown()
 
 
 def _ensure_shutdown_hook() -> None:
     global _shutdown_registered
     if not _shutdown_registered:
-        atexit.register(runtime.shutdown)
+        atexit.register(_runtime.shutdown)
         _shutdown_registered = True
 
 
@@ -112,11 +112,11 @@ def _set_status(status: ServerStatus) -> None:
 
 def _register_tools(cfg: ServerConfig) -> ServerStatus:
     try:
-        tools = runtime.list_tools(cfg.name)
+        tools = _runtime.list_tools(cfg.name)
     except McpServerError as exc:
         return ServerStatus(name=cfg.name, error=str(exc))
     for tool in tools:
-        name = _unique_name(tool_name(cfg.name, tool.name))
+        name = _unique_name(_tool_name(cfg.name, tool.name))
         TOOLS.append(
             {
                 "name": name,
@@ -137,7 +137,7 @@ def setup_mcp() -> list[str]:
     _configs.update(servers)
     if not servers:
         return lines
-    statuses = runtime.connect_all(list(servers.values()), interactive=False)
+    statuses = _runtime.connect_all(list(servers.values()), interactive=False)
     for cfg in servers.values():
         status = statuses.get(cfg.name)
         if isinstance(status, McpAuthRequiredError):
@@ -164,7 +164,7 @@ def authorize_server(name: str) -> str:
     if current is not None and current.error is None:
         return f"mcp: {name}: already connected ({len(current.tools)} tools)"
     try:
-        runtime.connect(cfg, interactive=True)
+        _runtime.connect(cfg, interactive=True)
     except McpServerError as exc:
         _set_status(
             ServerStatus(

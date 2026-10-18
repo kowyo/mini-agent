@@ -32,5 +32,5 @@ def terminal_env(monkeypatch: pytest.MonkeyPatch) -> Callable[..., None]:
 def config_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     path = tmp_path / "config.toml"
     monkeypatch.setattr(config, "CONFIG_DIR", tmp_path)
-    monkeypatch.setattr(config, "CONFIG_FILE", path)
+    monkeypatch.setattr(config, "_CONFIG_FILE", path)
     return path

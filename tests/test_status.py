@@ -6,7 +6,7 @@ from mini_agent.agent.mcp.tools import ServerStatus
 from mini_agent.cli import status
 from mini_agent.cli.status import format_usage_report
 from mini_agent.cli.token import Usage
-from mini_agent.config import Config
+from mini_agent.config import _Config
 
 
 def test_usage_report_shows_cache_hit_rate() -> None:
@@ -30,7 +30,7 @@ def test_status_report_lists_mcp_servers(
         'base_url = "https://api.deepseek.com/anthropic"\n'
         'api_key_env = "DEEPSEEK_API_KEY"\n'
     )
-    monkeypatch.setattr(status, "config", Config())
+    monkeypatch.setattr(status, "config", _Config())
     monkeypatch.setattr(
         status,
         "server_statuses",

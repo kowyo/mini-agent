@@ -41,32 +41,32 @@ from .status import (
 from .token import token_tracker
 from .update import run_update
 
-console = Console()
+_console = Console()
 
-session_manager = SessionManager()
+_session_manager = SessionManager()
 
 
 def _run_non_interactive(prompt: str) -> None:
     history: list[MessageParam] = [{"role": "user", "content": prompt}]
-    session_id = session_manager.new_id()
+    session_id = _session_manager.new_id()
     history_len = len(history)
     agent_loop(history)
     if len(history) > history_len and token_tracker.get() is not None:
-        session_manager.save(session_id, history, token_tracker.round_usages)
+        _session_manager.save(session_id, history, token_tracker.round_usages)
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     print_welcome_banner()
     print_mcp_hint()
     history: list[MessageParam] = []
-    current_session_id = session_manager.new_id()
+    current_session_id = _session_manager.new_id()
     session, pre_run, attached_images, sent_image_count = build_session(
         lambda: history, prompt
     )
 
     if session_id is not None:
         current_session_id = session_id
-        sessions = session_manager.list_sessions()
+        sessions = _session_manager.list_sessions()
         try:
             chosen = next(
                 stored for stored in sessions if stored.session_id == current_session_id
@@ -97,7 +97,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         print()
         if command == "/new":
             history.clear()
-            current_session_id = session_manager.new_id()
+            current_session_id = _session_manager.new_id()
             sent_image_count[0] = 0
             token_tracker.reset()
             attached_images.clear()
@@ -107,7 +107,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(
-                session_manager, current_session_id, history
+                _session_manager, current_session_id, history
             )
             sent_image_count[0] = count_images_in_history(history)
             attached_images.clear()
@@ -121,7 +121,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             continue
         if command == "/status":
-            print_box(console, format_status_report(current_session_id))
+            print_box(_console, format_status_report(current_session_id))
             print()
             attached_images.clear()
             continue
@@ -144,18 +144,18 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if len(history) <= history_len:
             continue
         if token_tracker.get() is not None:
-            session_manager.save(
+            _session_manager.save(
                 current_session_id, history, token_tracker.round_usages
             )
 
-    if session_manager.exists(current_session_id):
+    if _session_manager.exists(current_session_id):
         usage_report = format_usage_report(token_tracker.get())
         if usage_report:
             for line in usage_report:
-                console.print(line)
+                _console.print(line)
             print()
         print("Resume the session with:")
-        console.print(f"mini --resume {current_session_id}", style=ACCENT_COLOR)
+        _console.print(f"mini --resume {current_session_id}", style=ACCENT_COLOR)
         print()
 
 
@@ -236,7 +236,7 @@ def main() -> None:
     mcp_lines = setup_mcp()
     if mcp_lines:
         for line in mcp_lines:
-            console.print(line, style=LIGHT_HINT_STYLE_RICH)
+            _console.print(line, style=LIGHT_HINT_STYLE_RICH)
         print()
 
     try:
@@ -246,7 +246,7 @@ def main() -> None:
 
         session_id: str | None = args.session_id
         if session_id == "__LATEST__":
-            sessions = session_manager.list_sessions()
+            sessions = _session_manager.list_sessions()
             if sessions:
                 session_id = sessions[0].session_id
             else:

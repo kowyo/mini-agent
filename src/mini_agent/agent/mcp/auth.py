@@ -19,20 +19,20 @@ from pydantic import AnyUrl
 from ...config import CONFIG_DIR
 from .config import HttpServerConfig
 
-AUTH_DIR = CONFIG_DIR / "mcp-auth"
+_AUTH_DIR = CONFIG_DIR / "mcp-auth"
 AUTHORIZATION_TIMEOUT = 300.0
 
 logging.getLogger("mcp.client.auth.oauth2").setLevel(logging.CRITICAL)
 
-GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
-GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
-DEVICE_POLL_INTERVAL = 5.0
+_GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
+_GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+_DEVICE_POLL_INTERVAL = 5.0
 
-DEFAULT_CLIENT_IDS = {
+_DEFAULT_CLIENT_IDS = {
     "api.githubcopilot.com": "Iv23liNOejv4Nb4755ff",
 }
 
-CALLBACK_PAGE = (
+_CALLBACK_PAGE = (
     "<html><body><p>mini-agent is authorized. You can close this tab.</p></body></html>"
 )
 
@@ -45,11 +45,11 @@ class AuthorizationRequiredError(Exception):
     """User interaction is needed to authorize; raised in non-interactive mode."""
 
 
-class FileTokenStorage:
+class _FileTokenStorage:
     """Persists OAuth tokens and client registration per server."""
 
     def __init__(self, server_name: str) -> None:
-        self._path = AUTH_DIR / f"{server_name}.json"
+        self._path = _AUTH_DIR / f"{server_name}.json"
 
     def _read(self) -> dict:
         if not self._path.is_file():
@@ -60,7 +60,7 @@ class FileTokenStorage:
             return {}
 
     def _write(self, data: dict) -> None:
-        AUTH_DIR.mkdir(parents=True, exist_ok=True)
+        _AUTH_DIR.mkdir(parents=True, exist_ok=True)
         self._path.touch(mode=0o600, exist_ok=True)
         self._path.write_text(json.dumps(data, indent=2))
 
@@ -83,7 +83,7 @@ class FileTokenStorage:
         self._write(data)
 
 
-class _PreRegisteredStorage(FileTokenStorage):
+class _PreRegisteredStorage(_FileTokenStorage):
     """Serves a pre-registered OAuth client, skipping dynamic registration."""
 
     def __init__(
@@ -100,7 +100,7 @@ class _PreRegisteredStorage(FileTokenStorage):
 
 
 class _CallbackServer(HTTPServer):
-    flow: OAuthBrowserFlow
+    flow: _OAuthBrowserFlow
 
 
 class _CallbackHandler(BaseHTTPRequestHandler):
@@ -111,14 +111,14 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.end_headers()
-        self.wfile.write(CALLBACK_PAGE.encode())
-        self.server.flow.receive(query)
+        self.wfile.write(_CALLBACK_PAGE.encode())
+        self.server.flow._receive(query)
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         pass
 
 
-class OAuthBrowserFlow:
+class _OAuthBrowserFlow:
     """Loopback redirect target for the OAuth authorization-code flow."""
 
     def __init__(self, server_name: str, interactive: bool) -> None:
@@ -132,7 +132,7 @@ class OAuthBrowserFlow:
             f"http://127.0.0.1:{self._server.server_address[1]}/callback"
         )
 
-    def receive(self, query: dict[str, list[str]]) -> None:
+    def _receive(self, query: dict[str, list[str]]) -> None:
         self._query = query
         self._done.set()
 
@@ -161,12 +161,12 @@ class OAuthBrowserFlow:
             self._server.server_close()
 
 
-class GitHubDeviceAuth(httpx2.Auth):
+class _GitHubDeviceAuth(httpx2.Auth):
     """GitHub device flow: public client_id only, no secret or callback."""
 
     def __init__(self, server_name: str, client_id: str, interactive: bool) -> None:
         self._server_name = server_name
-        self._storage = FileTokenStorage(server_name)
+        self._storage = _FileTokenStorage(server_name)
         self._client_id = client_id
         self._interactive = interactive
         self._lock = asyncio.Lock()
@@ -203,7 +203,7 @@ class GitHubDeviceAuth(httpx2.Auth):
     async def _refresh(self, refresh_token: str) -> OAuthToken | None:
         async with httpx2.AsyncClient() as http:
             response = await http.post(
-                GITHUB_TOKEN_URL,
+                _GITHUB_TOKEN_URL,
                 data={
                     "client_id": self._client_id,
                     "grant_type": "refresh_token",
@@ -232,7 +232,7 @@ class GitHubDeviceAuth(httpx2.Auth):
             raise AuthorizationRequiredError(self._server_name)
         async with httpx2.AsyncClient(headers={"Accept": "application/json"}) as http:
             response = await http.post(
-                GITHUB_DEVICE_CODE_URL, data={"client_id": self._client_id}
+                _GITHUB_DEVICE_CODE_URL, data={"client_id": self._client_id}
             )
             data = response.json()
             if "device_code" not in data:
@@ -243,13 +243,13 @@ class GitHubDeviceAuth(httpx2.Auth):
                 self._server_name,
                 f"open {data['verification_uri']} and enter code {data['user_code']}",
             )
-            interval = float(data.get("interval", DEVICE_POLL_INTERVAL))
+            interval = float(data.get("interval", _DEVICE_POLL_INTERVAL))
             loop = asyncio.get_running_loop()
             deadline = loop.time() + AUTHORIZATION_TIMEOUT
             while loop.time() < deadline:
                 await asyncio.sleep(interval)
                 poll = await http.post(
-                    GITHUB_TOKEN_URL,
+                    _GITHUB_TOKEN_URL,
                     data={
                         "client_id": self._client_id,
                         "device_code": data["device_code"],
@@ -271,23 +271,23 @@ class GitHubDeviceAuth(httpx2.Auth):
 
 def build_auth(cfg: HttpServerConfig, interactive: bool) -> httpx2.Auth:
     if cfg.client_id:
-        return build_oauth_provider(
+        return _build_oauth_provider(
             cfg.name, cfg.url, cfg.client_id, cfg.client_secret, interactive
         )
-    default_client_id = DEFAULT_CLIENT_IDS.get(urlparse(cfg.url).hostname or "")
+    default_client_id = _DEFAULT_CLIENT_IDS.get(urlparse(cfg.url).hostname or "")
     if default_client_id:
-        return GitHubDeviceAuth(cfg.name, default_client_id, interactive)
-    return build_oauth_provider(cfg.name, cfg.url, interactive=interactive)
+        return _GitHubDeviceAuth(cfg.name, default_client_id, interactive)
+    return _build_oauth_provider(cfg.name, cfg.url, interactive=interactive)
 
 
-def build_oauth_provider(
+def _build_oauth_provider(
     server_name: str,
     url: str,
     client_id: str | None = None,
     client_secret: str | None = None,
     interactive: bool = True,
 ) -> OAuthClientProvider:
-    flow = OAuthBrowserFlow(server_name, interactive)
+    flow = _OAuthBrowserFlow(server_name, interactive)
     auth_method = "client_secret_post" if client_secret else "none"
     metadata = OAuthClientMetadata(
         client_name="mini-agent",
@@ -296,7 +296,7 @@ def build_oauth_provider(
         response_types=["code"],
         token_endpoint_auth_method=auth_method,
     )
-    storage: FileTokenStorage
+    storage: _FileTokenStorage
     if client_id:
         client_info = OAuthClientInformationFull(
             client_id=client_id,
@@ -305,7 +305,7 @@ def build_oauth_provider(
         )
         storage = _PreRegisteredStorage(server_name, client_info)
     else:
-        storage = FileTokenStorage(server_name)
+        storage = _FileTokenStorage(server_name)
     return OAuthClientProvider(
         server_url=url,
         client_metadata=metadata,

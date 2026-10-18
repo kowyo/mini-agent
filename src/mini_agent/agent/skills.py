@@ -8,7 +8,7 @@ from ..config import SKILLS_DIRS
 from .variables import get_variables, substitute_variables
 
 
-class SkillLoader:
+class _SkillLoader:
     def __init__(self, skills_dirs: list[Path]) -> None:
         self.skills_dirs = skills_dirs
         self.skills: dict[str, dict[str, Any]] = {}
@@ -72,4 +72,4 @@ class SkillLoader:
         return f'<skill_content name="{name}">\n{body}\n</skill_content>'
 
 
-skill_loader = SkillLoader(SKILLS_DIRS)
+skill_loader = _SkillLoader(SKILLS_DIRS)

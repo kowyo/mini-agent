@@ -7,7 +7,7 @@ from .base import resolve_path
 
 MAX_LINES = 2000
 MAX_BYTES = 50 * 1024
-MAX_IMAGE_BYTES = 20 * 1024 * 1024
+_MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
 _EXTENSION_MEDIA_TYPES: dict[str, str] = {
     ".png": "image/png",
@@ -64,10 +64,10 @@ def run_read(
     if media_type:
         try:
             file_size = file_path.stat().st_size
-            if file_size > MAX_IMAGE_BYTES:
+            if file_size > _MAX_IMAGE_BYTES:
                 return (
                     f"Error: image {path} is {_format_size(file_size)}, "
-                    f"exceeds {_format_size(MAX_IMAGE_BYTES)} limit"
+                    f"exceeds {_format_size(_MAX_IMAGE_BYTES)} limit"
                 )
             data = base64.standard_b64encode(file_path.read_bytes()).decode()
         except Exception as exc:

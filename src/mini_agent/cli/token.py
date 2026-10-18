@@ -32,7 +32,7 @@ class Usage:
         return self.cache_read_input_tokens / total if total else 0.0
 
 
-class TokenTracker:
+class _TokenTracker:
     """Tracks per-round token usage and computes accumulated totals."""
 
     def __init__(self) -> None:
@@ -72,4 +72,4 @@ class TokenTracker:
         return self.last_round
 
 
-token_tracker = TokenTracker()
+token_tracker = _TokenTracker()

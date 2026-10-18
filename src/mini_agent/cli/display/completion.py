@@ -13,7 +13,7 @@ from prompt_toolkit.styles import Style
 
 from .theme import PROMPT_TOOLKIT_ACCENT_COLOR
 
-COMMANDS = {
+_COMMANDS = {
     "/new": "Start a new session",
     "/resume": "Resume a previous session",
     "/model": "Select a model",
@@ -105,7 +105,7 @@ class CommandCompleter(Completer):
         if not text.startswith("/"):
             return
 
-        for cmd, desc in COMMANDS.items():
+        for cmd, desc in _COMMANDS.items():
             if cmd.startswith(text) and text:
                 yield Completion(
                     cmd,

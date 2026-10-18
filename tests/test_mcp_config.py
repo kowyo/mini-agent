@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 
 from mini_agent.agent.mcp.config import (
-    DEFAULT_TOOL_TIMEOUT,
+    _DEFAULT_TOOL_TIMEOUT,
     HttpServerConfig,
     StdioServerConfig,
-    expand_vars,
+    _expand_vars,
     load_mcp_servers,
 )
 
@@ -54,7 +54,7 @@ def test_defaults(tmp_path: Path) -> None:
     servers, _ = load_mcp_servers([path])
     assert servers["srv"].args == []
     assert servers["srv"].env == {}
-    assert servers["srv"].timeout == DEFAULT_TOOL_TIMEOUT
+    assert servers["srv"].timeout == _DEFAULT_TOOL_TIMEOUT
 
 
 def test_parses_http_entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -134,4 +134,4 @@ def test_env_var_expansion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     )
     servers, _ = load_mcp_servers([path])
     assert servers["srv"].env == {"TOKEN": "secret"}
-    assert expand_vars("${UNSET_VAR}") == "${UNSET_VAR}"
+    assert _expand_vars("${UNSET_VAR}") == "${UNSET_VAR}"

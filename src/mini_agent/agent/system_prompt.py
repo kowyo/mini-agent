@@ -6,7 +6,7 @@ from .skills import skill_loader
 from .tools import TOOLS
 from .variables import get_variables, substitute_variables
 
-CONTEXT_FILENAMES = ("AGENTS.md",)
+_CONTEXT_FILENAMES = ("AGENTS.md",)
 
 
 def _find_context_in_dir(directory: Path) -> Path | None:
@@ -14,14 +14,14 @@ def _find_context_in_dir(directory: Path) -> Path | None:
         entries = {e.name.lower(): e for e in directory.iterdir()}
     except PermissionError, OSError:
         return None
-    for name in CONTEXT_FILENAMES:
+    for name in _CONTEXT_FILENAMES:
         entry = entries.get(name.lower())
         if entry is not None and entry.is_file():
             return entry
     return None
 
 
-def discover_context_files(cwd: Path | None = None) -> list[Path]:
+def _discover_context_files(cwd: Path | None = None) -> list[Path]:
     if cwd is None:
         cwd = Path.cwd()
 
@@ -71,12 +71,12 @@ def _build_context_section(files: list[Path]) -> str:
     return "".join(sections)
 
 
-TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
+_TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
 
 _SYSTEM_BASE = f"""You are an expert coding assistant. You help users by reading files, executing commands, editing code, and writing new files.
 
 <available_tools>
-{TOOLS_LIST}
+{_TOOLS_LIST}
 </available_tools>
 """
 
@@ -84,7 +84,7 @@ SYSTEM = _SYSTEM_BASE
 if skill_loader.skills:
     SYSTEM += f"\n{skill_loader.get_descriptions()}\n"
 
-context_files = discover_context_files()
+context_files = _discover_context_files()
 _context_section = _build_context_section(context_files)
 if _context_section:
     SYSTEM += _context_section
