@@ -1,0 +1,34 @@
+name: PR Change Overview
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-change-breakdown-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  breakdown:
+    if: github.event.action != 'edited' || github.event.changes.base != null
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout classification rules from the base revision
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Update styled change overview comment
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const {publish} = require('./.github/scripts/pr-change-breakdown.cjs');
+            await publish({github, context, core});
