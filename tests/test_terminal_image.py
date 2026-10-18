@@ -7,7 +7,7 @@ from collections.abc import Callable
 import pytest
 from PIL import Image
 
-from mini_agent.cli.display.terminal_image import detect_image_protocol, render_image
+from mini_agent.cli.display.terminal_image import _detect_image_protocol, render_image
 
 KITTY_COMMAND = re.compile(r"\x1b_G([^;]*);([^\x1b]*)\x1b\\")
 
@@ -39,7 +39,7 @@ def test_detects_image_protocol_from_environment(
 ) -> None:
     terminal_env(**env)
 
-    assert detect_image_protocol() == expected
+    assert _detect_image_protocol() == expected
 
 
 def test_kitty_sends_png_in_chunks_sized_to_60_cells(

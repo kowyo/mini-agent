@@ -10,7 +10,7 @@ def _display_width(text: str) -> int:
     return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in text)
 
 
-def color_full_line(text: str, color: str) -> str:
+def _color_full_line(text: str, color: str) -> str:
     width = shutil.get_terminal_size(fallback=(80, 24)).columns
     padding = max(width - _display_width(text), 0)
     return f"{color}{text}{' ' * padding}{RESET}"
@@ -37,7 +37,7 @@ def format_edit_diff(old_text: str, new_text: str, start_line: int) -> str:
         nonlocal old_line_no
         for line in lines:
             formatted_lines.append(
-                color_full_line(format_line(old_line_no, "-", line), RED_BG)
+                _color_full_line(format_line(old_line_no, "-", line), RED_BG)
             )
             old_line_no += 1
 
@@ -45,7 +45,7 @@ def format_edit_diff(old_text: str, new_text: str, start_line: int) -> str:
         nonlocal new_line_no
         for line in lines:
             formatted_lines.append(
-                color_full_line(format_line(new_line_no, "+", line), GREEN_BG)
+                _color_full_line(format_line(new_line_no, "+", line), GREEN_BG)
             )
             new_line_no += 1
 

@@ -6,13 +6,13 @@ from rich.text import Text
 from ...agent.skills import skill_loader
 from ...agent.system_prompt import context_files as loaded_context_files
 
-console = Console()
+_console = Console()
 
 
 def print_context_files() -> None:
     if not loaded_context_files:
         return
-    console.print("\\[Context]")
+    _console.print("\\[Context]")
     cwd = Path.cwd()
     home = Path.home()
     parts = Text()
@@ -26,18 +26,18 @@ def print_context_files() -> None:
                 parts.append(f"~/{path.relative_to(home)}")
             except ValueError:
                 parts.append(str(path))
-    console.print(Text("  ") + parts)
+    _console.print(Text("  ") + parts)
     print()
 
 
 def print_skills() -> None:
     if not skill_loader.skills:
         return
-    console.print("\\[Skills]")
+    _console.print("\\[Skills]")
     parts = Text()
     for i, name in enumerate(skill_loader.skills):
         if i > 0:
             parts.append(", ")
         parts.append(name)
-    console.print(Text("  ") + parts)
+    _console.print(Text("  ") + parts)
     print()

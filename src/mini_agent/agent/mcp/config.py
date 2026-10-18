@@ -6,9 +6,9 @@ from pathlib import Path
 
 from ...config import CONFIG_DIR, WORKDIR
 
-DEFAULT_TOOL_TIMEOUT = 60.0
+_DEFAULT_TOOL_TIMEOUT = 60.0
 
-MCP_CONFIG_PATHS: list[Path] = [
+_MCP_CONFIG_PATHS: list[Path] = [
     CONFIG_DIR / "mcp.json",
     WORKDIR / ".mini-agent" / "mcp.json",
 ]
@@ -16,12 +16,12 @@ MCP_CONFIG_PATHS: list[Path] = [
 _VAR_PATTERN = re.compile(r"\$\{(\w+)\}")
 
 
-def expand_vars(value: str) -> str:
+def _expand_vars(value: str) -> str:
     return _VAR_PATTERN.sub(lambda m: os.environ.get(m.group(1), m.group(0)), value)
 
 
 def _expand_required(field_name: str, value: str) -> str:
-    expanded = expand_vars(value)
+    expanded = _expand_vars(value)
     unset = _VAR_PATTERN.findall(expanded)
     if unset:
         raise ValueError(
@@ -37,7 +37,7 @@ class StdioServerConfig:
     command: str
     args: list[str] = field(default_factory=list)
     env: dict[str, str] = field(default_factory=dict)
-    timeout: float = DEFAULT_TOOL_TIMEOUT
+    timeout: float = _DEFAULT_TOOL_TIMEOUT
 
 
 @dataclass
@@ -45,7 +45,7 @@ class HttpServerConfig:
     name: str
     url: str
     headers: dict[str, str] = field(default_factory=dict)
-    timeout: float = DEFAULT_TOOL_TIMEOUT
+    timeout: float = _DEFAULT_TOOL_TIMEOUT
     client_id: str | None = None
     client_secret: str | None = None
 
@@ -56,7 +56,7 @@ ServerConfig = StdioServerConfig | HttpServerConfig
 def _parse_entry(name: str, entry: object) -> ServerConfig:
     if not isinstance(entry, dict):
         raise ValueError("must be an object")
-    timeout = entry.get("timeout", DEFAULT_TOOL_TIMEOUT)
+    timeout = entry.get("timeout", _DEFAULT_TOOL_TIMEOUT)
     if not isinstance(timeout, int | float) or timeout <= 0:
         raise ValueError('"timeout" must be a positive number')
     entry_type = entry.get("type")
@@ -71,8 +71,8 @@ def _parse_entry(name: str, entry: object) -> ServerConfig:
         client_secret = entry.get("client_secret")
         return HttpServerConfig(
             name=name,
-            url=expand_vars(url),
-            headers={str(k): expand_vars(str(v)) for k, v in headers.items()},
+            url=_expand_vars(url),
+            headers={str(k): _expand_vars(str(v)) for k, v in headers.items()},
             timeout=float(timeout),
             client_id=(
                 _expand_required("client_id", str(client_id)) if client_id else None
@@ -98,7 +98,7 @@ def _parse_entry(name: str, entry: object) -> ServerConfig:
         name=name,
         command=command,
         args=[str(a) for a in args],
-        env={str(k): expand_vars(str(v)) for k, v in env.items()},
+        env={str(k): _expand_vars(str(v)) for k, v in env.items()},
         timeout=float(timeout),
     )
 
@@ -108,7 +108,7 @@ def load_mcp_servers(
 ) -> tuple[dict[str, ServerConfig], list[str]]:
     servers: dict[str, ServerConfig] = {}
     errors: list[str] = []
-    for path in paths if paths is not None else MCP_CONFIG_PATHS:
+    for path in paths if paths is not None else _MCP_CONFIG_PATHS:
         if not path.is_file():
             continue
         try:

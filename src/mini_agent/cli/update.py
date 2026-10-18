@@ -5,8 +5,8 @@ import urllib.request
 
 from ..config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION
 
-LATEST_RELEASE_URL = "https://api.github.com/repos/kowyo/mini-agent/releases/latest"
-WINDOWS_UPDATE_COMMAND = (
+_LATEST_RELEASE_URL = "https://api.github.com/repos/kowyo/mini-agent/releases/latest"
+_WINDOWS_UPDATE_COMMAND = (
     'powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/'
     'scripts/install.ps1 | iex"'
 )
@@ -15,7 +15,7 @@ WINDOWS_UPDATE_COMMAND = (
 def run_update() -> int:
     print("Checking for updates...")
     try:
-        with urllib.request.urlopen(LATEST_RELEASE_URL, timeout=10) as resp:
+        with urllib.request.urlopen(_LATEST_RELEASE_URL, timeout=10) as resp:
             release = json.load(resp)
     except OSError as e:
         print(f"Failed to check for updates: {e}")
@@ -27,7 +27,7 @@ def run_update() -> int:
         return 0
 
     if sys.platform == "win32":
-        print(f"v{latest} is available. Run this to update:\n{WINDOWS_UPDATE_COMMAND}")
+        print(f"v{latest} is available. Run this to update:\n{_WINDOWS_UPDATE_COMMAND}")
         return 0
 
     print(f"Updating {DISTRIBUTION_NAME} from v{DISTRIBUTION_VERSION} to v{latest}...")

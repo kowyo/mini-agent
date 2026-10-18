@@ -74,7 +74,7 @@ def get_clipboard_image() -> tuple[Image.Image, str] | None:
     return None
 
 
-def image_to_base64(image: Image.Image, format: str = "PNG") -> str:
+def _image_to_base64(image: Image.Image, format: str = "PNG") -> str:
     buffer = io.BytesIO()
     image.save(buffer, format=format)
     buffer.seek(0)
@@ -82,7 +82,7 @@ def image_to_base64(image: Image.Image, format: str = "PNG") -> str:
 
 
 def create_image_content(image: Image.Image) -> ImageBlockParam:
-    base64_data = image_to_base64(image, "PNG")
+    base64_data = _image_to_base64(image, "PNG")
 
     return {
         "type": "image",
@@ -118,7 +118,7 @@ def extract_text_content(content: Iterable[object] | str) -> str:
     return "\n".join(texts) if texts else ""
 
 
-def copy_to_clipboard(text: str) -> bool:
+def _copy_to_clipboard(text: str) -> bool:
     try:
         if sys.platform == "darwin":
             subprocess.run(["pbcopy"], input=text, text=True, check=True)
@@ -142,7 +142,7 @@ def copy_last_assistant_text(history: Iterable[MessageParam]) -> None:
         if message["role"] == "assistant":
             text = extract_text_content(message["content"])
             if text:
-                if copy_to_clipboard(text):
+                if _copy_to_clipboard(text):
                     print("Copied to clipboard.")
                 else:
                     print("Failed to copy — no clipboard tool available.")

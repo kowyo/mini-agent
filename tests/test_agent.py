@@ -66,7 +66,7 @@ def test_tool_error_sets_is_error_on_the_tool_result(
             messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
         ),
     )
-    monkeypatch.setattr(agent.console, "status", lambda message: StatusStub())
+    monkeypatch.setattr(agent._console, "status", lambda message: StatusStub())
     monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
     monkeypatch.setattr(
         agent, "print_tool_result", lambda name, input_data, output: None
@@ -117,7 +117,7 @@ def test_unknown_tool_is_reported_as_an_error(
             messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
         ),
     )
-    monkeypatch.setattr(agent.console, "status", lambda message: StatusStub())
+    monkeypatch.setattr(agent._console, "status", lambda message: StatusStub())
     monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
     monkeypatch.setattr(
         agent, "print_tool_result", lambda name, input_data, output: None
@@ -161,9 +161,9 @@ def test_stream_error_is_reported_and_discards_the_entire_incomplete_turn(
             messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
         ),
     )
-    monkeypatch.setattr(agent.console, "status", lambda message: StatusStub())
+    monkeypatch.setattr(agent._console, "status", lambda message: StatusStub())
     monkeypatch.setattr(
-        agent.console,
+        agent._console,
         "print",
         lambda message=None, **kwargs: errors.append((message, kwargs)),
     )

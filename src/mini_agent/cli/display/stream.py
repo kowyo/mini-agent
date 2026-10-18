@@ -8,7 +8,7 @@ from rich.markdown import Markdown
 
 from .theme import THINKING_STYLE_RICH
 
-console = Console()
+_console = Console()
 
 
 def display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None:
@@ -38,7 +38,7 @@ def display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None
                 if live is None:
                     live = Live(
                         Markdown(""),
-                        console=console,
+                        console=_console,
                         refresh_per_second=15,
                     )
                     live.start()
@@ -47,7 +47,7 @@ def display_stream_events(stream: anthropic.lib.streaming.MessageStream) -> None
             elif event.type == "content_block_stop" and live is not None:
                 live.stop()
                 live = None
-                console.print()
+                _console.print()
                 sys.stdout.flush()
     finally:
         if live is not None:

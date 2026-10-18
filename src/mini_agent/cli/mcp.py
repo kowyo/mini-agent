@@ -9,7 +9,7 @@ from ..agent.mcp import (
 from .display.picker import select_from_list
 from .display.theme import LIGHT_HINT_STYLE_RICH
 
-console = Console()
+_console = Console()
 
 
 def _format_mcp_server(status: ServerStatus) -> str:
@@ -22,7 +22,7 @@ def _format_mcp_server(status: ServerStatus) -> str:
 
 def prompt_mcp() -> None:
     if not server_statuses:
-        console.print("mcp: no servers configured", style=LIGHT_HINT_STYLE_RICH)
+        _console.print("mcp: no servers configured", style=LIGHT_HINT_STYLE_RICH)
         print()
         return
     chosen = select_from_list(
@@ -36,12 +36,12 @@ def prompt_mcp() -> None:
     if chosen is None:
         return
     if chosen.error is None:
-        console.print(
+        _console.print(
             f"mcp: {chosen.name}: {', '.join(chosen.tools) or 'no tools'}",
             style=LIGHT_HINT_STYLE_RICH,
         )
     else:
-        console.print(authorize_server(chosen.name), style=LIGHT_HINT_STYLE_RICH)
+        _console.print(authorize_server(chosen.name), style=LIGHT_HINT_STYLE_RICH)
     print()
 
 
@@ -50,7 +50,7 @@ def print_mcp_hint() -> None:
     if pending:
         label = "server needs" if pending == 1 else "servers need"
         print()
-        console.print(
+        _console.print(
             f"{pending} MCP {label} authorization — run /mcp to connect",
             style=LIGHT_HINT_STYLE_RICH,
         )

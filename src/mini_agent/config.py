@@ -13,9 +13,9 @@ from dotenv import load_dotenv
 DISTRIBUTION_NAME = "mini-agent"
 DISTRIBUTION_VERSION = importlib.metadata.version(DISTRIBUTION_NAME)
 
-DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
-DEFAULT_MODEL = "claude-sonnet-4-6"
-DEFAULT_REASONING_EFFORT = "high"
+_DEFAULT_CONFIG_DIR = Path.home() / ".mini-agent"
+_DEFAULT_MODEL = "claude-sonnet-4-6"
+_DEFAULT_REASONING_EFFORT = "high"
 REASONING_EFFORT_LEVELS = [
     "disabled",
     "adaptive",
@@ -25,20 +25,20 @@ REASONING_EFFORT_LEVELS = [
     "xhigh",
     "max",
 ]
-CONFIG_DIR = DEFAULT_CONFIG_DIR
+CONFIG_DIR = _DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
-CONFIG_FILE = CONFIG_DIR / "config.toml"
+_CONFIG_FILE = CONFIG_DIR / "config.toml"
 
 WORKDIR = Path.cwd()
-HOME_SKILLS_DIR = Path.home() / ".agents" / "skills"
-HOME_MINI_AGENT_SKILLS_DIR = Path.home() / ".mini-agent" / "skills"
-PROJECT_SKILLS_DIR = WORKDIR / ".agents" / "skills"
-PROJECT_MINI_AGENT_SKILLS_DIR = WORKDIR / ".mini-agent" / "skills"
+_HOME_SKILLS_DIR = Path.home() / ".agents" / "skills"
+_HOME_MINI_AGENT_SKILLS_DIR = Path.home() / ".mini-agent" / "skills"
+_PROJECT_SKILLS_DIR = WORKDIR / ".agents" / "skills"
+_PROJECT_MINI_AGENT_SKILLS_DIR = WORKDIR / ".mini-agent" / "skills"
 SKILLS_DIRS = [
-    HOME_SKILLS_DIR,
-    HOME_MINI_AGENT_SKILLS_DIR,
-    PROJECT_SKILLS_DIR,
-    PROJECT_MINI_AGENT_SKILLS_DIR,
+    _HOME_SKILLS_DIR,
+    _HOME_MINI_AGENT_SKILLS_DIR,
+    _PROJECT_SKILLS_DIR,
+    _PROJECT_MINI_AGENT_SKILLS_DIR,
 ]
 
 load_dotenv(CONFIG_DIR / ".env")
@@ -52,7 +52,7 @@ class Provider:
     api_key_env: str
 
 
-class Config:
+class _Config:
     def __init__(self) -> None:
         self._model: str | None = None
         self._session_model_override: str | None = None
@@ -64,8 +64,8 @@ class Config:
         self._session_provider_override: str | None = None
 
     def _load_config(self) -> dict[str, object]:
-        if CONFIG_FILE.exists():
-            return tomllib.loads(CONFIG_FILE.read_text())
+        if _CONFIG_FILE.exists():
+            return tomllib.loads(_CONFIG_FILE.read_text())
         return {}
 
     def set_session_model(self, model_id: str) -> None:
@@ -76,7 +76,7 @@ class Config:
             return self._session_model_override
         if self._model is None:
             cfg = self._load_config()
-            self._model = str(cfg.get("model_id", DEFAULT_MODEL))
+            self._model = str(cfg.get("model_id", _DEFAULT_MODEL))
         return self._model
 
     def save_model(self, model_id: str) -> None:
@@ -84,7 +84,7 @@ class Config:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         cfg = self._load_config()
         cfg["model_id"] = model_id
-        CONFIG_FILE.write_text(tomli_w.dumps(cfg))
+        _CONFIG_FILE.write_text(tomli_w.dumps(cfg))
         self._model = model_id
 
     def set_session_reasoning_effort(self, effort: str) -> None:
@@ -96,7 +96,7 @@ class Config:
         if self._reasoning_effort is None:
             cfg = self._load_config()
             self._reasoning_effort = str(
-                cfg.get("reasoning_effort", DEFAULT_REASONING_EFFORT)
+                cfg.get("reasoning_effort", _DEFAULT_REASONING_EFFORT)
             )
         return self._reasoning_effort
 
@@ -111,7 +111,7 @@ class Config:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         cfg = self._load_config()
         cfg["reasoning_effort"] = effort
-        CONFIG_FILE.write_text(tomli_w.dumps(cfg))
+        _CONFIG_FILE.write_text(tomli_w.dumps(cfg))
         self._reasoning_effort = effort
 
     def get_providers(self) -> list[Provider]:
@@ -130,7 +130,7 @@ class Config:
                     )
                 except KeyError as e:
                     raise ValueError(
-                        f"providers.{provider_id} in {CONFIG_FILE} is missing {e}"
+                        f"providers.{provider_id} in {_CONFIG_FILE} is missing {e}"
                     ) from None
         return list(self._providers.values())
 
@@ -140,7 +140,7 @@ class Config:
     def get_provider(self) -> Provider:
         providers = {provider.id: provider for provider in self.get_providers()}
         if not providers:
-            raise ValueError(f"No providers configured in {CONFIG_FILE}")
+            raise ValueError(f"No providers configured in {_CONFIG_FILE}")
         if self._provider_id is None:
             saved = self._load_config().get("provider")
             self._provider_id = str(saved) if saved else next(iter(providers))
@@ -154,11 +154,11 @@ class Config:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         cfg = self._load_config()
         cfg["provider"] = provider_id
-        CONFIG_FILE.write_text(tomli_w.dumps(cfg))
+        _CONFIG_FILE.write_text(tomli_w.dumps(cfg))
         self._provider_id = provider_id
 
 
-config = Config()
+config = _Config()
 
 
 @cache

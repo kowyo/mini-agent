@@ -13,7 +13,7 @@ from ..config import (
 from .display import clear_prompt_line
 from .display.picker import select_from_list
 
-CATALOG_URL = "https://models.dev/catalog.json"
+_CATALOG_URL = "https://models.dev/catalog.json"
 
 
 def _flatten_catalog(data: dict[str, dict]) -> dict[str, dict]:
@@ -54,10 +54,10 @@ class _ModelInfo:
         try:
             return json.loads(self._cache_path.read_text())
         except FileNotFoundError, json.JSONDecodeError:
-            self.refresh_cache(force=True)
+            self._refresh_cache(force=True)
             return self._cache or {}
 
-    def get_best_limit(self, model_id: str, key: str) -> int | None:
+    def _get_best_limit(self, model_id: str, key: str) -> int | None:
         """Return the value for *key* (e.g. 'context' or 'output') for a given model."""
         cache = self._load_cache()
         model = cache.get(model_id)
@@ -70,7 +70,7 @@ class _ModelInfo:
             return None
         return (model.get("limit") or {}).get(key)
 
-    def refresh_cache(self, force: bool = False) -> None:
+    def _refresh_cache(self, force: bool = False) -> None:
         """Fetch the latest catalog from the remote API and update the local cache."""
         if not force and self._cache_path.exists():
             age = time.time() - self._cache_path.stat().st_mtime
@@ -78,7 +78,7 @@ class _ModelInfo:
                 return
         try:
             req = urllib.request.Request(
-                CATALOG_URL,
+                _CATALOG_URL,
                 headers={
                     "User-Agent": "Mozilla/5.0",
                     "Accept-Encoding": "gzip",
@@ -102,11 +102,11 @@ _model_info = _ModelInfo()
 
 
 def get_max_context_tokens(model_id: str) -> int | None:
-    return _model_info.get_best_limit(model_id, "context")
+    return _model_info._get_best_limit(model_id, "context")
 
 
 def get_max_output_tokens(model_id: str) -> int | None:
-    return _model_info.get_best_limit(model_id, "output")
+    return _model_info._get_best_limit(model_id, "output")
 
 
 def _fetch_models_sdk() -> list[str]:
@@ -137,7 +137,7 @@ def _fetch_models_manual() -> list[str]:
     return sorted(m["id"] for m in data.get("data", []))
 
 
-def fetch_models() -> list[str]:
+def _fetch_models() -> list[str]:
     try:
         return _fetch_models_sdk()
     except Exception:
@@ -148,11 +148,11 @@ def fetch_models() -> list[str]:
         return []
 
 
-def format_model(model_id: str) -> str:
+def _format_model(model_id: str) -> str:
     parts = [model_id]
     try:
-        context = _model_info.get_best_limit(model_id, "context")
-        output = _model_info.get_best_limit(model_id, "output")
+        context = _model_info._get_best_limit(model_id, "context")
+        output = _model_info._get_best_limit(model_id, "output")
         if context is not None:
             parts.append(f"in:{context:,}")
         if output is not None:
@@ -162,7 +162,7 @@ def format_model(model_id: str) -> str:
     return "  ".join(parts)
 
 
-def select_model(model_ids: list[str]) -> str | None:
+def _select_model(model_ids: list[str]) -> str | None:
     current = config.get_model()
     selected_index = model_ids.index(current) if current in model_ids else 0
 
@@ -170,7 +170,7 @@ def select_model(model_ids: list[str]) -> str | None:
     result = select_from_list(
         items,
         "Select model",
-        format_model,
+        _format_model,
         selected_index=selected_index,
         clear_after=True,
     )
@@ -188,7 +188,7 @@ def select_model(model_ids: list[str]) -> str | None:
     return result
 
 
-def select_reasoning_effort() -> str | None:
+def _select_reasoning_effort() -> str | None:
     current = config.get_reasoning_effort()
     selected_index = (
         REASONING_EFFORT_LEVELS.index(current)
@@ -205,9 +205,9 @@ def select_reasoning_effort() -> str | None:
 
 
 def prompt_model() -> None:
-    _model_info.refresh_cache()
+    _model_info._refresh_cache()
     try:
-        model_ids = fetch_models()
+        model_ids = _fetch_models()
     except Exception as e:
         print(f"Failed to fetch models: {e}\n")
         return
@@ -224,7 +224,7 @@ def prompt_model() -> None:
             return
         if not model_id:
             return
-        effort_result = select_reasoning_effort()
+        effort_result = _select_reasoning_effort()
         if effort_result is None:
             return
         config.save_model(model_id)
@@ -233,12 +233,12 @@ def prompt_model() -> None:
         print(f"Model set to {model_id} {effort}\n")
         return
 
-    model_id = select_model(model_ids)
+    model_id = _select_model(model_ids)
 
     if model_id is None:
         return
 
-    effort_result = select_reasoning_effort()
+    effort_result = _select_reasoning_effort()
 
     if effort_result is None:
         return

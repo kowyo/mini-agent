@@ -13,7 +13,7 @@ from ..config import config, get_client
 from .system_prompt import SYSTEM
 from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError, ToolError
 
-console = Console()
+_console = Console()
 
 
 def _discard_incomplete_turn(messages: list[MessageParam], turn_start: int) -> None:
@@ -31,7 +31,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
     try:
         while True:
             working_status = None
-            thinking_status = console.status("Thinking")
+            thinking_status = _console.status("Thinking")
             thinking_status.start()
 
             effort = config.get_reasoning_effort()
@@ -67,8 +67,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
             except Exception as e:
                 thinking_status.stop()
-                console.print(f"{type(e).__name__}: {e}", style="bold red")
-                console.print()
+                _console.print(f"{type(e).__name__}: {e}", style="bold red")
+                _console.print()
                 _discard_incomplete_turn(messages, turn_start)
                 return
 
@@ -90,7 +90,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
                 for block in response.content:
                     if isinstance(block, ToolUseBlock):
                         if working_status is None:
-                            working_status = console.status("Working")
+                            working_status = _console.status("Working")
                             working_status.start()
                         handler = TOOL_HANDLERS.get(block.name)
                         print_tool_start(block.name, block.input)
@@ -152,7 +152,7 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
     except KeyboardInterrupt:
         print("\r", end="", flush=True)
-        console.print(
+        _console.print(
             "[bold yellow]■ Conversation interrupted - tell the model what to do differently[/bold yellow]"
         )
         if thinking_status is not None:

@@ -17,15 +17,15 @@ from .token import Usage, token_tracker
 
 
 @dataclass
-class StoredSession:
+class _StoredSession:
     session_id: str
     title: str
-    updated_at: str
+    _updated_at: str
     history: list[MessageParam]
     round_usages: list[Usage]
 
 
-def serialize_content(content: str | Iterable[object]) -> list[object]:
+def _serialize_content(content: str | Iterable[object]) -> list[object]:
     if isinstance(content, str):
         return [{"type": "text", "text": content}]
     serialized_blocks: list[object] = []
@@ -39,7 +39,7 @@ def serialize_content(content: str | Iterable[object]) -> list[object]:
     return serialized_blocks
 
 
-def session_title(history: list[MessageParam]) -> str:
+def _session_title(history: list[MessageParam]) -> str:
     for message in history:
         if message["role"] == "user":
             text = extract_text_content(message["content"])
@@ -50,7 +50,7 @@ def session_title(history: list[MessageParam]) -> str:
 
 
 class SessionManager:
-    VERSION = 1
+    _VERSION = 1
 
     def __init__(self, session_dir: Path | None = None) -> None:
         self._base_dir = session_dir or SESSION_DIR
@@ -60,16 +60,16 @@ class SessionManager:
         return str(uuid.uuid7())
 
     @staticmethod
-    def entry_id() -> str:
+    def _entry_id() -> str:
         return uuid.uuid4().hex[:8]
 
-    def cwd_dir(self, cwd: str | None = None) -> Path:
+    def _cwd_dir(self, cwd: str | None = None) -> Path:
         cwd = cwd or str(Path.cwd())
         resolved = str(Path(cwd).resolve())
         safe = resolved.lstrip("/").replace("/", "-").replace(":", "-")
         return self._base_dir / (safe or "__root__")
 
-    def find_file(self, session_id: str) -> Path | None:
+    def _find_file(self, session_id: str) -> Path | None:
         if not self._base_dir.exists():
             return None
         for cwd_dir in self._base_dir.iterdir():
@@ -80,7 +80,7 @@ class SessionManager:
         return None
 
     def exists(self, session_id: str) -> bool:
-        return self.find_file(session_id) is not None
+        return self._find_file(session_id) is not None
 
     def save(
         self,
@@ -90,10 +90,10 @@ class SessionManager:
         cwd: str | None = None,
     ) -> None:
         cwd = cwd or str(Path.cwd())
-        session_dir = self.cwd_dir(cwd)
+        session_dir = self._cwd_dir(cwd)
         session_dir.mkdir(parents=True, exist_ok=True)
 
-        existing = self.find_file(session_id)
+        existing = self._find_file(session_id)
         entries: list[dict[str, Any]]
         if existing:
             lines = [line for line in existing.read_text().splitlines() if line.strip()]
@@ -120,10 +120,10 @@ class SessionManager:
         for message in history[existing_entry_count:]:
             now = datetime.now(UTC)
             entry_ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-            new_id = self.entry_id()
+            new_id = self._entry_id()
             msg_body: dict = {
                 "role": message["role"],
-                "content": serialize_content(message["content"]),
+                "content": _serialize_content(message["content"]),
                 "timestamp": int(now.timestamp() * 1000),
             }
             if message["role"] == "assistant":
@@ -153,7 +153,7 @@ class SessionManager:
             ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
             header = {
                 "type": "session",
-                "version": self.VERSION,
+                "version": self._VERSION,
                 "id": session_id,
                 "timestamp": ts,
                 "cwd": cwd,
@@ -167,7 +167,7 @@ class SessionManager:
         )
 
     def load(self, session_id: str) -> tuple[list[MessageParam], list[Usage]]:
-        path = self.find_file(session_id)
+        path = self._find_file(session_id)
         if path is None:
             return [], []
 
@@ -196,10 +196,10 @@ class SessionManager:
                     )
         return history, round_usages
 
-    def list_sessions(self) -> list[StoredSession]:
+    def list_sessions(self) -> list[_StoredSession]:
         if not self._base_dir.exists():
             return []
-        sessions: list[StoredSession] = []
+        sessions: list[_StoredSession] = []
         for cwd_dir in self._base_dir.iterdir():
             if not cwd_dir.is_dir():
                 continue
@@ -247,20 +247,20 @@ class SessionManager:
                         else header.get("timestamp", "")
                     )
                     sessions.append(
-                        StoredSession(
+                        _StoredSession(
                             session_id=sid,
-                            title=session_title(history),
-                            updated_at=updated_at,
+                            title=_session_title(history),
+                            _updated_at=updated_at,
                             history=history,
                             round_usages=round_usages,
                         )
                     )
                 except OSError, json.JSONDecodeError, ValueError, KeyError:
                     continue
-        return sorted(sessions, key=lambda item: item.updated_at, reverse=True)
+        return sorted(sessions, key=lambda item: item._updated_at, reverse=True)
 
 
-def format_relative_time(timestamp: str) -> str:
+def _format_relative_time(timestamp: str) -> str:
     updated_at = datetime.fromisoformat(timestamp)
     now = datetime.now(UTC)
     delta = now - updated_at.astimezone(UTC)
@@ -282,12 +282,12 @@ def format_relative_time(timestamp: str) -> str:
     return f"{days} {unit} ago"
 
 
-def format_session_choice(stored: StoredSession) -> str:
-    return f"{stored.title} ({format_relative_time(stored.updated_at)})"
+def _format_session_choice(stored: _StoredSession) -> str:
+    return f"{stored.title} ({_format_relative_time(stored._updated_at)})"
 
 
-def select_session(
-    sessions: list[StoredSession], current_session_id: str | None = None
+def _select_session(
+    sessions: list[_StoredSession], current_session_id: str | None = None
 ) -> str | None:
     selected_index = 0
     if current_session_id is not None:
@@ -298,7 +298,7 @@ def select_session(
     result = select_from_list(
         sessions,
         "Resume a previous session",
-        format_session_choice,
+        _format_session_choice,
         selected_index=selected_index,
     )
     return result.session_id if result is not None else None
@@ -315,7 +315,7 @@ def prompt_resume(
         print("No saved sessions found.\n")
         return current_session_id, history, False
 
-    result = select_session(sessions, current_session_id=current_session_id)
+    result = _select_session(sessions, current_session_id=current_session_id)
     print()
 
     if result is None:

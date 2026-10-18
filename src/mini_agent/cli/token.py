@@ -32,44 +32,44 @@ class Usage:
         return self.cache_read_input_tokens / total if total else 0.0
 
 
-class TokenTracker:
+class _TokenTracker:
     """Tracks per-round token usage and computes accumulated totals."""
 
     def __init__(self) -> None:
         """Initialize with empty usage history."""
         self.round_usages: list[Usage] = []
-        self.total_usage: Usage | None = None
-        self.last_round: Usage | None = None
+        self._total_usage: Usage | None = None
+        self._last_round: Usage | None = None
 
     def update(self, usage: Usage) -> None:
         self.round_usages.append(usage)
-        self.last_round = usage
-        if self.total_usage is None:
-            self.total_usage = usage
+        self._last_round = usage
+        if self._total_usage is None:
+            self._total_usage = usage
         else:
-            self.total_usage = self.total_usage + usage
+            self._total_usage = self._total_usage + usage
 
     def restore(self, round_usages: list[Usage]) -> None:
         self.round_usages = list(round_usages)
         if round_usages:
-            self.total_usage = sum(round_usages[1:], start=round_usages[0])
+            self._total_usage = sum(round_usages[1:], start=round_usages[0])
         else:
-            self.total_usage = None
-        self.last_round = round_usages[-1] if round_usages else None
+            self._total_usage = None
+        self._last_round = round_usages[-1] if round_usages else None
 
     def reset(self) -> None:
         """Clear all tracked usage data."""
         self.round_usages.clear()
-        self.total_usage = None
-        self.last_round = None
+        self._total_usage = None
+        self._last_round = None
 
     def get(self) -> Usage | None:
         """Return the accumulated total usage, or None if no rounds recorded."""
-        return self.total_usage
+        return self._total_usage
 
     def get_last_round(self) -> Usage | None:
         """Return the most recent round's usage, or None if no rounds recorded."""
-        return self.last_round
+        return self._last_round
 
 
-token_tracker = TokenTracker()
+token_tracker = _TokenTracker()

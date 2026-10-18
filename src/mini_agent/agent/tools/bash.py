@@ -9,7 +9,7 @@ from ...cli.display.theme import LIGHT_HINT_STYLE_RICH
 from ...config import WORKDIR
 from .base import MAX_OUTPUT, BashInterruptedError, kill_process_tree
 
-console = Console()
+_console = Console()
 
 
 def run_bash(
@@ -94,6 +94,6 @@ def bash_handler(command: str, timeout: int | None = None) -> str:
     def on_line(line: str) -> None:
         text = Text.from_ansi(line.rstrip("\n\r"))
         text.stylize(LIGHT_HINT_STYLE_RICH)
-        console.print(text)
+        _console.print(text)
 
     return run_bash(command, on_line=on_line, timeout=timeout)

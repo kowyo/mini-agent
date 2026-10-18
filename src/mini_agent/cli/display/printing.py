@@ -21,9 +21,9 @@ from .theme import (
     THINKING_STYLE_RICH,
 )
 
-console = Console()
+_console = Console()
 
-TOOL_RESULT_PREVIEW_LINES = 10
+_TOOL_RESULT_PREVIEW_LINES = 10
 
 _full_tool_output = False
 
@@ -56,7 +56,7 @@ def print_welcome_banner() -> None:
         "",
         Text(f" model: {config.get_model()} {config.get_reasoning_effort()}"),
     ]
-    print_box(console, lines)
+    print_box(_console, lines)
 
 
 def print_session_history(history: list[MessageParam]) -> None:
@@ -91,7 +91,7 @@ def print_session_history(history: list[MessageParam]) -> None:
                             for line in output.splitlines():
                                 text = Text.from_ansi(line.rstrip("\n\r"))
                                 text.stylize(LIGHT_HINT_STYLE_RICH)
-                                console.print(text)
+                                _console.print(text)
                             print()
                         else:
                             print_tool_result(name, input_data, output)
@@ -99,7 +99,7 @@ def print_session_history(history: list[MessageParam]) -> None:
             text = extract_text_content(content)
             if text:
                 lines = text.splitlines()
-                console.print(
+                _console.print(
                     Text.assemble(("> ", ACCENT_COLOR), lines[0]), highlight=False
                 )
                 for line in lines[1:]:
@@ -119,12 +119,12 @@ def print_session_history(history: list[MessageParam]) -> None:
                 if block.get("type") == "text":
                     text = str(block.get("text", "")).strip()
                     if text:
-                        console.print(Markdown(text))
+                        _console.print(Markdown(text))
                         print()
                 elif block.get("type") == "thinking":
                     thinking_text = str(block.get("thinking", "")).strip()
                     if thinking_text:
-                        console.print(
+                        _console.print(
                             Markdown(thinking_text, style=THINKING_STYLE_RICH)
                         )
                         print()
@@ -150,7 +150,7 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
             if limit is not None:
                 hints.append(f"limit {limit}")
             text.append(f" ({', '.join(hints)})", style=LIGHT_HINT_STYLE_RICH)
-        console.print(text)
+        _console.print(text)
         return
 
     if name == "write_file":
@@ -162,7 +162,7 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
         timeout = input_data.get("timeout")
         if timeout is not None:
             text.append(f" (timeout {timeout}s)", style=LIGHT_HINT_STYLE_RICH)
-        console.print(text)
+        _console.print(text)
         return
 
     if name == "edit_file":
@@ -181,7 +181,7 @@ def print_tool_result(
 ) -> None:
     """Print tool output after execution."""
     if name == "bash":
-        console.print()
+        _console.print()
         return
 
     if name == "edit_file":
@@ -225,12 +225,12 @@ def _print_tool_output_preview(output_str: str) -> None:
     visual_lines = [
         chunk
         for line in output_str.splitlines()
-        for chunk in chop_cells(line, console.width) or [""]
+        for chunk in chop_cells(line, _console.width) or [""]
     ]
-    print("\n".join(visual_lines[:TOOL_RESULT_PREVIEW_LINES]))
-    hidden_lines = len(visual_lines) - TOOL_RESULT_PREVIEW_LINES
+    print("\n".join(visual_lines[:_TOOL_RESULT_PREVIEW_LINES]))
+    hidden_lines = len(visual_lines) - _TOOL_RESULT_PREVIEW_LINES
     if hidden_lines > 0:
-        console.print(
+        _console.print(
             f"… ({hidden_lines} more lines, ctrl+o to expand)",
             style=LIGHT_HINT_STYLE_RICH,
         )
@@ -246,7 +246,7 @@ def _split_tool_output(output: str | list[Any]) -> tuple[str, list[str]]:
         if block.get("type") == "text":
             texts.append(str(block.get("text", "")))
         elif block.get("type") == "image" and (
-            image := render_image(source["data"], console.width)
+            image := render_image(source["data"], _console.width)
         ):
             images.append(image)
         else:
