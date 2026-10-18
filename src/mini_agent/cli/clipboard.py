@@ -8,8 +8,9 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, cast
 
-from anthropic.types import ImageBlockParam, MessageParam
 from PIL import Image, ImageGrab
+
+from ..agent.transcript import ImageBlock, Message, TextBlock
 
 
 def format_image_indicator(path: str) -> str:
@@ -81,21 +82,16 @@ def _image_to_base64(image: Image.Image, format: str = "PNG") -> str:
     return base64.b64encode(buffer.read()).decode("utf-8")
 
 
-def create_image_content(image: Image.Image) -> ImageBlockParam:
+def create_image_content(image: Image.Image) -> ImageBlock:
     base64_data = _image_to_base64(image, "PNG")
 
-    return {
-        "type": "image",
-        "source": {
-            "type": "base64",
-            "media_type": "image/png",
-            "data": base64_data,
-        },
-    }
+    return ImageBlock(data=base64_data, mime_type="image/png")
 
 
 def _is_text_block(block: object) -> str | None:
     """Extract text from a content block. Returns text or None if not a text block."""
+    if isinstance(block, TextBlock):
+        return block.text.strip() if block.text.strip() else None
     if isinstance(block, dict):
         d = cast("dict[str, object]", block)
         block_type = d.get("type")
@@ -137,10 +133,10 @@ def _copy_to_clipboard(text: str) -> bool:
         return False
 
 
-def copy_last_assistant_text(history: Iterable[MessageParam]) -> None:
+def copy_last_assistant_text(history: Iterable[Message]) -> None:
     for message in reversed(list(history)):
-        if message["role"] == "assistant":
-            text = extract_text_content(message["content"])
+        if getattr(message, "role", None) == "assistant":
+            text = extract_text_content(message.content)
             if text:
                 if _copy_to_clipboard(text):
                     print("Copied to clipboard.")

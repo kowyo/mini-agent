@@ -1,16 +1,19 @@
 import json
 import uuid
-from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from anthropic.types import MessageParam
-from pydantic import BaseModel
-
-from ..config import SESSION_DIR, config
-from .clipboard import extract_text_content
+from ..agent.transcript import (
+    AssistantMessage,
+    Message,
+    UserMessage,
+    message_from_dict,
+    message_to_dict,
+    text_content,
+)
+from ..config import SESSION_DIR
 from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
 from .token import Usage, token_tracker
@@ -21,36 +24,27 @@ class _StoredSession:
     session_id: str
     title: str
     _updated_at: str
-    history: list[MessageParam]
+    history: list[Message]
     round_usages: list[Usage]
 
 
-def _serialize_content(content: str | Iterable[object]) -> list[object]:
-    if isinstance(content, str):
-        return [{"type": "text", "text": content}]
-    serialized_blocks: list[object] = []
-    for block in content:
-        if isinstance(block, BaseModel):
-            dumped = block.model_dump(mode="json", exclude_none=True)
-            dumped.pop("parsed_output", None)
-            serialized_blocks.append(dumped)
-        else:
-            serialized_blocks.append(block)
-    return serialized_blocks
+def _message_usage(message: Message) -> Usage | None:
+    if isinstance(message, AssistantMessage):
+        return message.usage
+    return None
 
 
-def _session_title(history: list[MessageParam]) -> str:
+def _session_title(history: list[Message]) -> str:
     for message in history:
-        if message["role"] == "user":
-            text = extract_text_content(message["content"])
-            title = " ".join(text.splitlines()).strip()
+        if isinstance(message, UserMessage):
+            title = " ".join(text_content(message.content).splitlines()).strip()
             if title:
                 return title[:60]
     return "Untitled session"
 
 
 class SessionManager:
-    _VERSION = 1
+    _VERSION = 2
 
     def __init__(self, session_dir: Path | None = None) -> None:
         self._base_dir = session_dir or SESSION_DIR
@@ -69,14 +63,23 @@ class SessionManager:
         safe = resolved.lstrip("/").replace("/", "-").replace(":", "-")
         return self._base_dir / (safe or "__root__")
 
+    def _is_current(self, path: Path) -> bool:
+        try:
+            with path.open() as file:
+                header = json.loads(file.readline())
+        except OSError, json.JSONDecodeError:
+            return False
+        return header.get("version") == self._VERSION
+
     def _find_file(self, session_id: str) -> Path | None:
         if not self._base_dir.exists():
             return None
-        for cwd_dir in self._base_dir.iterdir():
-            if not cwd_dir.is_dir():
+        for _cwd_dir in self._base_dir.iterdir():
+            if not _cwd_dir.is_dir():
                 continue
-            for f in cwd_dir.glob(f"*_{session_id}.jsonl"):
-                return f
+            for path in _cwd_dir.glob(f"*_{session_id}.jsonl"):
+                if self._is_current(path):
+                    return path
         return None
 
     def exists(self, session_id: str) -> bool:
@@ -85,8 +88,7 @@ class SessionManager:
     def save(
         self,
         session_id: str,
-        history: list[MessageParam],
-        round_usages: list[Usage] | None = None,
+        history: list[Message],
         cwd: str | None = None,
     ) -> None:
         cwd = cwd or str(Path.cwd())
@@ -106,43 +108,14 @@ class SessionManager:
 
         existing_entry_count = max(len(entries) - 1, 0) if entries else 0
 
-        saved_asst = 0
-        if existing:
-            for entry in entries[1:]:
-                message = entry.get("message")
-                if (
-                    entry.get("type") == "message"
-                    and isinstance(message, dict)
-                    and message.get("role") == "assistant"
-                ):
-                    saved_asst += 1
-
         for message in history[existing_entry_count:]:
             now = datetime.now(UTC)
-            entry_ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-            new_id = self._entry_id()
-            msg_body: dict = {
-                "role": message["role"],
-                "content": _serialize_content(message["content"]),
-                "timestamp": int(now.timestamp() * 1000),
-            }
-            if message["role"] == "assistant":
-                msg_body["model"] = config.get_model()
-                if round_usages and saved_asst < len(round_usages):
-                    u = round_usages[saved_asst]
-                    msg_body["usage"] = {
-                        "input_tokens": u.input_tokens,
-                        "cache_creation_input_tokens": u.cache_creation_input_tokens,
-                        "cache_read_input_tokens": u.cache_read_input_tokens,
-                        "output_tokens": u.output_tokens,
-                    }
-                    saved_asst += 1
             entries.append(
                 {
                     "type": "message",
-                    "id": new_id,
-                    "timestamp": entry_ts,
-                    "message": msg_body,
+                    "id": self._entry_id(),
+                    "timestamp": int(now.timestamp() * 1000),
+                    "message": message_to_dict(message),
                 }
             )
 
@@ -166,44 +139,43 @@ class SessionManager:
             "\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n"
         )
 
-    def load(self, session_id: str) -> tuple[list[MessageParam], list[Usage]]:
+    def load(self, session_id: str) -> tuple[list[Message], list[Usage]]:
         path = self._find_file(session_id)
         if path is None:
             return [], []
 
         lines = [line for line in path.read_text().splitlines() if line.strip()]
-        history: list[MessageParam] = []
+        if not lines:
+            return [], []
+        try:
+            header = json.loads(lines[0])
+        except json.JSONDecodeError:
+            return [], []
+        if header.get("version") != self._VERSION:
+            return [], []
+
+        history: list[Message] = []
         round_usages: list[Usage] = []
         for line in lines[1:]:
             try:
                 entry = json.loads(line)
-            except json.JSONDecodeError:
+                message = message_from_dict(entry["message"])
+            except json.JSONDecodeError, KeyError, ValueError, TypeError:
                 continue
-            msg = entry["message"]
-            history.append({"role": msg["role"], "content": msg["content"]})
-            if msg["role"] == "assistant":
-                u = msg.get("usage")
-                if u:
-                    round_usages.append(
-                        Usage(
-                            input_tokens=u.get("input_tokens", 0),
-                            cache_creation_input_tokens=u.get(
-                                "cache_creation_input_tokens", 0
-                            ),
-                            cache_read_input_tokens=u.get("cache_read_input_tokens", 0),
-                            output_tokens=u.get("output_tokens", 0),
-                        )
-                    )
+            history.append(message)
+            usage = _message_usage(message)
+            if usage is not None:
+                round_usages.append(usage)
         return history, round_usages
 
     def list_sessions(self) -> list[_StoredSession]:
         if not self._base_dir.exists():
             return []
         sessions: list[_StoredSession] = []
-        for cwd_dir in self._base_dir.iterdir():
-            if not cwd_dir.is_dir():
+        for _cwd_dir in self._base_dir.iterdir():
+            if not _cwd_dir.is_dir():
                 continue
-            for path in cwd_dir.glob("*.jsonl"):
+            for path in _cwd_dir.glob("*.jsonl"):
                 try:
                     content = path.read_text()
                     lines = [line for line in content.splitlines() if line.strip()]
@@ -212,36 +184,25 @@ class SessionManager:
                     header = json.loads(lines[0])
                     if header.get("type") != "session":
                         continue
+                    if header.get("version") != self._VERSION:
+                        continue
                     sid = header.get("id", "")
                     if not sid:
                         continue
-                    entry_lines = lines[1:]
                     max_ts = 0
-                    history: list[MessageParam] = []
+                    history: list[Message] = []
                     round_usages: list[Usage] = []
-                    for line in entry_lines:
+                    for line in lines[1:]:
                         entry = json.loads(line)
-                        msg = entry["message"]
-                        history.append({"role": msg["role"], "content": msg["content"]})
-                        ts = msg.get("timestamp", 0)
+                        message = message_from_dict(entry["message"])
+                        history.append(message)
+                        ts = entry.get("timestamp", 0)
                         if ts > max_ts:
                             max_ts = ts
-                        if msg["role"] == "assistant":
-                            u = msg.get("usage")
-                            if u:
-                                round_usages.append(
-                                    Usage(
-                                        input_tokens=u.get("input_tokens", 0),
-                                        cache_creation_input_tokens=u.get(
-                                            "cache_creation_input_tokens", 0
-                                        ),
-                                        cache_read_input_tokens=u.get(
-                                            "cache_read_input_tokens", 0
-                                        ),
-                                        output_tokens=u.get("output_tokens", 0),
-                                    )
-                                )
-                    updated_at = (
+                        usage = _message_usage(message)
+                        if usage is not None:
+                            round_usages.append(usage)
+                    _updated_at = (
                         datetime.fromtimestamp(max_ts / 1000, UTC).isoformat()
                         if max_ts
                         else header.get("timestamp", "")
@@ -250,20 +211,20 @@ class SessionManager:
                         _StoredSession(
                             session_id=sid,
                             title=_session_title(history),
-                            _updated_at=updated_at,
+                            _updated_at=_updated_at,
                             history=history,
                             round_usages=round_usages,
                         )
                     )
-                except OSError, json.JSONDecodeError, ValueError, KeyError:
+                except OSError, json.JSONDecodeError, ValueError, KeyError, TypeError:
                     continue
         return sorted(sessions, key=lambda item: item._updated_at, reverse=True)
 
 
 def _format_relative_time(timestamp: str) -> str:
-    updated_at = datetime.fromisoformat(timestamp)
+    _updated_at = datetime.fromisoformat(timestamp)
     now = datetime.now(UTC)
-    delta = now - updated_at.astimezone(UTC)
+    delta = now - _updated_at.astimezone(UTC)
     seconds = max(int(delta.total_seconds()), 0)
 
     if seconds < 60:
@@ -307,8 +268,8 @@ def _select_session(
 def prompt_resume(
     manager: SessionManager,
     current_session_id: str,
-    history: list[MessageParam],
-) -> tuple[str, list[MessageParam], bool]:
+    history: list[Message],
+) -> tuple[str, list[Message], bool]:
     clear_terminal()
     sessions = manager.list_sessions()
     if not sessions:

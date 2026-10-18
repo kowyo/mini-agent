@@ -12,6 +12,7 @@ from mini_agent.agent.mcp.tools import _map_result, _tool_name, setup_mcp
 from mini_agent.agent.tools.base import MAX_OUTPUT, ToolError
 from mini_agent.agent.tools.handlers import TOOL_HANDLERS
 from mini_agent.agent.tools.schemas import TOOLS
+from mini_agent.agent.transcript import ImageBlock, TextBlock
 
 STUB_SERVER = Path(__file__).parent / "mcp_stub_server.py"
 
@@ -44,17 +45,10 @@ def test_map_image_result_matches_read_file_shape() -> None:
             ImageContent(type="image", data="aGk=", mime_type="image/png"),
         ]
     )
-    assert _map_result(result) == [
-        {"type": "text", "text": "screenshot"},
-        {
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": "image/png",
-                "data": "aGk=",
-            },
-        },
-    ]
+    assert _map_result(result) == (
+        TextBlock(text="screenshot"),
+        ImageBlock(data="aGk=", mime_type="image/png"),
+    )
 
 
 def test_map_error_result() -> None:
@@ -102,8 +96,8 @@ def test_setup_registers_tools_and_handlers(
         assert status[0].error is None
         assert {"echo", "fail", "sleep", "die"} == set(status[0].tools)
         assert "mcp__stub__echo" in TOOL_HANDLERS
-        schema = next(t for t in TOOLS if t["name"] == "mcp__stub__echo")
-        assert schema["input_schema"]["properties"]["text"]["type"] == "string"
+        schema = next(t for t in TOOLS if t.name == "mcp__stub__echo")
+        assert schema.parameters["properties"]["text"]["type"] == "string"
 
         assert TOOL_HANDLERS["mcp__stub__echo"](text="hi") == "hi"
         failure = TOOL_HANDLERS["mcp__stub__fail"]()

@@ -8,6 +8,7 @@ from mini_agent.agent.tools.file import (
     _detect_image_media_type,
     run_read,
 )
+from mini_agent.agent.transcript import ImageBlock, TextBlock
 
 
 @pytest.fixture
@@ -151,20 +152,20 @@ class TestReadImage:
         f = tmp_path / "photo.png"
         f.write_bytes(PNG_HEADER)
         result = run_read(str(f))
-        assert isinstance(result, list)
+        assert isinstance(result, tuple)
         assert len(result) == 2
-        assert result[0]["type"] == "text"
-        assert "image/png" in result[0]["text"]
-        assert result[1]["type"] == "image"
-        assert result[1]["source"]["media_type"] == "image/png"
-        assert result[1]["source"]["type"] == "base64"
+        assert isinstance(result[0], TextBlock)
+        assert "image/png" in result[0].text
+        assert isinstance(result[1], ImageBlock)
+        assert result[1].mime_type == "image/png"
 
     def test_image_ignores_offset_and_limit(self, tmp_path: Path) -> None:
         f = tmp_path / "photo.jpg"
         f.write_bytes(JPEG_HEADER)
         result = run_read(str(f), offset=10, limit=5)
-        assert isinstance(result, list)
-        assert result[1]["source"]["media_type"] == "image/jpeg"
+        assert isinstance(result, tuple)
+        assert isinstance(result[1], ImageBlock)
+        assert result[1].mime_type == "image/jpeg"
 
     def test_non_image_returns_string(self, sample_file: Path) -> None:
         result = run_read(str(sample_file))

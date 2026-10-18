@@ -1,8 +1,8 @@
 import base64
 import shlex
 from pathlib import Path
-from typing import Any
 
+from ..transcript import ImageBlock, TextBlock
 from .base import resolve_path
 
 MAX_LINES = 2000
@@ -54,7 +54,7 @@ def run_read(
     path: str,
     offset: int | None = None,
     limit: int | None = None,
-) -> str | list[dict[str, Any]]:
+) -> str | tuple[TextBlock | ImageBlock, ...]:
     try:
         file_path = resolve_path(path)
     except Exception as exc:
@@ -72,17 +72,10 @@ def run_read(
             data = base64.standard_b64encode(file_path.read_bytes()).decode()
         except Exception as exc:
             return f"Error: {exc}"
-        return [
-            {"type": "text", "text": f"Read image file [{media_type}]"},
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": data,
-                },
-            },
-        ]
+        return (
+            TextBlock(text=f"Read image file [{media_type}]"),
+            ImageBlock(data=data, mime_type=media_type),
+        )
 
     try:
         text = file_path.read_text()

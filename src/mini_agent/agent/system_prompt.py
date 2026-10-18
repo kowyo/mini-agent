@@ -71,7 +71,7 @@ def _build_context_section(files: list[Path]) -> str:
     return "".join(sections)
 
 
-_TOOLS_LIST = "\n".join(f"- {tool['name']}: {tool['description']}" for tool in TOOLS)
+_TOOLS_LIST = "\n".join(f"- {tool.name}: {tool.description}" for tool in TOOLS)
 
 _SYSTEM_BASE = f"""You are an expert coding assistant. You help users by reading files, executing commands, editing code, and writing new files.
 

@@ -9,6 +9,7 @@ from typing import cast
 import tomli_w
 from anthropic import Anthropic
 from dotenv import load_dotenv
+from openai import OpenAI
 
 DISTRIBUTION_NAME = "mini-agent"
 DISTRIBUTION_VERSION = importlib.metadata.version(DISTRIBUTION_NAME)
@@ -25,6 +26,7 @@ REASONING_EFFORT_LEVELS = [
     "xhigh",
     "max",
 ]
+API_TYPES = ("message", "response")
 CONFIG_DIR = _DEFAULT_CONFIG_DIR
 SESSION_DIR = CONFIG_DIR / "sessions"
 _CONFIG_FILE = CONFIG_DIR / "config.toml"
@@ -49,7 +51,8 @@ class Provider:
     id: str
     name: str
     base_url: str
-    api_key_env: str
+    api_key_env: str | None = None
+    api_type: str = "message"
 
 
 class _Config:
@@ -58,7 +61,6 @@ class _Config:
         self._session_model_override: str | None = None
         self._reasoning_effort: str | None = None
         self._session_reasoning_effort_override: str | None = None
-        self._cache_control: bool | None = None
         self._providers: dict[str, Provider] | None = None
         self._provider_id: str | None = None
         self._session_provider_override: str | None = None
@@ -100,12 +102,6 @@ class _Config:
             )
         return self._reasoning_effort
 
-    def get_cache_control(self) -> bool:
-        if self._cache_control is None:
-            cfg = self._load_config()
-            self._cache_control = bool(cfg.get("cache_control", False))
-        return self._cache_control
-
     def save_reasoning_effort(self, effort: str) -> None:
         self._session_reasoning_effort_override = None
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -122,11 +118,22 @@ class _Config:
             self._providers = {}
             for provider_id, table in tables.items():
                 try:
+                    api_type = str(table.get("api_type", "message"))
+                    if api_type not in API_TYPES:
+                        raise ValueError(
+                            f"providers.{provider_id}.api_type must be one of "
+                            f"{', '.join(API_TYPES)}"
+                        )
                     self._providers[provider_id] = Provider(
                         id=provider_id,
                         name=str(table["name"]),
                         base_url=str(table["base_url"]),
-                        api_key_env=str(table["api_key_env"]),
+                        api_key_env=(
+                            str(table["api_key_env"])
+                            if "api_key_env" in table
+                            else None
+                        ),
+                        api_type=api_type,
                     )
                 except KeyError as e:
                     raise ValueError(
@@ -161,13 +168,38 @@ class _Config:
 config = _Config()
 
 
-@cache
-def _build_client(provider: Provider) -> Anthropic:
+def get_api_key(provider: Provider) -> str:
+    if provider.api_key_env is None:
+        raise ValueError(f"No API key configured for {provider.name}")
     api_key = os.getenv(provider.api_key_env)
     if not api_key:
         raise ValueError(f"{provider.api_key_env} is not set for {provider.name}")
-    return Anthropic(base_url=provider.base_url, auth_token=api_key)
+    return api_key
+
+
+@cache
+def _build_client(provider: Provider) -> Anthropic:
+    return Anthropic(base_url=provider.base_url, auth_token=get_api_key(provider))
+
+
+@cache
+def _build_responses_client(provider: Provider) -> OpenAI:
+    return OpenAI(
+        api_key=get_api_key(provider),
+        base_url=provider.base_url,
+        max_retries=0,
+    )
 
 
 def get_client() -> Anthropic:
-    return _build_client(config.get_provider())
+    provider = config.get_provider()
+    if provider.api_type != "message":
+        raise ValueError(f"{provider.name} does not use the message API")
+    return _build_client(provider)
+
+
+def get_responses_client() -> OpenAI:
+    provider = config.get_provider()
+    if provider.api_type != "response":
+        raise ValueError(f"{provider.name} does not use the response API")
+    return _build_responses_client(provider)

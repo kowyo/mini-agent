@@ -1,12 +1,11 @@
-from anthropic.types import ToolParam
-
+from ..transcript import ToolSpec
 from .file import MAX_BYTES, MAX_LINES
 
-TOOLS: list[ToolParam] = [
-    {
-        "name": "bash",
-        "description": "Execute bash commands.",
-        "input_schema": {
+TOOLS: list[ToolSpec] = [
+    ToolSpec(
+        name="bash",
+        description="Execute bash commands.",
+        parameters={
             "type": "object",
             "properties": {
                 "command": {"type": "string"},
@@ -18,17 +17,17 @@ TOOLS: list[ToolParam] = [
             },
             "required": ["command"],
         },
-    },
-    {
-        "name": "read_file",
-        "description": (
+    ),
+    ToolSpec(
+        name="read_file",
+        description=(
             f"Read the contents of a file. Supports text files and images "
             f"(jpg, png, gif, webp). Images are sent as attachments. "
             f"For text files, output is truncated to {MAX_LINES} lines or "
             f"{MAX_BYTES // 1024}KB (whichever is hit first). Use offset/limit for "
             f"large files. When you need the full file, continue with offset until complete."
         ),
-        "input_schema": {
+        parameters={
             "type": "object",
             "properties": {
                 "path": {
@@ -48,20 +47,20 @@ TOOLS: list[ToolParam] = [
             },
             "required": ["path"],
         },
-    },
-    {
-        "name": "write_file",
-        "description": "Write content to a file.",
-        "input_schema": {
+    ),
+    ToolSpec(
+        name="write_file",
+        description="Write content to a file.",
+        parameters={
             "type": "object",
             "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
             "required": ["path", "content"],
         },
-    },
-    {
-        "name": "edit_file",
-        "description": "Replace exact text in a file.",
-        "input_schema": {
+    ),
+    ToolSpec(
+        name="edit_file",
+        description="Replace exact text in a file.",
+        parameters={
             "type": "object",
             "properties": {
                 "path": {"type": "string"},
@@ -70,16 +69,16 @@ TOOLS: list[ToolParam] = [
             },
             "required": ["path", "old_text", "new_text"],
         },
-    },
-    {
-        "name": "activate_skill",
-        "description": "Load specialized knowledge by name.",
-        "input_schema": {
+    ),
+    ToolSpec(
+        name="activate_skill",
+        description="Load specialized knowledge by name.",
+        parameters={
             "type": "object",
             "properties": {
                 "name": {"type": "string", "description": "Skill name to load"}
             },
             "required": ["name"],
         },
-    },
+    ),
 ]

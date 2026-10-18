@@ -3,15 +3,23 @@ import subprocess
 from pathlib import Path
 from typing import Any, cast
 
-from anthropic.types import MessageParam
-from pydantic import BaseModel
 from rich.cells import chop_cells
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
 
+from ...agent.transcript import (
+    AssistantMessage,
+    ImageBlock,
+    Message,
+    TextBlock,
+    ThinkingBlock,
+    ToolCall,
+    ToolResultMessage,
+    UserMessage,
+    text_content,
+)
 from ...config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION, config
-from ..clipboard import extract_text_content
 from .box import print_box
 from .diff import format_edit_diff
 from .terminal_image import render_image
@@ -59,44 +67,15 @@ def print_welcome_banner() -> None:
     print_box(_console, lines)
 
 
-def print_session_history(history: list[MessageParam]) -> None:
+def print_session_history(history: list[Message]) -> None:
     clear_terminal()
     print_welcome_banner()
 
     tool_registry: dict[str, tuple[str, dict[str, object]]] = {}
 
     for message in history:
-        content = message["content"]
-
-        if message["role"] == "user":
-            if isinstance(content, list):
-                tool_results = [
-                    b
-                    for b in content
-                    if isinstance(b, dict) and b.get("type") == "tool_result"
-                ]
-                if tool_results:
-                    for block in tool_results:
-                        tool_use_id = str(block.get("tool_use_id", ""))
-                        name, input_data = tool_registry.get(
-                            tool_use_id, ("unknown", {})
-                        )
-                        raw_content = block.get("content", "")
-                        output = (
-                            raw_content
-                            if isinstance(raw_content, list)
-                            else str(raw_content)
-                        )
-                        if name == "bash" and isinstance(output, str) and output:
-                            for line in output.splitlines():
-                                text = Text.from_ansi(line.rstrip("\n\r"))
-                                text.stylize(LIGHT_HINT_STYLE_RICH)
-                                _console.print(text)
-                            print()
-                        else:
-                            print_tool_result(name, input_data, output)
-
-            text = extract_text_content(content)
+        if isinstance(message, UserMessage):
+            text = text_content(message.content)
             if text:
                 lines = text.splitlines()
                 _console.print(
@@ -107,34 +86,38 @@ def print_session_history(history: list[MessageParam]) -> None:
                 print()
             continue
 
-        if message["role"] == "assistant" and isinstance(content, list):
-            for raw_block in content:
-                block = (
-                    raw_block.model_dump()
-                    if isinstance(raw_block, BaseModel)
-                    else raw_block
-                )
-                if not isinstance(block, dict):
-                    continue
-                if block.get("type") == "text":
-                    text = str(block.get("text", "")).strip()
+        if isinstance(message, AssistantMessage):
+            for block in message.content:
+                if isinstance(block, TextBlock):
+                    text = block.text.strip()
                     if text:
                         _console.print(Markdown(text))
                         print()
-                elif block.get("type") == "thinking":
-                    thinking_text = str(block.get("thinking", "")).strip()
+                elif isinstance(block, ToolCall):
+                    tool_registry[block.id] = (block.name, block.arguments)
+                    print_tool_start(block.name, block.arguments)
+                elif isinstance(block, ThinkingBlock):
+                    thinking_text = block.thinking.strip()
                     if thinking_text:
                         _console.print(
                             Markdown(thinking_text, style=THINKING_STYLE_RICH)
                         )
                         print()
-                elif block.get("type") == "tool_use":
-                    name = str(block.get("name", "unknown"))
-                    input_data = cast(dict[str, object], block.get("input", {}))
-                    tool_use_id = str(block.get("id", ""))
-                    if tool_use_id:
-                        tool_registry[tool_use_id] = (name, input_data)
-                    print_tool_start(name, input_data)
+            continue
+
+        if isinstance(message, ToolResultMessage):
+            name, input_data = tool_registry.get(message.tool_call_id, ("unknown", {}))
+            output: str | tuple[TextBlock | ImageBlock, ...] = message.content
+            if name == "bash":
+                output_str, _ = _split_tool_output(output)
+                if output_str:
+                    for line in output_str.splitlines():
+                        text = Text.from_ansi(line.rstrip("\n\r"))
+                        text.stylize(LIGHT_HINT_STYLE_RICH)
+                        _console.print(text)
+                    print()
+            else:
+                print_tool_result(name, input_data, output)
 
 
 def print_tool_start(name: str, input_data: dict[str, object]) -> None:
@@ -177,7 +160,9 @@ def print_tool_start(name: str, input_data: dict[str, object]) -> None:
 
 
 def print_tool_result(
-    name: str, input_data: dict[str, object], output: str | list[Any]
+    name: str,
+    input_data: dict[str, object],
+    output: str | list[Any] | tuple[Any, ...],
 ) -> None:
     """Print tool output after execution."""
     if name == "bash":
@@ -186,8 +171,9 @@ def print_tool_result(
 
     if name == "edit_file":
         path = cast(str, input_data["path"])
-        if isinstance(output, str) and output.startswith("Error"):
-            print(f"{output}\n")
+        output_str, _ = _split_tool_output(output)
+        if output_str.startswith("Error"):
+            print(f"{output_str}\n")
             return
         old_text = cast(str, input_data["old_text"])
         new_text = cast(str, input_data["new_text"])
@@ -202,9 +188,10 @@ def print_tool_result(
         return
 
     if name in ("read_file", "write_file", "activate_skill"):
-        if name == "read_file" and isinstance(output, list):
+        if name == "read_file" and isinstance(output, tuple | list):
             output_str, images = _split_tool_output(output)
-            print(output_str)
+            if output_str:
+                print(output_str)
             for image in images:
                 print(image)
         print()
@@ -236,19 +223,31 @@ def _print_tool_output_preview(output_str: str) -> None:
         )
 
 
-def _split_tool_output(output: str | list[Any]) -> tuple[str, list[str]]:
+def _split_tool_output(
+    output: str | list[Any] | tuple[Any, ...],
+) -> tuple[str, list[str]]:
     if isinstance(output, str):
         return output, []
     texts: list[str] = []
     images: list[str] = []
     for block in output:
-        source = block.get("source", {})
-        if block.get("type") == "text":
-            texts.append(str(block.get("text", "")))
-        elif block.get("type") == "image" and (
-            image := render_image(source["data"], _console.width)
-        ):
-            images.append(image)
+        if isinstance(block, TextBlock):
+            texts.append(block.text)
+        elif isinstance(block, ImageBlock):
+            if image := render_image(block.data, _console.width):
+                images.append(image)
+            else:
+                texts.append(f"[{block.mime_type}]")
+        elif isinstance(block, dict):
+            source = block.get("source", {})
+            if block.get("type") == "text":
+                texts.append(str(block.get("text", "")))
+            elif block.get("type") == "image" and (
+                image := render_image(source["data"], _console.width)
+            ):
+                images.append(image)
+            else:
+                texts.append(f"[{source.get('media_type', block.get('type'))}]")
         else:
-            texts.append(f"[{source.get('media_type', block.get('type'))}]")
+            texts.append(str(block))
     return "\n".join(texts), images
