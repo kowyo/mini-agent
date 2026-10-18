@@ -4,11 +4,12 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from anthropic.types import ToolUseBlock
 from PIL import Image
 
 from mini_agent.agent.tools.file import run_read
+from mini_agent.agent.transcript import AssistantMessage, ToolCall
 from mini_agent.cli.display import printing
+from mini_agent.cli.token import Usage
 
 
 def test_ctrl_o_toggles_collapsed_tool_output(
@@ -110,8 +111,15 @@ def test_session_history_redraws_live_tool_calls(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(printing, "clear_terminal", lambda: None)
-    tool_use = ToolUseBlock(type="tool_use", id="t1", name="mcp__x__list", input={})
+    message = AssistantMessage(
+        content=(ToolCall(id="t1", name="mcp__x__list", arguments={}),),
+        provider="test",
+        api_type="message",
+        model="test-model",
+        usage=Usage(1, 0, 0, 1),
+        stop_reason="tool_use",
+    )
 
-    printing.print_session_history([{"role": "assistant", "content": [tool_use]}])
+    printing.print_session_history([message])
 
     assert "> mcp__x__list - {}" in capsys.readouterr().out

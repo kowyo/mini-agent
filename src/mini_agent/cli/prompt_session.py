@@ -1,6 +1,5 @@
 from collections.abc import Callable
 
-from anthropic.types import ImageBlockParam, MessageParam
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import get_app, run_in_terminal
 from prompt_toolkit.completion import merge_completers
@@ -9,6 +8,7 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 
+from ..agent.transcript import ImageBlock, Message
 from .clipboard import format_image_indicator, get_clipboard_image
 from .display import (
     COMPLETION_STYLE,
@@ -23,7 +23,7 @@ from .display.toolbar import get_status_toolbar
 
 def _sync_attached_images_with_buffer(
     buffer_text: str,
-    attached_images: list[tuple[str, ImageBlockParam]],
+    attached_images: list[tuple[str, ImageBlock]],
 ) -> None:
     if not attached_images:
         return
@@ -36,16 +36,16 @@ def _sync_attached_images_with_buffer(
 
 
 def build_session(
-    get_history: Callable[[], list[MessageParam]],
+    get_history: Callable[[], list[Message]],
     prompt: str | None = None,
 ) -> tuple[
     PromptSession,
     Callable[[], None] | None,
-    list[tuple[str, ImageBlockParam]],
+    list[tuple[str, ImageBlock]],
     list[int],
 ]:
     bindings = KeyBindings()
-    attached_images: list[tuple[str, ImageBlockParam]] = []
+    attached_images: list[tuple[str, ImageBlock]] = []
     sent_image_count = [0]
 
     @bindings.add("c-c")

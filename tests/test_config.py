@@ -79,3 +79,34 @@ def test_missing_api_key_is_reported(
 
     with pytest.raises(ValueError, match="DEEPSEEK_API_KEY is not set for DeepSeek"):
         get_client()
+
+
+def test_api_type_defaults_to_message(config_file: Path) -> None:
+    config_file.write_text(PROVIDERS_TOML)
+
+    assert _Config().get_provider().api_type == "message"
+
+
+def test_response_provider_is_parsed(config_file: Path) -> None:
+    config_file.write_text(
+        '[providers.openai]\nname = "OpenAI"\n'
+        'api_type = "response"\n'
+        'base_url = "https://api.openai.com/v1"\n'
+        'api_key_env = "OPENAI_API_KEY"\n'
+    )
+
+    provider = _Config().get_provider()
+
+    assert provider.api_type == "response"
+
+
+def test_invalid_api_type_is_rejected(config_file: Path) -> None:
+    config_file.write_text(
+        '[providers.openai]\nname = "OpenAI"\n'
+        'api_type = "completions"\n'
+        'base_url = "https://api.openai.com/v1"\n'
+        'api_key_env = "OPENAI_API_KEY"\n'
+    )
+
+    with pytest.raises(ValueError, match="api_type"):
+        _Config().get_providers()

@@ -1,11 +1,13 @@
 import argparse
 import sys
 
-from anthropic.types import MessageParam
 from rich.console import Console
 
 from ..agent.agent import agent_loop
 from ..agent.mcp import setup_mcp, shutdown_mcp
+from ..agent.system_prompt import SYSTEM
+from ..agent.tools import TOOLS
+from ..agent.transcript import Message, Transcript, UserMessage
 from ..config import (
     DISTRIBUTION_NAME,
     DISTRIBUTION_VERSION,
@@ -47,18 +49,23 @@ _session_manager = SessionManager()
 
 
 def _run_non_interactive(prompt: str) -> None:
-    history: list[MessageParam] = [{"role": "user", "content": prompt}]
+    transcript = Transcript(
+        system=SYSTEM,
+        tools=TOOLS,
+        messages=[UserMessage(content=prompt)],
+    )
     session_id = _session_manager.new_id()
-    history_len = len(history)
-    agent_loop(history)
-    if len(history) > history_len and token_tracker.get() is not None:
-        _session_manager.save(session_id, history, token_tracker.round_usages)
+    history_len = len(transcript.messages)
+    agent_loop(transcript, session_id)
+    if len(transcript.messages) > history_len:
+        _session_manager.save(session_id, transcript.messages)
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     print_welcome_banner()
     print_mcp_hint()
-    history: list[MessageParam] = []
+    history: list[Message] = []
+    transcript = Transcript(system=SYSTEM, tools=TOOLS, messages=history)
     current_session_id = _session_manager.new_id()
     session, pre_run, attached_images, sent_image_count = build_session(
         lambda: history, prompt
@@ -72,6 +79,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
                 stored for stored in sessions if stored.session_id == current_session_id
             )
             history = chosen.history.copy()
+            transcript.messages = history
             sent_image_count[0] = count_images_in_history(history)
             print_session_history(chosen.history)
             token_tracker.restore(chosen.round_usages)
@@ -109,6 +117,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             current_session_id, history, _ = prompt_resume(
                 _session_manager, current_session_id, history
             )
+            transcript.messages = history
             sent_image_count[0] = count_images_in_history(history)
             attached_images.clear()
             continue
@@ -137,16 +146,13 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
 
         content = build_user_content(query, attached_images, sent_image_count)
 
-        history.append({"role": "user", "content": content})
+        history.append(UserMessage(content=content))
         history_len = len(history)
-        agent_loop(history)
+        agent_loop(transcript, current_session_id)
 
         if len(history) <= history_len:
             continue
-        if token_tracker.get() is not None:
-            _session_manager.save(
-                current_session_id, history, token_tracker.round_usages
-            )
+        _session_manager.save(current_session_id, history)
 
     if _session_manager.exists(current_session_id):
         usage_report = format_usage_report(token_tracker.get())

@@ -9,7 +9,9 @@ from mini_agent.cli import models
 _CATALOG = {
     "models": {
         "deepseek/deepseek-v4.1-flash": {
-            "limit": {"context": 1_000_000, "output": 384_000}
+            "limit": {"context": 1_000_000, "output": 384_000},
+            "reasoning": True,
+            "reasoning_options": [{"type": "effort", "values": ["low", "high"]}],
         },
         "tencent/hy3-preview": {"limit": {"context": 262_144, "output": 262_144}},
         "anthropic/claude-sonnet-4-6": {
@@ -73,6 +75,8 @@ def test_refresh_cache_resolves_limits(
     assert info._get_best_limit("deepseek-flash", "context") == 1_000_000
     assert info._get_best_limit("hy3-preview", "output") == 262_144
     assert info._get_best_limit("claude-sonnet-4-6", "output") == 128_000
+    assert info.get_model_reasoning("deepseek-v4.1-flash") is True
+    assert info.get_reasoning_efforts("deepseek-v4.1-flash") == ["low", "high"]
     assert "deepseek-flash" not in json.loads((tmp_path / "catalog.json").read_text())
 
 
