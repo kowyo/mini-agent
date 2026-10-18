@@ -100,7 +100,7 @@ class _PreRegisteredStorage(_FileTokenStorage):
 
 
 class _CallbackServer(HTTPServer):
-    flow: _OAuthBrowserFlow
+    _flow: _OAuthBrowserFlow
 
 
 class _CallbackHandler(BaseHTTPRequestHandler):
@@ -112,7 +112,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html")
         self.end_headers()
         self.wfile.write(_CALLBACK_PAGE.encode())
-        self.server.flow._receive(query)
+        self.server._flow._receive(query)
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         pass
@@ -125,10 +125,10 @@ class _OAuthBrowserFlow:
         self._server_name = server_name
         self._interactive = interactive
         self._server = _CallbackServer(("127.0.0.1", 0), _CallbackHandler)
-        self._server.flow = self
+        self._server._flow = self
         self._done = threading.Event()
         self._query: dict[str, list[str]] = {}
-        self.redirect_uri = (
+        self._redirect_uri = (
             f"http://127.0.0.1:{self._server.server_address[1]}/callback"
         )
 
@@ -291,7 +291,7 @@ def _build_oauth_provider(
     auth_method = "client_secret_post" if client_secret else "none"
     metadata = OAuthClientMetadata(
         client_name="mini-agent",
-        redirect_uris=[AnyUrl(flow.redirect_uri)],
+        redirect_uris=[AnyUrl(flow._redirect_uri)],
         grant_types=["authorization_code", "refresh_token"],
         response_types=["code"],
         token_endpoint_auth_method=auth_method,

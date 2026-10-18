@@ -20,7 +20,7 @@ from .token import Usage, token_tracker
 class _StoredSession:
     session_id: str
     title: str
-    updated_at: str
+    _updated_at: str
     history: list[MessageParam]
     round_usages: list[Usage]
 
@@ -50,7 +50,7 @@ def _session_title(history: list[MessageParam]) -> str:
 
 
 class SessionManager:
-    VERSION = 1
+    _VERSION = 1
 
     def __init__(self, session_dir: Path | None = None) -> None:
         self._base_dir = session_dir or SESSION_DIR
@@ -153,7 +153,7 @@ class SessionManager:
             ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
             header = {
                 "type": "session",
-                "version": self.VERSION,
+                "version": self._VERSION,
                 "id": session_id,
                 "timestamp": ts,
                 "cwd": cwd,
@@ -250,14 +250,14 @@ class SessionManager:
                         _StoredSession(
                             session_id=sid,
                             title=_session_title(history),
-                            updated_at=updated_at,
+                            _updated_at=updated_at,
                             history=history,
                             round_usages=round_usages,
                         )
                     )
                 except OSError, json.JSONDecodeError, ValueError, KeyError:
                     continue
-        return sorted(sessions, key=lambda item: item.updated_at, reverse=True)
+        return sorted(sessions, key=lambda item: item._updated_at, reverse=True)
 
 
 def _format_relative_time(timestamp: str) -> str:
@@ -283,7 +283,7 @@ def _format_relative_time(timestamp: str) -> str:
 
 
 def _format_session_choice(stored: _StoredSession) -> str:
-    return f"{stored.title} ({_format_relative_time(stored.updated_at)})"
+    return f"{stored.title} ({_format_relative_time(stored._updated_at)})"
 
 
 def _select_session(

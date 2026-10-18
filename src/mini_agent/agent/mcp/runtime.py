@@ -58,10 +58,10 @@ def _contains(exc: BaseException | None, exc_type: type[BaseException]) -> bool:
 
 @dataclass
 class _ServerHandle:
-    client: Client
-    stop: asyncio.Event
-    task: asyncio.Task
-    timeout: float
+    _client: Client
+    _stop: asyncio.Event
+    _task: asyncio.Task
+    _timeout: float
 
 
 @asynccontextmanager
@@ -149,7 +149,9 @@ class McpRuntime:
                     f"{cfg.name}: authorization required"
                 ) from exc
             raise McpServerError(f"{cfg.name}: {_leaf_exception(exc)}") from exc
-        return _ServerHandle(client=client, stop=stop, task=task, timeout=cfg.timeout)
+        return _ServerHandle(
+            _client=client, _stop=stop, _task=task, _timeout=cfg.timeout
+        )
 
     def connect(self, cfg: ServerConfig, interactive: bool = True) -> None:
         if cfg.name in self._servers:
@@ -197,17 +199,17 @@ class McpRuntime:
             tools: list[Tool] = []
             cursor: str | None = None
             while True:
-                page = await handle.client.list_tools(cursor=cursor)
+                page = await handle._client.list_tools(cursor=cursor)
                 tools.extend(page.tools)
                 if page.next_cursor is None:
                     return tools
                 cursor = page.next_cursor
 
         try:
-            return self._run(_list(), handle.timeout)
+            return self._run(_list(), handle._timeout)
         except TimeoutError:
             raise McpServerError(
-                f"{server}: tools/list timed out after {handle.timeout:g}s"
+                f"{server}: tools/list timed out after {handle._timeout:g}s"
             ) from None
         except Exception as exc:
             raise McpServerError(f"{server}: {exc}") from exc
@@ -218,13 +220,13 @@ class McpRuntime:
         handle = self._handle(server)
 
         async def _call() -> CallToolResult:
-            return await handle.client.call_tool(tool, arguments)
+            return await handle._client.call_tool(tool, arguments)
 
         try:
-            return self._run(_call(), handle.timeout)
+            return self._run(_call(), handle._timeout)
         except TimeoutError:
             raise McpServerError(
-                f"{server}.{tool}: timed out after {handle.timeout:g}s"
+                f"{server}.{tool}: timed out after {handle._timeout:g}s"
             ) from None
         except MCPError as exc:
             if exc.code != CONNECTION_CLOSED:
@@ -243,7 +245,7 @@ class McpRuntime:
         handle = self._servers.pop(server, None)
         if handle is None or self._loop is None:
             return
-        self._loop.call_soon_threadsafe(handle.stop.set)
+        self._loop.call_soon_threadsafe(handle._stop.set)
 
     def shutdown(self) -> None:
         loop = self._loop
@@ -255,9 +257,9 @@ class McpRuntime:
 
         async def _stop_all() -> None:
             for handle in handles:
-                handle.stop.set()
+                handle._stop.set()
             await asyncio.gather(
-                *(handle.task for handle in handles), return_exceptions=True
+                *(handle._task for handle in handles), return_exceptions=True
             )
 
         future = asyncio.run_coroutine_threadsafe(_stop_all(), loop)

@@ -10,12 +10,12 @@ from .variables import get_variables, substitute_variables
 
 class _SkillLoader:
     def __init__(self, skills_dirs: list[Path]) -> None:
-        self.skills_dirs = skills_dirs
+        self._skills_dirs = skills_dirs
         self.skills: dict[str, dict[str, Any]] = {}
         self._load_all()
 
     def _load_all(self) -> None:
-        for skills_dir in self.skills_dirs:
+        for skills_dir in self._skills_dirs:
             if not skills_dir.exists():
                 continue
             for f in sorted(skills_dir.rglob("SKILL.md")):
