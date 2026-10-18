@@ -8,10 +8,12 @@ authors = [{ name = "Kowyo", email = "kowyo@outlook.com" }]
 dependencies = [
     "anthropic>=1.9.0",
     "cryptography<46.0.4 ; sys_platform == 'win32' and platform_machine == 'ARM64'",
+    "filelock>=3.20",
     "mcp>=2.2.0",
     "openai>=3.28.0",
     "pillow>=12.3.0",
     "prompt-toolkit>=3.0.53",
+    "pyjwt[crypto]>=2.10",
     "pyobjc-framework-cocoa>=12.2.2 ; sys_platform == 'darwin'",
     "python-dotenv>=1.2.3",
     "pyyaml>=6.0.3",

@@ -46,11 +46,11 @@ def _mapped_effort(effort: str) -> str:
 
 
 def _reasoning_config(
-    model: str, effort: str
+    model: str, effort: str, auth_type: str = "api_key"
 ) -> tuple[dict[str, Any] | None, list[str] | None, bool]:
     from ...cli.models import get_model_reasoning, get_reasoning_efforts
 
-    if get_model_reasoning(model) is not True:
+    if auth_type != "chatgpt" and get_model_reasoning(model) is not True:
         return None, None, False
     if effort == "disabled":
         return {"effort": "none"}, None, False
@@ -338,11 +338,44 @@ def _assistant_message(response: object, request: TurnRequest) -> AssistantMessa
     )
 
 
+_SIWC_ERRORS = {
+    "subscription_sharing_user_not_eligible": (
+        "ChatGPT plan usage is not available for this account or workspace."
+    ),
+    "subscription_sharing_usage_limit_exceeded": (
+        "A ChatGPT usage limit was reached. Check ChatGPT settings -> Usage."
+    ),
+    "subscription_sharing_usage_unavailable": (
+        "ChatGPT usage could not be checked. Try again shortly."
+    ),
+    "subscription_sharing_unsupported_capability": (
+        "This request uses a capability that ChatGPT plan usage does not support."
+    ),
+    "subscription_sharing_route_not_supported": (
+        "This endpoint is not supported by ChatGPT plan usage."
+    ),
+    "subscription_sharing_invalid_user": (
+        "ChatGPT could not validate this account. Run /login and try again."
+    ),
+    "subscription_sharing_user_unavailable": (
+        "Your ChatGPT account is temporarily unavailable. Try again shortly."
+    ),
+    "chatpass_v2_scope_not_authorized": (
+        "The ChatGPT grant does not authorize this request. Run /login again."
+    ),
+    "chatpass_v2_invalid_authorization_context": (
+        "The ChatGPT authorization context is invalid. Run /login again."
+    ),
+}
+
+
 def _error_from_event(event: object) -> ApiError:
     response = getattr(event, "response", None)
     error = getattr(response, "error", None) or getattr(event, "error", None)
     code = getattr(error, "code", None) or getattr(event, "code", None)
     message = getattr(error, "message", None) or "ChatGPT response failed"
+    if isinstance(code, str) and code in _SIWC_ERRORS:
+        message = _SIWC_ERRORS[code]
     return ApiError(str(message), code=str(code) if code else None)
 
 
@@ -354,7 +387,9 @@ class _ResponsesTurnStream(TurnStream):
 
     def __enter__(self) -> _ResponsesTurnStream:
         reasoning, include, thinking_enabled = _reasoning_config(
-            self._request.model, self._request.reasoning_effort
+            self._request.model,
+            self._request.reasoning_effort,
+            self._request.provider.auth_type,
         )
         kwargs: dict[str, Any] = {
             "model": self._request.model,
@@ -368,10 +403,23 @@ class _ResponsesTurnStream(TurnStream):
             "store": False,
         }
         if self._request.transcript.tools:
-            kwargs["tools"] = _tools(self._request.transcript.tools)
+            if self._request.provider.auth_type == "chatgpt":
+                kwargs["input"] = [
+                    {
+                        "type": "additional_tools",
+                        "role": "developer",
+                        "tools": _tools(self._request.transcript.tools),
+                    },
+                    *kwargs["input"],
+                ]
+            else:
+                kwargs["tools"] = _tools(self._request.transcript.tools)
         if self._request.session_id:
             kwargs["prompt_cache_key"] = self._request.session_id
-        if self._request.max_output_tokens:
+        if (
+            self._request.max_output_tokens
+            and self._request.provider.auth_type != "chatgpt"
+        ):
             kwargs["max_output_tokens"] = max(
                 self._request.max_output_tokens, _MIN_OUTPUT_TOKENS
             )

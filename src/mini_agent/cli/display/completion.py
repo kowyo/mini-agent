@@ -18,6 +18,8 @@ _COMMANDS = {
     "/resume": "Resume a previous session",
     "/model": "Select a model",
     "/provider": "Select a provider",
+    "/login": "Sign in to ChatGPT",
+    "/logout": "Sign out of ChatGPT",
     "/copy": "Copy the last assistant response to clipboard",
     "/status": "Show current session configuration and token usage",
     "/mcp": "Authorize and list MCP servers",

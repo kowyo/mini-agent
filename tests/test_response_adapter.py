@@ -261,7 +261,7 @@ def test_failed_stream_surfaces_the_provider_error(
         responses = FakeResponses()
 
     monkeypatch.setattr(
-        response_api, "_reasoning_config", lambda model, effort: (None, None, False)
+        response_api, "_reasoning_config", lambda *args: (None, None, False)
     )
     monkeypatch.setattr(response_api, "get_responses_client", lambda: FakeClient())
 
@@ -300,7 +300,7 @@ def test_missing_completed_event_becomes_an_api_error(
         responses = FakeResponses()
 
     monkeypatch.setattr(
-        response_api, "_reasoning_config", lambda model, effort: (None, None, False)
+        response_api, "_reasoning_config", lambda *args: (None, None, False)
     )
     monkeypatch.setattr(response_api, "get_responses_client", lambda: FakeClient())
 

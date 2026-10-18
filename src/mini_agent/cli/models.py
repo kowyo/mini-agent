@@ -8,6 +8,7 @@ from ..config import (
     CONFIG_DIR,
     REASONING_EFFORT_LEVELS,
     config,
+    get_api_key,
     get_client,
     get_responses_client,
 )
@@ -192,8 +193,33 @@ def _fetch_response_models_manual() -> list[str]:
     return sorted(item["id"] for item in data.get("data", []))
 
 
+def _fetch_chatgpt_models() -> list[str]:
+    provider = config.get_provider()
+    url = f"{provider.base_url.rstrip('/')}/models"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {get_api_key(provider)}",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read())
+    models = data.get("models", [])
+    return sorted(
+        item["slug"]
+        for item in models
+        if isinstance(item, dict)
+        and item.get("visibility") == "list"
+        and isinstance(item.get("slug"), str)
+    )
+
+
 def _fetch_models() -> list[str]:
-    if config.get_provider().api_type == "response":
+    provider = config.get_provider()
+    if provider.auth_type == "chatgpt":
+        return _fetch_chatgpt_models()
+    if provider.api_type == "response":
         try:
             return _fetch_response_models_sdk()
         except Exception:
