@@ -1,10 +1,20 @@
 from collections.abc import Iterator
-from types import SimpleNamespace
 
 import pytest
-from anthropic.types import MessageParam, ToolUseBlock
 
 from mini_agent.agent import agent
+from mini_agent.agent.api.base import TurnRequest, TurnStream
+from mini_agent.agent.transcript import (
+    AssistantMessage,
+    Message,
+    TextBlock,
+    ToolCall,
+    ToolResultMessage,
+    Transcript,
+    UserMessage,
+)
+from mini_agent.cli.token import Usage
+from mini_agent.config import Provider
 
 
 class StatusStub:
@@ -15,11 +25,27 @@ class StatusStub:
         pass
 
 
-class ResponseStreamStub:
-    def __init__(self, response: SimpleNamespace) -> None:
-        self.response = response
+class ConfigStub:
+    def get_provider(self) -> Provider:
+        return Provider(
+            id="test",
+            name="Test",
+            base_url="https://example.com",
+            api_type="message",
+        )
 
-    def __enter__(self) -> ResponseStreamStub:
+    def get_model(self) -> str:
+        return "test-model"
+
+    def get_reasoning_effort(self) -> str:
+        return "disabled"
+
+
+class TurnStreamStub:
+    def __init__(self, message: AssistantMessage | None = None) -> None:
+        self.message = message
+
+    def __enter__(self) -> TurnStreamStub:
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -28,68 +54,88 @@ class ResponseStreamStub:
     def __iter__(self) -> Iterator[object]:
         return iter(())
 
-    def get_final_message(self) -> SimpleNamespace:
-        return self.response
+    def get_final_message(self) -> AssistantMessage:
+        if self.message is None:
+            raise RuntimeError("The response stream failed")
+        return self.message
 
 
-class ErrorStreamStub:
-    def __enter__(self) -> ErrorStreamStub:
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        pass
-
+class ErrorTurnStream(TurnStreamStub):
     def __iter__(self) -> Iterator[object]:
         raise RuntimeError("The response stream failed")
 
 
-def test_tool_error_sets_is_error_on_the_tool_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    tool_use = ToolUseBlock(type="tool_use", id="tool-1", name="failing", input={})
-    first = SimpleNamespace(
-        content=[tool_use],
-        stop_reason="tool_use",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
-    )
-    second = SimpleNamespace(
-        content=[],
-        stop_reason="end_turn",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
-    )
-    streams = iter([ResponseStreamStub(first), ResponseStreamStub(second)])
+class BackendStub:
+    def __init__(self, streams: list[TurnStreamStub]) -> None:
+        self.streams = iter(streams)
 
-    monkeypatch.setattr(
-        agent,
-        "get_client",
-        lambda: SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
-        ),
+    def run_turn(self, request: TurnRequest) -> TurnStream:
+        return next(self.streams)
+
+
+def assistant(
+    content: tuple[TextBlock | ToolCall, ...], stop_reason: str
+) -> AssistantMessage:
+    return AssistantMessage(
+        content=content,
+        provider="test",
+        api_type="message",
+        model="test-model",
+        usage=Usage(1, 0, 0, 1),
+        stop_reason=stop_reason,
     )
+
+
+def transcript() -> Transcript:
+    return Transcript(
+        system="system",
+        tools=[],
+        messages=[UserMessage(content="Question")],
+    )
+
+
+def setup_agent(
+    monkeypatch: pytest.MonkeyPatch,
+    streams: list[TurnStreamStub],
+) -> None:
+    backend = BackendStub(streams)
+    monkeypatch.setattr(agent, "get_backend", lambda provider: backend)
+    monkeypatch.setattr(agent, "config", ConfigStub())
     monkeypatch.setattr(agent._console, "status", lambda message: StatusStub())
     monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
     monkeypatch.setattr(
         agent, "print_tool_result", lambda name, input_data, output: None
     )
+
+
+def test_tool_error_sets_is_error_on_the_tool_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = assistant(
+        (ToolCall(id="tool-1", name="failing", arguments={}),),
+        "tool_use",
+    )
+    second = assistant((), "end_turn")
+    setup_agent(
+        monkeypatch,
+        [TurnStreamStub(first), TurnStreamStub(second)],
+    )
     monkeypatch.setitem(
         agent.TOOL_HANDLERS, "failing", lambda **kw: agent.ToolError("it broke")
     )
-    messages: list[MessageParam] = [{"role": "user", "content": "Question"}]
+    history = transcript()
     previous_usages = list(agent.token_tracker.round_usages)
 
     try:
-        agent.agent_loop(messages)
-        assert messages[2] == {
-            "role": "user",
-            "content": [
-                {
-                    "type": "tool_result",
-                    "tool_use_id": "tool-1",
-                    "content": "it broke",
-                    "is_error": True,
-                }
-            ],
-        }
+        agent.agent_loop(history)
+        result = history.messages[2]
+        assert isinstance(result, ToolResultMessage)
+        assert result == ToolResultMessage(
+            tool_call_id="tool-1",
+            name="failing",
+            content=(TextBlock(text="it broke"),),
+            is_error=True,
+        )
     finally:
         agent.token_tracker.restore(previous_usages)
 
@@ -97,47 +143,24 @@ def test_tool_error_sets_is_error_on_the_tool_result(
 def test_unknown_tool_is_reported_as_an_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    tool_use = ToolUseBlock(type="tool_use", id="tool-1", name="missing", input={})
-    first = SimpleNamespace(
-        content=[tool_use],
-        stop_reason="tool_use",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+    first = assistant(
+        (ToolCall(id="tool-1", name="missing", arguments={}),),
+        "tool_use",
     )
-    second = SimpleNamespace(
-        content=[],
-        stop_reason="end_turn",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+    second = assistant((), "end_turn")
+    setup_agent(
+        monkeypatch,
+        [TurnStreamStub(first), TurnStreamStub(second)],
     )
-    streams = iter([ResponseStreamStub(first), ResponseStreamStub(second)])
-
-    monkeypatch.setattr(
-        agent,
-        "get_client",
-        lambda: SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
-        ),
-    )
-    monkeypatch.setattr(agent._console, "status", lambda message: StatusStub())
-    monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
-    monkeypatch.setattr(
-        agent, "print_tool_result", lambda name, input_data, output: None
-    )
-    messages: list[MessageParam] = [{"role": "user", "content": "Question"}]
+    history = transcript()
     previous_usages = list(agent.token_tracker.round_usages)
 
     try:
-        agent.agent_loop(messages)
-        assert messages[2] == {
-            "role": "user",
-            "content": [
-                {
-                    "type": "tool_result",
-                    "tool_use_id": "tool-1",
-                    "content": "Unknown tool: missing",
-                    "is_error": True,
-                }
-            ],
-        }
+        agent.agent_loop(history)
+        result = history.messages[2]
+        assert isinstance(result, ToolResultMessage)
+        assert result.is_error is True
+        assert result.content == (TextBlock(text="Unknown tool: missing"),)
     finally:
         agent.token_tracker.restore(previous_usages)
 
@@ -145,42 +168,34 @@ def test_unknown_tool_is_reported_as_an_error(
 def test_stream_error_is_reported_and_discards_the_entire_incomplete_turn(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    tool_use = ToolUseBlock(type="tool_use", id="tool-1", name="unknown", input={})
-    response = SimpleNamespace(
-        content=[tool_use],
-        stop_reason="tool_use",
-        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+    first = assistant(
+        (ToolCall(id="tool-1", name="unknown", arguments={}),),
+        "tool_use",
     )
-    streams = iter([ResponseStreamStub(response), ErrorStreamStub()])
+    setup_agent(
+        monkeypatch,
+        [TurnStreamStub(first), ErrorTurnStream()],
+    )
     errors: list[tuple[object, dict[str, object]]] = []
-
-    monkeypatch.setattr(
-        agent,
-        "get_client",
-        lambda: SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kwargs: next(streams))
-        ),
-    )
-    monkeypatch.setattr(agent._console, "status", lambda message: StatusStub())
     monkeypatch.setattr(
         agent._console,
         "print",
         lambda message=None, **kwargs: errors.append((message, kwargs)),
     )
-    monkeypatch.setattr(agent, "print_tool_start", lambda name, input_data: None)
-    monkeypatch.setattr(
-        agent, "print_tool_result", lambda name, input_data, output: None
-    )
-    previous_messages: list[MessageParam] = [
-        {"role": "user", "content": "Previous question"},
-        {"role": "assistant", "content": "Previous answer"},
+    previous: list[Message] = [
+        UserMessage(content="Previous question"),
+        assistant((TextBlock(text="Previous answer"),), "end_turn"),
     ]
-    messages = [*previous_messages, {"role": "user", "content": "New question"}]
+    history = Transcript(
+        system="system",
+        tools=[],
+        messages=[*previous, UserMessage(content="New question")],
+    )
     previous_usages = list(agent.token_tracker.round_usages)
 
     try:
-        agent.agent_loop(messages)
-        assert messages == previous_messages
+        agent.agent_loop(history)
+        assert history.messages == previous
         assert errors == [
             ("RuntimeError: The response stream failed", {"style": "bold red"}),
             (None, {}),

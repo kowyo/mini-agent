@@ -1,22 +1,21 @@
-from anthropic.types import ImageBlockParam, MessageParam, TextBlockParam
-
+from ..agent.transcript import ImageBlock, Message, TextBlock, UserMessage
 from .clipboard import format_image_indicator
 
 
-def count_images_in_history(history: list[MessageParam]) -> int:
+def count_images_in_history(history: list[Message]) -> int:
     image_count = 0
     for message in history:
-        if message["role"] != "user" or not isinstance(message["content"], list):
+        if not isinstance(message, UserMessage) or isinstance(message.content, str):
             continue
-        for block in message["content"]:
-            if isinstance(block, dict) and block.get("type") == "image":
-                image_count += 1
+        image_count += sum(
+            1 for block in message.content if isinstance(block, ImageBlock)
+        )
     return image_count
 
 
 def _prune_attached_images(
     query: str,
-    attached_images: list[tuple[str, ImageBlockParam]],
+    attached_images: list[tuple[str, ImageBlock]],
 ) -> None:
     attached_images[:] = [
         (path, image_block)
@@ -27,21 +26,21 @@ def _prune_attached_images(
 
 def build_user_content(
     query: str,
-    attached_images: list[tuple[str, ImageBlockParam]],
+    attached_images: list[tuple[str, ImageBlock]],
     sent_image_count: list[int],
-) -> str | list[ImageBlockParam | TextBlockParam]:
+) -> str | tuple[ImageBlock | TextBlock, ...]:
     if attached_images:
         _prune_attached_images(query, attached_images)
 
     if not attached_images:
         return query
 
-    content: list[ImageBlockParam | TextBlockParam] = []
-    content.extend(image_block for _, image_block in attached_images)
+    content: list[ImageBlock | TextBlock] = [
+        image_block for _, image_block in attached_images
+    ]
     if query.strip():
-        text_block: TextBlockParam = {"type": "text", "text": query}
-        content.append(text_block)
+        content.append(TextBlock(text=query))
 
     sent_image_count[0] += len(attached_images)
     attached_images.clear()
-    return content
+    return tuple(content)

@@ -2,13 +2,13 @@ import atexit
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
 
 from mcp_types import CallToolResult, ContentBlock, ImageContent, TextContent
 
 from ..tools.base import MAX_OUTPUT, ToolError
 from ..tools.handlers import TOOL_HANDLERS
 from ..tools.schemas import TOOLS
+from ..transcript import ImageBlock, TextBlock, ToolSpec
 from .config import ServerConfig, load_mcp_servers
 from .runtime import McpAuthRequiredError, McpRuntime, McpServerError
 
@@ -56,35 +56,33 @@ def _truncate(text: str) -> str:
     return text[:MAX_OUTPUT] + _TRUNCATION_MARKER
 
 
-def _to_block(block: ContentBlock) -> dict[str, Any]:
+def _to_block(block: ContentBlock) -> TextBlock | ImageBlock:
     if isinstance(block, TextContent):
-        return {"type": "text", "text": _truncate(block.text)}
+        return TextBlock(text=_truncate(block.text))
     if isinstance(block, ImageContent):
-        return {
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": block.mime_type,
-                "data": block.data,
-            },
-        }
-    return {"type": "text", "text": _truncate(block.model_dump_json(exclude_none=True))}
+        return ImageBlock(data=block.data, mime_type=block.mime_type)
+    return TextBlock(text=_truncate(block.model_dump_json(exclude_none=True)))
 
 
-def _map_result(result: CallToolResult) -> str | list[dict[str, Any]] | ToolError:
+def _map_result(
+    result: CallToolResult,
+) -> str | tuple[TextBlock | ImageBlock, ...] | ToolError:
     blocks = [_to_block(block) for block in result.content]
-    content: str | list[dict[str, Any]]
-    if all(block["type"] == "text" for block in blocks):
-        content = _truncate("\n".join(block["text"] for block in blocks))
+    content: str | tuple[TextBlock | ImageBlock, ...]
+    text_blocks = [block for block in blocks if isinstance(block, TextBlock)]
+    if len(text_blocks) == len(blocks):
+        content = _truncate("\n".join(block.text for block in text_blocks))
     else:
-        content = blocks
+        content = tuple(blocks)
     if result.is_error:
         return ToolError(content or "Tool reported an error with no content")
     return content or "(no content)"
 
 
 def _make_handler(server: str, tool: str) -> Callable[..., object]:
-    def handler(**arguments: object) -> str | list[dict[str, Any]] | ToolError:
+    def handler(
+        **arguments: object,
+    ) -> str | tuple[TextBlock | ImageBlock, ...] | ToolError:
         try:
             result = _runtime.call_tool(server, tool, dict(arguments))
         except McpServerError as exc:
@@ -118,11 +116,11 @@ def _register_tools(cfg: ServerConfig) -> ServerStatus:
     for tool in tools:
         name = _unique_name(_tool_name(cfg.name, tool.name))
         TOOLS.append(
-            {
-                "name": name,
-                "description": tool.description or tool.title or tool.name,
-                "input_schema": tool.input_schema,
-            }
+            ToolSpec(
+                name=name,
+                description=tool.description or tool.title or tool.name,
+                parameters=tool.input_schema,
+            )
         )
         TOOL_HANDLERS[name] = _make_handler(cfg.name, tool.name)
     return ServerStatus(name=cfg.name, tools=[tool.name for tool in tools])

@@ -19,7 +19,7 @@ class BashInterruptedError(Exception):
 
 @dataclass
 class ToolError:
-    content: str | list[Any]
+    content: str | list[Any] | tuple[Any, ...]
 
 
 def kill_process_tree(proc: subprocess.Popen) -> None:

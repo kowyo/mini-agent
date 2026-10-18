@@ -9,6 +9,7 @@ from ..config import (
     REASONING_EFFORT_LEVELS,
     config,
     get_client,
+    get_responses_client,
 )
 from .display import clear_prompt_line
 from .display.picker import select_from_list
@@ -22,20 +23,27 @@ def _flatten_catalog(data: dict[str, dict]) -> dict[str, dict]:
     providers: dict[str, dict] = data.get("providers") or {}
     labs = {model_id.split("/")[0] for model_id in models}
 
+    def entry(metadata: dict) -> dict | None:
+        limit = metadata.get("limit")
+        if limit is None:
+            return None
+        return {
+            "limit": limit,
+            "reasoning": metadata.get("reasoning"),
+            "reasoning_options": metadata.get("reasoning_options"),
+        }
+
     cache: dict[str, dict] = {}
     for model_id, metadata in models.items():
-        limit = metadata.get("limit")
-        if limit is not None:
-            cache[model_id] = {"limit": limit}
+        if (value := entry(metadata)) is not None:
+            cache[model_id] = value
 
     for provider_id, provider in providers.items():
         if provider_id not in labs:
             continue
         for model_id, model in (provider.get("models") or {}).items():
-            limit = model.get("limit")
-            if limit is None:
-                continue
-            cache[f"{provider_id}/{model_id}"] = {"limit": limit}
+            if (value := entry(model)) is not None:
+                cache[f"{provider_id}/{model_id}"] = value
 
     return cache
 
@@ -57,8 +65,7 @@ class _ModelInfo:
             self._refresh_cache(force=True)
             return self._cache or {}
 
-    def _get_best_limit(self, model_id: str, key: str) -> int | None:
-        """Return the value for *key* (e.g. 'context' or 'output') for a given model."""
+    def _get(self, model_id: str) -> dict | None:
         cache = self._load_cache()
         model = cache.get(model_id)
         if model is None:
@@ -66,9 +73,32 @@ class _ModelInfo:
                 if full_key.split("/")[-1] == model_id:
                     model = data
                     break
+        return model
+
+    def _get_best_limit(self, model_id: str, key: str) -> int | None:
+        """Return the value for *key* (e.g. 'context' or 'output') for a given model."""
+        model = self._get(model_id)
         if model is None:
             return None
         return (model.get("limit") or {}).get(key)
+
+    def get_model_reasoning(self, model_id: str) -> bool | None:
+        model = self._get(model_id)
+        if model is None:
+            return None
+        value = model.get("reasoning")
+        return value if isinstance(value, bool) else None
+
+    def get_reasoning_efforts(self, model_id: str) -> list[str] | None:
+        model = self._get(model_id)
+        if model is None:
+            return None
+        for option in model.get("reasoning_options") or []:
+            if isinstance(option, dict) and option.get("type") == "effort":
+                values = option.get("values")
+                if isinstance(values, list):
+                    return [str(value) for value in values]
+        return None
 
     def _refresh_cache(self, force: bool = False) -> None:
         """Fetch the latest catalog from the remote API and update the local cache."""
@@ -109,6 +139,14 @@ def get_max_output_tokens(model_id: str) -> int | None:
     return _model_info._get_best_limit(model_id, "output")
 
 
+def get_model_reasoning(model_id: str) -> bool | None:
+    return _model_info.get_model_reasoning(model_id)
+
+
+def get_reasoning_efforts(model_id: str) -> list[str] | None:
+    return _model_info.get_reasoning_efforts(model_id)
+
+
 def _fetch_models_sdk() -> list[str]:
     model_ids: list[str] = []
     page = get_client().models.list(limit=100)
@@ -137,7 +175,33 @@ def _fetch_models_manual() -> list[str]:
     return sorted(m["id"] for m in data.get("data", []))
 
 
+def _fetch_response_models_sdk() -> list[str]:
+    page = get_responses_client().models.list()
+    return sorted(model.id for model in page.data)
+
+
+def _fetch_response_models_manual() -> list[str]:
+    client = get_responses_client()
+    url = f"{str(client.base_url).rstrip('/')}/models"
+    req = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {client.api_key}"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read())
+    return sorted(item["id"] for item in data.get("data", []))
+
+
 def _fetch_models() -> list[str]:
+    if config.get_provider().api_type == "response":
+        try:
+            return _fetch_response_models_sdk()
+        except Exception:
+            pass
+        try:
+            return _fetch_response_models_manual()
+        except Exception:
+            return []
     try:
         return _fetch_models_sdk()
     except Exception:
