@@ -27,6 +27,7 @@ _mcp_setup_lines: list[str] = []
 _mcp_setup_error: BaseException | None = None
 _mcp_setup_reported = False
 _mcp_started = False
+_mcp_setup_thread: threading.Thread | None = None
 
 
 def _get_session_manager() -> SessionManager:
@@ -54,7 +55,7 @@ def _setup_mcp() -> None:
 
 
 def _start_mcp_setup() -> None:
-    global _mcp_started
+    global _mcp_setup_thread, _mcp_started
     _mcp_started = True
 
     def run() -> None:
@@ -68,7 +69,8 @@ def _start_mcp_setup() -> None:
         finally:
             _mcp_setup_done.set()
 
-    threading.Thread(target=run, name="mcp-setup", daemon=True).start()
+    _mcp_setup_thread = threading.Thread(target=run, name="mcp-setup", daemon=True)
+    _mcp_setup_thread.start()
 
 
 def _flush_mcp_setup(block: bool) -> bool:
@@ -347,7 +349,14 @@ def main() -> None:
 
         _run_interactive(args.prompt, session_id)
     finally:
-        if _mcp_started and _mcp_setup_done.is_set():
-            from ..agent.mcp import shutdown_mcp
+        if _mcp_started:
+            from ..agent.mcp import cancel_mcp_setup, shutdown_mcp
 
+            thread = _mcp_setup_thread
+            if thread is not None and thread.is_alive():
+                cancel_mcp_setup()
+                thread.join(timeout=1.0)
+                if thread.is_alive():
+                    cancel_mcp_setup()
+                    thread.join(timeout=4.0)
             shutdown_mcp()
