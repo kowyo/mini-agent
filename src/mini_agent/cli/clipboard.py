@@ -6,10 +6,11 @@ import subprocess
 import sys
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from anthropic.types import ImageBlockParam, MessageParam
-from PIL import Image, ImageGrab
+if TYPE_CHECKING:
+    from anthropic.types import ImageBlockParam, MessageParam
+    from PIL import Image
 
 
 def format_image_indicator(path: str) -> str:
@@ -17,6 +18,8 @@ def format_image_indicator(path: str) -> str:
 
 
 def _get_macos_clipboard_file_image() -> tuple[Image.Image, str] | None:
+    from PIL import Image
+
     if sys.platform != "darwin":
         return None
     try:
@@ -39,6 +42,8 @@ def _get_macos_clipboard_file_image() -> tuple[Image.Image, str] | None:
 
 
 def get_clipboard_image() -> tuple[Image.Image, str] | None:
+    from PIL import Image, ImageGrab
+
     if sys.platform == "darwin":
         result = _get_macos_clipboard_file_image()
         if result is not None:

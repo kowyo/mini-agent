@@ -12,7 +12,7 @@ from ..config import (
     config,
 )
 from .banner import print_welcome_banner
-from .display.theme import LIGHT_HINT_STYLE_RICH
+from .display.theme import ACCENT_COLOR, LIGHT_HINT_STYLE_RICH
 
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
@@ -108,41 +108,24 @@ def _run_non_interactive(prompt: str) -> None:
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
-    from ..agent.agent import agent_loop
-    from .clipboard import copy_last_assistant_text
-    from .display.box import print_box
-    from .display.printing import (
-        clear_prompt_line,
-        clear_terminal,
-        print_session_history,
-    )
-    from .display.theme import ACCENT_COLOR
-    from .image_messages import (
-        build_user_content,
-        count_images_in_history,
-    )
-    from .mcp import print_mcp_hint, prompt_mcp
-    from .models import prompt_model
     from .prompt_session import build_session
-    from .providers import prompt_provider
-    from .sessions import prompt_resume
-    from .status import (
-        format_status_report,
-        format_usage_report,
-    )
+    from .terminal import clear_prompt_line, clear_terminal
     from .token import token_tracker
 
     print_welcome_banner()
-    _start_mcp_setup()
 
     history: list[MessageParam] = []
-    session_manager = _get_session_manager()
-    current_session_id = session_manager.new_id()
+    current_session_id: str | None = None
     session, pre_run, attached_images, sent_image_count = build_session(
         lambda: history, prompt
     )
+    _start_mcp_setup()
 
     if session_id is not None:
+        from .display.printing import print_session_history
+        from .image_messages import count_images_in_history
+
+        session_manager = _get_session_manager()
         current_session_id = session_id
         sessions = session_manager.list_sessions()
         try:
@@ -174,10 +157,17 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if command in {"", "q", "/exit"}:
             clear_prompt_line()
             break
+
         print()
+
+        if current_session_id is None:
+            current_session_id = _get_session_manager().new_id()
+
         if command == "/new":
+            from .mcp import print_mcp_hint
+
             history.clear()
-            current_session_id = session_manager.new_id()
+            current_session_id = _get_session_manager().new_id()
             sent_image_count[0] = 0
             token_tracker.reset()
             attached_images.clear()
@@ -187,36 +177,53 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
                 print_mcp_hint()
             continue
         if command == "/resume":
+            from .image_messages import count_images_in_history
+            from .sessions import prompt_resume
+
             current_session_id, history, _ = prompt_resume(
-                session_manager, current_session_id, history
+                _get_session_manager(), current_session_id, history
             )
             sent_image_count[0] = count_images_in_history(history)
             attached_images.clear()
             continue
         if command == "/model":
+            from .models import prompt_model
+
             prompt_model()
             attached_images.clear()
             continue
         if command == "/provider":
+            from .providers import prompt_provider
+
             prompt_provider()
             attached_images.clear()
             continue
         if command == "/status":
+            from .display.box import print_box
+            from .status import format_status_report
+
             _flush_mcp_setup(block=True)
             print_box(_console, format_status_report(current_session_id))
             print()
             attached_images.clear()
             continue
         if command == "/copy":
+            from .clipboard import copy_last_assistant_text
+
             copy_last_assistant_text(history)
             print()
             attached_images.clear()
             continue
         if command == "/mcp":
+            from .mcp import prompt_mcp
+
             _flush_mcp_setup(block=True)
             prompt_mcp()
             attached_images.clear()
             continue
+
+        from ..agent.agent import agent_loop
+        from .image_messages import build_user_content
 
         _flush_mcp_setup(block=True)
         content = build_user_content(query, attached_images, sent_image_count)
@@ -228,19 +235,23 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if len(history) <= history_len:
             continue
         if token_tracker.get() is not None:
-            session_manager.save(
+            _get_session_manager().save(
                 current_session_id, history, token_tracker.round_usages
             )
 
-    if session_manager.exists(current_session_id):
-        usage_report = format_usage_report(token_tracker.get())
-        if usage_report:
-            for line in usage_report:
-                _console.print(line)
+    if current_session_id is not None:
+        session_manager = _get_session_manager()
+        if session_manager.exists(current_session_id):
+            from .status import format_usage_report
+
+            usage_report = format_usage_report(token_tracker.get())
+            if usage_report:
+                for line in usage_report:
+                    _console.print(line)
+                print()
+            print("Resume the session with:")
+            _console.print(f"mini --resume {current_session_id}", style=ACCENT_COLOR)
             print()
-        print("Resume the session with:")
-        _console.print(f"mini --resume {current_session_id}", style=ACCENT_COLOR)
-        print()
 
 
 def main() -> None:

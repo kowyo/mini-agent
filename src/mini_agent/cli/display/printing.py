@@ -1,5 +1,3 @@
-import os
-import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -12,6 +10,7 @@ from rich.text import Text
 
 from ..banner import print_welcome_banner
 from ..clipboard import extract_text_content
+from ..terminal import clear_terminal
 from .diff import format_edit_diff
 from .terminal_image import render_image
 from .theme import (
@@ -31,18 +30,6 @@ def toggle_full_tool_output() -> bool:
     global _full_tool_output
     _full_tool_output = not _full_tool_output
     return _full_tool_output
-
-
-def clear_terminal() -> None:
-    subprocess.run(
-        ["cls" if os.name == "nt" else "clear"],
-        check=False,
-        shell=os.name == "nt",
-    )
-
-
-def clear_prompt_line() -> None:
-    print("\r\033[2K\033[1A\033[2K\r", end="", flush=True)
 
 
 def print_session_history(history: list[MessageParam]) -> None:

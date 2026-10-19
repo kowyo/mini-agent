@@ -11,7 +11,7 @@ from ..config import (
     get_client,
 )
 from .display.picker import select_from_list
-from .display.printing import clear_prompt_line
+from .terminal import clear_prompt_line
 
 _CATALOG_URL = "https://models.dev/catalog.json"
 
