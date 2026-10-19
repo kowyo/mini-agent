@@ -94,6 +94,10 @@ def _make_handler(server: str, tool: str) -> Callable[..., object]:
     return handler
 
 
+def cancel_mcp_setup() -> None:
+    _runtime.cancel_setup()
+
+
 def shutdown_mcp() -> None:
     _runtime.shutdown()
 

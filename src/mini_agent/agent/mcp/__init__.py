@@ -3,6 +3,7 @@ from .runtime import McpRuntime, McpServerError
 from .tools import (
     ServerStatus,
     authorize_server,
+    cancel_mcp_setup,
     pending_auth_count,
     server_statuses,
     setup_mcp,
@@ -16,6 +17,7 @@ __all__ = [
     "ServerStatus",
     "StdioServerConfig",
     "authorize_server",
+    "cancel_mcp_setup",
     "load_mcp_servers",
     "pending_auth_count",
     "server_statuses",

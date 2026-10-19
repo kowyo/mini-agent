@@ -11,8 +11,9 @@ from pydantic import BaseModel
 
 from ..config import SESSION_DIR, config
 from .clipboard import extract_text_content
-from .display import clear_terminal, print_session_history
 from .display.picker import select_from_list
+from .display.printing import print_session_history
+from .terminal import clear_terminal
 from .token import Usage, token_tracker
 
 

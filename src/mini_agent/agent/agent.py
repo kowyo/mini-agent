@@ -6,7 +6,8 @@ from anthropic.types import (
 from rich.console import Console
 from rich.status import Status
 
-from ..cli.display import display_stream_events, print_tool_result, print_tool_start
+from ..cli.display.printing import print_tool_result, print_tool_start
+from ..cli.display.stream import display_stream_events
 from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import config, get_client

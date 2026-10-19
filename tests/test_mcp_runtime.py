@@ -1,6 +1,8 @@
+import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -112,3 +114,52 @@ def test_streamable_http_transport(runtime: McpRuntime) -> None:
     finally:
         proc.terminate()
         proc.wait(timeout=10)
+
+
+def test_cancel_setup_terminates_server_process(
+    runtime: McpRuntime, tmp_path: Path
+) -> None:
+    pid_file = tmp_path / "pid"
+    script = (
+        "import os, time; "
+        f"open({str(pid_file)!r}, 'w').write(str(os.getpid())); "
+        "time.sleep(60)"
+    )
+    cfg = StdioServerConfig(
+        name="slow",
+        command=sys.executable,
+        args=["-c", script],
+        timeout=10.0,
+    )
+    finished = threading.Event()
+
+    def connect() -> None:
+        runtime.connect_all([cfg])
+        finished.set()
+
+    thread = threading.Thread(target=connect, daemon=True)
+    thread.start()
+    try:
+        for _ in range(100):
+            if pid_file.exists() and pid_file.read_text():
+                break
+            time.sleep(0.05)
+        else:
+            pytest.fail("server process did not start")
+
+        pid = int(pid_file.read_text())
+        runtime.cancel_setup()
+        thread.join(timeout=10)
+
+        assert finished.is_set()
+        assert not thread.is_alive()
+        for _ in range(100):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            pytest.fail(f"server process {pid} survived cancellation")
+    finally:
+        runtime.shutdown()
