@@ -10,9 +10,8 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
 
-from ...config import DISTRIBUTION_NAME, DISTRIBUTION_VERSION, config
+from ..banner import print_welcome_banner
 from ..clipboard import extract_text_content
-from .box import print_box
 from .diff import format_edit_diff
 from .terminal_image import render_image
 from .theme import (
@@ -44,19 +43,6 @@ def clear_terminal() -> None:
 
 def clear_prompt_line() -> None:
     print("\r\033[2K\033[1A\033[2K\r", end="", flush=True)
-
-
-def print_welcome_banner() -> None:
-    version_line = Text.assemble(
-        f" >_ {DISTRIBUTION_NAME} ",
-        (f"(v{DISTRIBUTION_VERSION})", LIGHT_HINT_STYLE_RICH),
-    )
-    lines = [
-        version_line,
-        "",
-        Text(f" model: {config.get_model()} {config.get_reasoning_effort()}"),
-    ]
-    print_box(_console, lines)
 
 
 def print_session_history(history: list[MessageParam]) -> None:

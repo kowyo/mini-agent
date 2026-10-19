@@ -1,72 +1,99 @@
 import argparse
 import sys
+from typing import TYPE_CHECKING
 
-from anthropic.types import MessageParam
 from rich.console import Console
 
-from ..agent.agent import agent_loop
-from ..agent.mcp import setup_mcp, shutdown_mcp
 from ..config import (
     DISTRIBUTION_NAME,
     DISTRIBUTION_VERSION,
     REASONING_EFFORT_LEVELS,
     config,
 )
-from .clipboard import copy_last_assistant_text
-from .display import (
-    ACCENT_COLOR,
-    clear_prompt_line,
-    clear_terminal,
-    print_box,
-    print_welcome_banner,
-)
+from .banner import print_welcome_banner
 from .display.theme import LIGHT_HINT_STYLE_RICH
-from .image_messages import (
-    build_user_content,
-    count_images_in_history,
-)
-from .mcp import print_mcp_hint, prompt_mcp
-from .models import prompt_model
-from .prompt_session import build_session
-from .providers import prompt_provider
-from .sessions import (
-    SessionManager,
-    print_session_history,
-    prompt_resume,
-)
-from .status import (
-    format_status_report,
-    format_usage_report,
-)
-from .token import token_tracker
-from .update import run_update
+
+if TYPE_CHECKING:
+    from anthropic.types import MessageParam
+
+    from .sessions import SessionManager
 
 _console = Console()
 
-_session_manager = SessionManager()
+_session_manager: SessionManager | None = None
+
+
+def _get_session_manager() -> SessionManager:
+    global _session_manager
+    if _session_manager is None:
+        from .sessions import SessionManager
+
+        _session_manager = SessionManager()
+    return _session_manager
+
+
+def _setup_mcp() -> None:
+    from ..agent.mcp import setup_mcp
+
+    mcp_lines = setup_mcp()
+    if mcp_lines:
+        for line in mcp_lines:
+            _console.print(line, style=LIGHT_HINT_STYLE_RICH)
+        print()
 
 
 def _run_non_interactive(prompt: str) -> None:
+    from ..agent.agent import agent_loop
+    from .token import token_tracker
+
     history: list[MessageParam] = [{"role": "user", "content": prompt}]
-    session_id = _session_manager.new_id()
+    session_manager = _get_session_manager()
+    session_id = session_manager.new_id()
     history_len = len(history)
     agent_loop(history)
     if len(history) > history_len and token_tracker.get() is not None:
-        _session_manager.save(session_id, history, token_tracker.round_usages)
+        session_manager.save(session_id, history, token_tracker.round_usages)
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     print_welcome_banner()
+    _setup_mcp()
+
+    from ..agent.agent import agent_loop
+    from .clipboard import copy_last_assistant_text
+    from .display.box import print_box
+    from .display.printing import (
+        clear_prompt_line,
+        clear_terminal,
+        print_session_history,
+    )
+    from .display.theme import ACCENT_COLOR
+    from .image_messages import (
+        build_user_content,
+        count_images_in_history,
+    )
+    from .mcp import print_mcp_hint, prompt_mcp
+    from .models import prompt_model
+    from .prompt_session import build_session
+    from .providers import prompt_provider
+    from .sessions import prompt_resume
+    from .status import (
+        format_status_report,
+        format_usage_report,
+    )
+    from .token import token_tracker
+
     print_mcp_hint()
     history: list[MessageParam] = []
-    current_session_id = _session_manager.new_id()
+    session_manager = _get_session_manager()
+    current_session_id = session_manager.new_id()
     session, pre_run, attached_images, sent_image_count = build_session(
         lambda: history, prompt
     )
 
     if session_id is not None:
         current_session_id = session_id
-        sessions = _session_manager.list_sessions()
+        sessions = session_manager.list_sessions()
         try:
             chosen = next(
                 stored for stored in sessions if stored.session_id == current_session_id
@@ -97,7 +124,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         print()
         if command == "/new":
             history.clear()
-            current_session_id = _session_manager.new_id()
+            current_session_id = session_manager.new_id()
             sent_image_count[0] = 0
             token_tracker.reset()
             attached_images.clear()
@@ -107,7 +134,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(
-                _session_manager, current_session_id, history
+                session_manager, current_session_id, history
             )
             sent_image_count[0] = count_images_in_history(history)
             attached_images.clear()
@@ -144,11 +171,11 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         if len(history) <= history_len:
             continue
         if token_tracker.get() is not None:
-            _session_manager.save(
+            session_manager.save(
                 current_session_id, history, token_tracker.round_usages
             )
 
-    if _session_manager.exists(current_session_id):
+    if session_manager.exists(current_session_id):
         usage_report = format_usage_report(token_tracker.get())
         if usage_report:
             for line in usage_report:
@@ -217,6 +244,8 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.prompt == "update":
+        from .update import run_update
+
         sys.exit(run_update())
 
     if args.model:
@@ -233,20 +262,15 @@ def main() -> None:
     except ValueError as e:
         parser.exit(1, f"{e}\n")
 
-    mcp_lines = setup_mcp()
-    if mcp_lines:
-        for line in mcp_lines:
-            _console.print(line, style=LIGHT_HINT_STYLE_RICH)
-        print()
-
     try:
         if args.print_prompt:
+            _setup_mcp()
             _run_non_interactive(args.print_prompt)
             return
 
         session_id: str | None = args.session_id
         if session_id == "__LATEST__":
-            sessions = _session_manager.list_sessions()
+            sessions = _get_session_manager().list_sessions()
             if sessions:
                 session_id = sessions[0].session_id
             else:
@@ -255,4 +279,6 @@ def main() -> None:
 
         _run_interactive(args.prompt, session_id)
     finally:
+        from ..agent.mcp import shutdown_mcp
+
         shutdown_mcp()
