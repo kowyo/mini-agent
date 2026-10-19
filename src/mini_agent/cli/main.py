@@ -1,5 +1,6 @@
 import argparse
 import sys
+import threading
 from typing import TYPE_CHECKING
 
 from rich.console import Console
@@ -21,6 +22,11 @@ if TYPE_CHECKING:
 _console = Console()
 
 _session_manager: SessionManager | None = None
+_mcp_setup_done = threading.Event()
+_mcp_setup_lines: list[str] = []
+_mcp_setup_error: BaseException | None = None
+_mcp_setup_reported = False
+_mcp_started = False
 
 
 def _get_session_manager() -> SessionManager:
@@ -33,13 +39,59 @@ def _get_session_manager() -> SessionManager:
 
 
 def _setup_mcp() -> None:
+    global _mcp_started
     from ..agent.mcp import setup_mcp
 
-    mcp_lines = setup_mcp()
+    _mcp_started = True
+    try:
+        mcp_lines = setup_mcp()
+    finally:
+        _mcp_setup_done.set()
     if mcp_lines:
         for line in mcp_lines:
             _console.print(line, style=LIGHT_HINT_STYLE_RICH)
         print()
+
+
+def _start_mcp_setup() -> None:
+    global _mcp_started
+    _mcp_started = True
+
+    def run() -> None:
+        global _mcp_setup_lines, _mcp_setup_error
+        try:
+            from ..agent.mcp import setup_mcp
+
+            _mcp_setup_lines = setup_mcp()
+        except BaseException as exc:
+            _mcp_setup_error = exc
+        finally:
+            _mcp_setup_done.set()
+
+    threading.Thread(target=run, name="mcp-setup", daemon=True).start()
+
+
+def _flush_mcp_setup(block: bool) -> bool:
+    global _mcp_setup_error, _mcp_setup_reported
+    if _mcp_setup_reported:
+        return True
+    if not _mcp_setup_done.is_set():
+        if not block:
+            return False
+        _mcp_setup_done.wait()
+    _mcp_setup_reported = True
+    if _mcp_setup_lines:
+        for line in _mcp_setup_lines:
+            _console.print(line, style=LIGHT_HINT_STYLE_RICH)
+        print()
+    if _mcp_setup_error is not None:
+        error = _mcp_setup_error
+        _mcp_setup_error = None
+        raise error
+    from .mcp import print_mcp_hint
+
+    print_mcp_hint()
+    return True
 
 
 def _run_non_interactive(prompt: str) -> None:
@@ -57,7 +109,7 @@ def _run_non_interactive(prompt: str) -> None:
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
     print_welcome_banner()
-    _setup_mcp()
+    _start_mcp_setup()
 
     from ..agent.agent import agent_loop
     from .clipboard import copy_last_assistant_text
@@ -83,7 +135,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     )
     from .token import token_tracker
 
-    print_mcp_hint()
     history: list[MessageParam] = []
     session_manager = _get_session_manager()
     current_session_id = session_manager.new_id()
@@ -104,6 +155,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             token_tracker.restore(chosen.round_usages)
         except StopIteration:
             print("Session ID not found.\n")
+
+    _flush_mcp_setup(block=False)
 
     while True:
         try:
@@ -130,6 +183,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             clear_terminal()
             print_welcome_banner()
+            _flush_mcp_setup(block=False)
             print_mcp_hint()
             continue
         if command == "/resume":
@@ -148,6 +202,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             continue
         if command == "/status":
+            _flush_mcp_setup(block=True)
             print_box(_console, format_status_report(current_session_id))
             print()
             attached_images.clear()
@@ -158,10 +213,12 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             continue
         if command == "/mcp":
+            _flush_mcp_setup(block=True)
             prompt_mcp()
             attached_images.clear()
             continue
 
+        _flush_mcp_setup(block=True)
         content = build_user_content(query, attached_images, sent_image_count)
 
         history.append({"role": "user", "content": content})
@@ -279,6 +336,7 @@ def main() -> None:
 
         _run_interactive(args.prompt, session_id)
     finally:
-        from ..agent.mcp import shutdown_mcp
+        if _mcp_started and _mcp_setup_done.is_set():
+            from ..agent.mcp import shutdown_mcp
 
-        shutdown_mcp()
+            shutdown_mcp()
