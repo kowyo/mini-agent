@@ -108,9 +108,6 @@ def _run_non_interactive(prompt: str) -> None:
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
-    print_welcome_banner()
-    _start_mcp_setup()
-
     from ..agent.agent import agent_loop
     from .clipboard import copy_last_assistant_text
     from .display.box import print_box
@@ -134,6 +131,9 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
         format_usage_report,
     )
     from .token import token_tracker
+
+    print_welcome_banner()
+    _start_mcp_setup()
 
     history: list[MessageParam] = []
     session_manager = _get_session_manager()
