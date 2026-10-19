@@ -74,7 +74,7 @@ def _start_mcp_setup() -> None:
 def _flush_mcp_setup(block: bool) -> bool:
     global _mcp_setup_error, _mcp_setup_reported
     if _mcp_setup_reported:
-        return True
+        return False
     if not _mcp_setup_done.is_set():
         if not block:
             return False
@@ -183,8 +183,8 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             clear_terminal()
             print_welcome_banner()
-            _flush_mcp_setup(block=False)
-            print_mcp_hint()
+            if not _flush_mcp_setup(block=False):
+                print_mcp_hint()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(
