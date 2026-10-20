@@ -1,6 +1,5 @@
 import argparse
 import sys
-import threading
 
 from rich.console import Console
 lazy from anthropic.types import MessageParam
@@ -14,17 +13,17 @@ from ..config import (
 from .banner import print_welcome_banner
 from .clipboard import copy_last_assistant_text
 from .display.box import print_box
-from .display.theme import ACCENT_COLOR, LIGHT_HINT_STYLE_RICH
+from .display.theme import ACCENT_COLOR
 from .prompt_session import build_session
 from .providers import prompt_provider
 from .sessions import SessionManager, prompt_resume
 from .terminal import clear_prompt_line, clear_terminal
 from .token import token_tracker
 lazy from ..agent.agent import agent_loop
-lazy from ..agent.mcp import cancel_mcp_setup, setup_mcp, shutdown_mcp
+lazy from ..agent.mcp import setup_mcp, shutdown_mcp
 lazy from .display.printing import print_session_history
 lazy from .image_messages import build_user_content, count_images_in_history
-lazy from .mcp import print_mcp_hint, prompt_mcp
+lazy from .mcp import McpSetup, print_mcp_hint, print_mcp_lines, prompt_mcp
 lazy from .models import prompt_model
 lazy from .status import format_status_report, format_usage_report
 lazy from .update import run_update
@@ -32,66 +31,10 @@ lazy from .update import run_update
 _console = Console()
 
 _session_manager = SessionManager()
-_mcp_setup_done = threading.Event()
-_mcp_setup_lines: list[str] = []
-_mcp_setup_error: BaseException | None = None
-_mcp_setup_reported = False
-_mcp_started = False
-_mcp_setup_thread: threading.Thread | None = None
-
-
-def _setup_mcp() -> None:
-    global _mcp_started
-    _mcp_started = True
-    try:
-        mcp_lines = setup_mcp()
-    finally:
-        _mcp_setup_done.set()
-    if mcp_lines:
-        for line in mcp_lines:
-            _console.print(line, style=LIGHT_HINT_STYLE_RICH)
-        print()
-
-
-def _start_mcp_setup() -> None:
-    global _mcp_setup_thread, _mcp_started
-    _mcp_started = True
-
-    def run() -> None:
-        global _mcp_setup_lines, _mcp_setup_error
-        try:
-            _mcp_setup_lines = setup_mcp()
-        except BaseException as exc:
-            _mcp_setup_error = exc
-        finally:
-            _mcp_setup_done.set()
-
-    _mcp_setup_thread = threading.Thread(target=run, name="mcp-setup", daemon=True)
-    _mcp_setup_thread.start()
-
-
-def _flush_mcp_setup(block: bool) -> bool:
-    global _mcp_setup_error, _mcp_setup_reported
-    if _mcp_setup_reported:
-        return False
-    if not _mcp_setup_done.is_set():
-        if not block:
-            return False
-        _mcp_setup_done.wait()
-    _mcp_setup_reported = True
-    if _mcp_setup_lines:
-        for line in _mcp_setup_lines:
-            _console.print(line, style=LIGHT_HINT_STYLE_RICH)
-        print()
-    if _mcp_setup_error is not None:
-        error = _mcp_setup_error
-        _mcp_setup_error = None
-        raise error
-    print_mcp_hint()
-    return True
 
 
 def _run_non_interactive(prompt: str) -> None:
+    print_mcp_lines(setup_mcp())
     history: list[MessageParam] = [{"role": "user", "content": prompt}]
     session_id = _session_manager.new_id()
     history_len = len(history)
@@ -108,7 +51,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
     session, pre_run, attached_images, sent_image_count = build_session(
         lambda: history, prompt
     )
-    _start_mcp_setup()
+    mcp_setup = McpSetup()
 
     if session_id is not None:
         current_session_id = session_id
@@ -123,8 +66,6 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             token_tracker.restore(chosen.round_usages)
         except StopIteration:
             print("Session ID not found.\n")
-
-    _flush_mcp_setup(block=False)
 
     while True:
         try:
@@ -152,8 +93,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             clear_terminal()
             print_welcome_banner()
-            if not _flush_mcp_setup(block=False):
-                print_mcp_hint()
+            print_mcp_hint()
             continue
         if command == "/resume":
             current_session_id, history, _ = prompt_resume(
@@ -171,7 +111,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             continue
         if command == "/status":
-            _flush_mcp_setup(block=True)
+            mcp_setup.wait()
             print_box(_console, format_status_report(current_session_id))
             print()
             attached_images.clear()
@@ -182,12 +122,12 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             attached_images.clear()
             continue
         if command == "/mcp":
-            _flush_mcp_setup(block=True)
+            mcp_setup.wait()
             prompt_mcp()
             attached_images.clear()
             continue
 
-        _flush_mcp_setup(block=True)
+        mcp_setup.wait()
         content = build_user_content(query, attached_images, sent_image_count)
 
         history.append({"role": "user", "content": content})
@@ -286,29 +226,18 @@ def main() -> None:
     except ValueError as e:
         parser.exit(1, f"{e}\n")
 
+    session_id: str | None = args.session_id
+    if session_id == "__LATEST__":
+        sessions = _session_manager.list_sessions()
+        if not sessions:
+            print("No saved sessions found.")
+            return
+        session_id = sessions[0].session_id
+
     try:
         if args.print_prompt:
-            _setup_mcp()
             _run_non_interactive(args.print_prompt)
-            return
-
-        session_id: str | None = args.session_id
-        if session_id == "__LATEST__":
-            sessions = _session_manager.list_sessions()
-            if sessions:
-                session_id = sessions[0].session_id
-            else:
-                print("No saved sessions found.")
-                return
-
-        _run_interactive(args.prompt, session_id)
+        else:
+            _run_interactive(args.prompt, session_id)
     finally:
-        if _mcp_started:
-            thread = _mcp_setup_thread
-            if thread is not None and thread.is_alive():
-                cancel_mcp_setup()
-                thread.join(timeout=1.0)
-                if thread.is_alive():
-                    cancel_mcp_setup()
-                    thread.join(timeout=4.0)
-            shutdown_mcp()
+        shutdown_mcp()

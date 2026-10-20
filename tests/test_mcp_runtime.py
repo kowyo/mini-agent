@@ -2,9 +2,9 @@ import os
 import socket
 import subprocess
 import sys
-import threading
 import time
 from collections.abc import Iterator
+from concurrent.futures import CancelledError, ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -116,7 +116,7 @@ def test_streamable_http_transport(runtime: McpRuntime) -> None:
         proc.wait(timeout=10)
 
 
-def test_cancel_setup_terminates_server_process(
+def test_shutdown_terminates_connecting_server(
     runtime: McpRuntime, tmp_path: Path
 ) -> None:
     pid_file = tmp_path / "pid"
@@ -131,15 +131,8 @@ def test_cancel_setup_terminates_server_process(
         args=["-c", script],
         timeout=10.0,
     )
-    finished = threading.Event()
-
-    def connect() -> None:
-        runtime.connect_all([cfg])
-        finished.set()
-
-    thread = threading.Thread(target=connect, daemon=True)
-    thread.start()
-    try:
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        connecting = executor.submit(runtime.connect_all, [cfg])
         for _ in range(100):
             if pid_file.exists() and pid_file.read_text():
                 break
@@ -148,18 +141,21 @@ def test_cancel_setup_terminates_server_process(
             pytest.fail("server process did not start")
 
         pid = int(pid_file.read_text())
-        runtime.cancel_setup()
-        thread.join(timeout=10)
-
-        assert finished.is_set()
-        assert not thread.is_alive()
-        for _ in range(100):
-            try:
-                os.kill(pid, 0)
-            except ProcessLookupError:
-                break
-            time.sleep(0.05)
-        else:
-            pytest.fail(f"server process {pid} survived cancellation")
-    finally:
         runtime.shutdown()
+        with pytest.raises(CancelledError):
+            connecting.result(timeout=10)
+
+    for _ in range(100):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        pytest.fail(f"server process {pid} survived shutdown")
+
+
+def test_connect_after_shutdown_fails(runtime: McpRuntime) -> None:
+    runtime.shutdown()
+    with pytest.raises(McpServerError, match="shut down"):
+        runtime.connect(stub_config())

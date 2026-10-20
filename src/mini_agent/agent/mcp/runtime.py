@@ -97,21 +97,29 @@ class McpRuntime:
     (the SDK requires a client to enter and exit in the same task)."""
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._closed = False
         self._servers: dict[str, _ServerHandle] = {}
-        self._setup_tasks: set[asyncio.Task[_ServerHandle]] = set()
-        self._serve_tasks: set[asyncio.Task[None]] = set()
 
     def _ensure_loop(self) -> asyncio.AbstractEventLoop:
-        if self._loop is None:
-            self._loop = asyncio.new_event_loop()
-            threading.Thread(
-                target=self._loop.run_forever, daemon=True, name="mcp-runtime"
-            ).start()
-        return self._loop
+        with self._lock:
+            if self._closed:
+                raise McpServerError("MCP runtime is shut down")
+            if self._loop is None:
+                self._loop = asyncio.new_event_loop()
+                threading.Thread(
+                    target=self._loop.run_forever, daemon=True, name="mcp-runtime"
+                ).start()
+            return self._loop
 
     def _run[T](self, coro: Coroutine[Any, Any, T], timeout: float) -> T:
-        future = asyncio.run_coroutine_threadsafe(coro, self._ensure_loop())
+        try:
+            loop = self._ensure_loop()
+        except McpServerError:
+            coro.close()
+            raise
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
         try:
             return future.result(timeout)
         except TimeoutError:
@@ -134,31 +142,18 @@ class McpRuntime:
                     ready.set_exception(exc)
 
         task = loop.create_task(_serve())
-        self._serve_tasks.add(task)
-        task.add_done_callback(self._serve_tasks.discard)
         connect_timeout = _connect_timeout(cfg, interactive)
-
-        async def cancel_task() -> None:
-            stop.set()
-            task.cancel()
-            with contextlib.suppress(BaseException):
-                await task
-
         try:
             client = await asyncio.wait_for(asyncio.shield(ready), connect_timeout)
         except TimeoutError:
-            await cancel_task()
+            stop.set()
+            task.cancel()
             raise McpServerError(
                 f"{cfg.name}: did not start within {connect_timeout:g}s"
             ) from None
-        except asyncio.CancelledError:
-            await cancel_task()
-            raise
         except McpServerError:
-            await cancel_task()
             raise
         except Exception as exc:
-            await cancel_task()
             if _contains(exc, AuthorizationRequiredError):
                 raise McpAuthRequiredError(
                     f"{cfg.name}: authorization required"
@@ -183,13 +178,10 @@ class McpRuntime:
             return {}
 
         async def _all() -> list[_ServerHandle | BaseException]:
-            loop = asyncio.get_running_loop()
-            tasks = [loop.create_task(self._start(cfg, interactive)) for cfg in cfgs]
-            self._setup_tasks.update(tasks)
-            try:
-                return await asyncio.gather(*tasks, return_exceptions=True)
-            finally:
-                self._setup_tasks.difference_update(tasks)
+            return await asyncio.gather(
+                *(self._start(cfg, interactive) for cfg in cfgs),
+                return_exceptions=True,
+            )
 
         statuses: dict[str, McpServerError | None] = {}
         outer_timeout = max(_connect_timeout(cfg, interactive) for cfg in cfgs) + 5
@@ -203,22 +195,6 @@ class McpRuntime:
             else:
                 statuses[cfg.name] = McpServerError(f"{cfg.name}: {result}")
         return statuses
-
-    def cancel_setup(self) -> None:
-        loop = self._loop
-        if loop is None:
-            return
-
-        async def _cancel() -> None:
-            tasks = list(self._setup_tasks)
-            for task in tasks:
-                task.cancel()
-            if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
-
-        future = asyncio.run_coroutine_threadsafe(_cancel(), loop)
-        with contextlib.suppress(Exception):
-            future.result(_SHUTDOWN_TIMEOUT)
 
     def _handle(self, server: str) -> _ServerHandle:
         handle = self._servers.get(server)
@@ -282,25 +258,22 @@ class McpRuntime:
         self._loop.call_soon_threadsafe(handle._stop.set)
 
     def shutdown(self) -> None:
-        loop = self._loop
+        with self._lock:
+            self._closed = True
+            loop, self._loop = self._loop, None
         if loop is None:
             return
-        self.cancel_setup()
         handles = list(self._servers.values())
         self._servers.clear()
-        self._loop = None
 
         async def _stop_all() -> None:
             for handle in handles:
                 handle._stop.set()
-            await asyncio.gather(
-                *(handle._task for handle in handles), return_exceptions=True
-            )
-            tasks = list(self._serve_tasks)
-            for task in tasks:
+            stopping = {handle._task for handle in handles}
+            pending = asyncio.all_tasks() - stopping - {asyncio.current_task()}
+            for task in pending:
                 task.cancel()
-            if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*stopping, *pending, return_exceptions=True)
 
         future = asyncio.run_coroutine_threadsafe(_stop_all(), loop)
         with contextlib.suppress(Exception):
