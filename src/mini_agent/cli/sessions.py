@@ -6,15 +6,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from anthropic.types import MessageParam
-from pydantic import BaseModel
+lazy from anthropic.types import MessageParam
+lazy from pydantic import BaseModel
 
 from ..config import SESSION_DIR, config
 from .clipboard import extract_text_content
 from .display.picker import select_from_list
-from .display.printing import print_session_history
 from .terminal import clear_terminal
 from .token import Usage, token_tracker
+lazy from .display.printing import print_session_history
+
+type History = list[MessageParam]
 
 
 @dataclass
@@ -22,7 +24,7 @@ class _StoredSession:
     session_id: str
     title: str
     _updated_at: str
-    history: list[MessageParam]
+    history: History
     round_usages: list[Usage]
 
 
@@ -40,7 +42,7 @@ def _serialize_content(content: str | Iterable[object]) -> list[object]:
     return serialized_blocks
 
 
-def _session_title(history: list[MessageParam]) -> str:
+def _session_title(history: History) -> str:
     for message in history:
         if message["role"] == "user":
             text = extract_text_content(message["content"])
@@ -86,7 +88,7 @@ class SessionManager:
     def save(
         self,
         session_id: str,
-        history: list[MessageParam],
+        history: History,
         round_usages: list[Usage] | None = None,
         cwd: str | None = None,
     ) -> None:
@@ -167,13 +169,13 @@ class SessionManager:
             "\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n"
         )
 
-    def load(self, session_id: str) -> tuple[list[MessageParam], list[Usage]]:
+    def load(self, session_id: str) -> tuple[History, list[Usage]]:
         path = self._find_file(session_id)
         if path is None:
             return [], []
 
         lines = [line for line in path.read_text().splitlines() if line.strip()]
-        history: list[MessageParam] = []
+        history: History = []
         round_usages: list[Usage] = []
         for line in lines[1:]:
             try:
@@ -218,7 +220,7 @@ class SessionManager:
                         continue
                     entry_lines = lines[1:]
                     max_ts = 0
-                    history: list[MessageParam] = []
+                    history: History = []
                     round_usages: list[Usage] = []
                     for line in entry_lines:
                         entry = json.loads(line)
@@ -308,8 +310,8 @@ def _select_session(
 def prompt_resume(
     manager: SessionManager,
     current_session_id: str,
-    history: list[MessageParam],
-) -> tuple[str, list[MessageParam], bool]:
+    history: History,
+) -> tuple[str, History, bool]:
     clear_terminal()
     sessions = manager.list_sessions()
     if not sessions:

@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import get_app, run_in_terminal
@@ -8,14 +7,17 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
+lazy from anthropic.types import ImageBlockParam, MessageParam
 
-from .clipboard import format_image_indicator, get_clipboard_image
+from .clipboard import (
+    create_image_content,
+    format_image_indicator,
+    get_clipboard_image,
+)
 from .display.completion import COMPLETION_STYLE, CommandCompleter, FileCompleter
 from .display.theme import PROMPT_TOOLKIT_ACCENT_COLOR
 from .display.toolbar import get_status_toolbar
-
-if TYPE_CHECKING:
-    from anthropic.types import ImageBlockParam, MessageParam
+lazy from .display.printing import print_session_history, toggle_full_tool_output
 
 
 def _sync_attached_images_with_buffer(
@@ -83,8 +85,6 @@ def build_session(
 
     @bindings.add("c-o")
     def toggle_tool_output(event: KeyPressEvent) -> None:
-        from .display.printing import print_session_history, toggle_full_tool_output
-
         toggle_full_tool_output()
         run_in_terminal(lambda: print_session_history(get_history()))
 
@@ -94,8 +94,6 @@ def build_session(
         result = get_clipboard_image()
         if result is None:
             return
-
-        from .clipboard import create_image_content
 
         image, image_path = result
         image_block = create_image_content(image)

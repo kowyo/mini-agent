@@ -5,6 +5,7 @@ from prompt_toolkit.formatted_text import FormattedText
 from ...config import config
 from ..token import Usage, token_tracker
 from .picker import LIGHT_HINT_STYLE
+lazy from ..models import get_max_context_tokens
 
 
 def _format_tokens(count: int) -> str:
@@ -30,8 +31,6 @@ def _format_token_right(total: Usage, last_round: Usage | None) -> str:
     if total.cache_creation_input_tokens:
         parts.append(f"W{_format_tokens(total.cache_creation_input_tokens)}")
     right = " ".join(parts)
-    from ..models import get_max_context_tokens
-
     context_limit = get_max_context_tokens(config.get_model())
     if context_limit and last_round is not None:
         used_tokens = last_round.total_input_tokens + last_round.output_tokens
