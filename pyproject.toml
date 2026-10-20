@@ -3,11 +3,12 @@ name = "mini-agent"
 version = "0.19.1"
 description = "A minimal agent."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 authors = [{ name = "Kowyo", email = "kowyo@outlook.com" }]
 dependencies = [
     "anthropic>=1.9.0",
     "cryptography<46.0.4 ; sys_platform == 'win32' and platform_machine == 'ARM64'",
+    "cryptography>=50.0.1 ; sys_platform != 'win32' or platform_machine != 'ARM64'",
     "mcp>=2.2.0",
     "pillow>=12.3.0",
     "prompt-toolkit>=3.0.53",
