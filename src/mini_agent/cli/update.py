@@ -37,4 +37,6 @@ def run_update() -> int:
         for asset in release["assets"]
         if asset["name"].endswith("none-any.whl")
     )
-    return subprocess.run(["uv", "tool", "install", "--force", wheel]).returncode
+    return subprocess.run(
+        ["uv", "tool", "install", "--force", "--python", "3.15", wheel]
+    ).returncode

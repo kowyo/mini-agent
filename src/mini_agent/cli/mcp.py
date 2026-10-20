@@ -1,15 +1,47 @@
+import threading
+from concurrent.futures import Future
+
 from rich.console import Console
 
-from ..agent.mcp import (
+from .display.picker import select_from_list
+from .display.theme import LIGHT_HINT_STYLE_RICH
+lazy from ..agent.mcp import (
     ServerStatus,
     authorize_server,
     pending_auth_count,
     server_statuses,
+    setup_mcp,
 )
-from .display.picker import select_from_list
-from .display.theme import LIGHT_HINT_STYLE_RICH
 
 _console = Console()
+
+
+class McpSetup:
+    def __init__(self) -> None:
+        self._lines: Future[list[str]] = Future()
+        self._reported = False
+        threading.Thread(target=self._connect, name="mcp-setup", daemon=True).start()
+
+    def _connect(self) -> None:
+        try:
+            self._lines.set_result(setup_mcp())
+        except BaseException as exc:
+            self._lines.set_exception(exc)
+
+    def wait(self) -> None:
+        if self._reported:
+            return
+        self._reported = True
+        print_mcp_lines(self._lines.result())
+        print_mcp_hint()
+
+
+def print_mcp_lines(lines: list[str]) -> None:
+    if not lines:
+        return
+    for line in lines:
+        _console.print(line, style=LIGHT_HINT_STYLE_RICH)
+    print()
 
 
 def _format_mcp_server(status: ServerStatus) -> str:

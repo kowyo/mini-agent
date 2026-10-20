@@ -47,5 +47,5 @@ if [ -z "${WHEEL}" ]; then
 fi
 
 echo "Installing mini-agent from ${WHEEL}..."
-uv tool install --force "${WHEEL}"
+uv tool install --force --python 3.15 "${WHEEL}"
 echo "Done. Run 'mini' to get started."

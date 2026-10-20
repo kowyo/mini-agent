@@ -4,13 +4,11 @@ import tomllib
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import tomli_w
 from dotenv import load_dotenv
-
-if TYPE_CHECKING:
-    from anthropic import Anthropic
+lazy from anthropic import Anthropic
 
 DISTRIBUTION_NAME = "mini-agent"
 DISTRIBUTION_VERSION = importlib.metadata.version(DISTRIBUTION_NAME)
@@ -165,8 +163,6 @@ config = _Config()
 
 @cache
 def _build_client(provider: Provider) -> Anthropic:
-    from anthropic import Anthropic
-
     api_key = os.getenv(provider.api_key_env)
     if not api_key:
         raise ValueError(f"{provider.api_key_env} is not set for {provider.name}")

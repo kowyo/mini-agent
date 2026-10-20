@@ -49,7 +49,9 @@ def test_installs_latest_wheel_with_uv(
     monkeypatch.setattr(update.sys, "platform", "darwin")
 
     assert update.run_update() == 0
-    assert uv_calls == [["uv", "tool", "install", "--force", WHEEL_URL]]
+    assert uv_calls == [
+        ["uv", "tool", "install", "--force", "--python", "3.15", WHEEL_URL]
+    ]
 
 
 def test_skips_install_when_up_to_date(
