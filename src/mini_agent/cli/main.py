@@ -227,7 +227,7 @@ def main() -> None:
         parser.exit(1, f"{e}\n")
 
     session_id: str | None = args.session_id
-    if session_id == "__LATEST__":
+    if session_id == "__LATEST__" and not args.print_prompt:
         sessions = _session_manager.list_sessions()
         if not sessions:
             print("No saved sessions found.")
