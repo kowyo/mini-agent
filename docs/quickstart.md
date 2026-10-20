@@ -15,7 +15,7 @@ powershell -c "irm https://raw.githubusercontent.com/kowyo/mini-agent/main/scrip
 **From source**
 
 ```bash
-uv tool install git+https://github.com/kowyo/mini-agent.git@main
+uv tool install --python 3.15 git+https://github.com/kowyo/mini-agent.git@main
 ```
 
 **Update**

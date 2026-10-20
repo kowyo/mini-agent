@@ -52,5 +52,5 @@ if (-not $Wheel) {
 }
 
 Write-Host "Installing mini-agent from $($Wheel.browser_download_url)..."
-uv tool install --force $Wheel.browser_download_url
+uv tool install --force --python 3.15 $Wheel.browser_download_url
 Write-Host "Done. Run 'mini' to get started."
