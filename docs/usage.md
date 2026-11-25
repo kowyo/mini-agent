@@ -63,6 +63,14 @@ mini /resume
 
 When the context window fills up, mini-agent compacts the conversation automatically: it replaces the earlier messages with a structured summary and continues from it. Run `/compact` yourself at a task boundary to reset the context early, or pass a focus such as `/compact the parser refactor` to steer what the summary keeps.
 
+To compact at a fixed token count instead of near the model's limit, set `auto_compact_threshold` in `~/.mini-agent/config.toml`:
+
+```toml
+auto_compact_threshold = 400000
+```
+
+The value is clamped below the context limit so the next request still fits, and `/status` shows the effective compaction point next to the context window.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Description |

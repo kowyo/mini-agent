@@ -4,6 +4,7 @@ from pathlib import Path
 from rich.style import Style
 from rich.text import Text
 
+from ..agent.compaction import get_compact_threshold
 from ..agent.mcp.tools import server_statuses
 from ..agent.skills import skill_loader
 from ..agent.system_prompt import context_files as loaded_context_files
@@ -47,11 +48,14 @@ def _format_context_window(usage: Usage | None) -> Text | None:
     else:
         used = 0
 
+    details = f"{used:,} / {context_limit:,} ({used / context_limit:.1%}"
+    threshold = get_compact_threshold(config.get_model())
+    if threshold is not None and threshold < context_limit:
+        details += f", compacts at {threshold:,}"
+    details += ")"
+
     text = Text("Context window: ", style="bold")
-    text.append(
-        f"{used:,} / {context_limit:,} ({used / context_limit:.1%})",
-        style=Style(color=ACCENT_COLOR, bold=False),
-    )
+    text.append(details, style=Style(color=ACCENT_COLOR, bold=False))
     return text
 
 

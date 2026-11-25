@@ -32,6 +32,7 @@ def test_should_compact_when_the_next_request_would_not_fit(
     monkeypatch.setattr(
         compaction, "get_request_max_output_tokens", lambda model: 32_000
     )
+    monkeypatch.setattr(compaction.config, "get_auto_compact_threshold", lambda: None)
     below = Usage(
         input_tokens=966_999,
         cache_creation_input_tokens=0,
@@ -163,6 +164,7 @@ def test_auto_compact_rewrites_the_history_when_context_is_full(
     monkeypatch.setattr(
         compaction, "get_request_max_output_tokens", lambda model: 32_000
     )
+    monkeypatch.setattr(compaction.config, "get_auto_compact_threshold", lambda: None)
     monkeypatch.setattr(compaction._console, "status", lambda message: StatusStub())
     monkeypatch.setattr(
         compaction._console, "print", lambda message=None, **kwargs: None
@@ -187,6 +189,7 @@ def test_auto_compact_leaves_a_compacted_history_alone(
     monkeypatch.setattr(
         compaction, "get_request_max_output_tokens", lambda model: 32_000
     )
+    monkeypatch.setattr(compaction.config, "get_auto_compact_threshold", lambda: None)
     previous_usages = list(token_tracker.round_usages)
     token_tracker.restore([Usage(967_000, 0, 0, 0)])
 
@@ -196,3 +199,32 @@ def test_auto_compact_leaves_a_compacted_history_alone(
         token_tracker.restore(previous_usages)
 
     assert len(messages) == 1
+
+
+def test_configured_threshold_compacts_earlier(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(compaction, "get_max_context_tokens", lambda model: 1_000_000)
+    monkeypatch.setattr(
+        compaction, "get_request_max_output_tokens", lambda model: 32_000
+    )
+    monkeypatch.setattr(
+        compaction.config, "get_auto_compact_threshold", lambda: 400_000
+    )
+
+    assert not compaction.should_compact(Usage(399_999, 0, 0, 0))
+    assert compaction.should_compact(Usage(400_000, 0, 0, 0))
+
+
+def test_configured_threshold_is_clamped_below_the_context_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(compaction, "get_max_context_tokens", lambda model: 1_000_000)
+    monkeypatch.setattr(
+        compaction, "get_request_max_output_tokens", lambda model: 32_000
+    )
+    monkeypatch.setattr(
+        compaction.config, "get_auto_compact_threshold", lambda: 2_000_000
+    )
+
+    assert compaction.get_compact_threshold("model") == 967_000
+    assert not compaction.should_compact(Usage(966_999, 0, 0, 0))
+    assert compaction.should_compact(Usage(967_000, 0, 0, 0))
