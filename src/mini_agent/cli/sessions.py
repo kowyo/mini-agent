@@ -42,6 +42,32 @@ def _serialize_content(content: str | Iterable[object]) -> list[object]:
     return serialized_blocks
 
 
+def _format_timestamp(now: datetime) -> str:
+    return now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _usage_from_dict(usage: dict[str, Any]) -> Usage:
+    return Usage(
+        input_tokens=usage.get("input_tokens", 0),
+        cache_creation_input_tokens=usage.get("cache_creation_input_tokens", 0),
+        cache_read_input_tokens=usage.get("cache_read_input_tokens", 0),
+        output_tokens=usage.get("output_tokens", 0),
+    )
+
+
+def _has_prefix(history: History, stored: History) -> bool:
+    if len(stored) > len(history):
+        return False
+    for stored_message, message in zip(stored, history, strict=False):
+        if stored_message["role"] != message["role"]:
+            return False
+        if _serialize_content(stored_message["content"]) != _serialize_content(
+            message["content"]
+        ):
+            return False
+    return True
+
+
 def _session_title(history: History) -> str:
     for message in history:
         if message["role"] == "user":
@@ -65,6 +91,47 @@ class SessionManager:
     @staticmethod
     def _entry_id() -> str:
         return uuid.uuid4().hex[:8]
+
+    @staticmethod
+    def _message_body(
+        message: MessageParam, now: datetime, usage: Usage | None = None
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "role": message["role"],
+            "content": _serialize_content(message["content"]),
+            "timestamp": int(now.timestamp() * 1000),
+        }
+        if message["role"] == "assistant":
+            body["model"] = config.get_model()
+            if usage is not None:
+                body["usage"] = {
+                    "input_tokens": usage.input_tokens,
+                    "cache_creation_input_tokens": usage.cache_creation_input_tokens,
+                    "cache_read_input_tokens": usage.cache_read_input_tokens,
+                    "output_tokens": usage.output_tokens,
+                }
+        return body
+
+    @staticmethod
+    def _decode_entries(
+        entries: list[dict[str, Any]],
+    ) -> tuple[History, list[Usage], int]:
+        history: History = []
+        round_usages: list[Usage] = []
+        max_ts = 0
+        for entry in entries:
+            message = entry.get("message")
+            if not isinstance(message, dict):
+                continue
+            if entry.get("type") == "compact":
+                history.clear()
+                round_usages.clear()
+            history.append({"role": message["role"], "content": message["content"]})
+            max_ts = max(max_ts, message.get("timestamp", 0))
+            usage = message.get("usage")
+            if message["role"] == "assistant" and isinstance(usage, dict):
+                round_usages.append(_usage_from_dict(usage))
+        return history, round_usages, max_ts
 
     def _cwd_dir(self, cwd: str | None = None) -> Path:
         cwd = cwd or str(Path.cwd())
@@ -107,45 +174,41 @@ class SessionManager:
         else:
             entries = []
 
-        existing_entry_count = max(len(entries) - 1, 0) if entries else 0
+        stored_history, _, _ = self._decode_entries(entries[1:])
+        rewrote = not _has_prefix(history, stored_history)
 
-        saved_asst = 0
-        if existing:
-            for entry in entries[1:]:
-                message = entry.get("message")
-                if (
-                    entry.get("type") == "message"
-                    and isinstance(message, dict)
-                    and message.get("role") == "assistant"
-                ):
-                    saved_asst += 1
-
-        for message in history[existing_entry_count:]:
+        if rewrote and history:
             now = datetime.now(UTC)
-            entry_ts = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-            new_id = self._entry_id()
-            msg_body: dict = {
-                "role": message["role"],
-                "content": _serialize_content(message["content"]),
-                "timestamp": int(now.timestamp() * 1000),
-            }
-            if message["role"] == "assistant":
-                msg_body["model"] = config.get_model()
-                if round_usages and saved_asst < len(round_usages):
-                    u = round_usages[saved_asst]
-                    msg_body["usage"] = {
-                        "input_tokens": u.input_tokens,
-                        "cache_creation_input_tokens": u.cache_creation_input_tokens,
-                        "cache_read_input_tokens": u.cache_read_input_tokens,
-                        "output_tokens": u.output_tokens,
-                    }
-                    saved_asst += 1
+            entries.append(
+                {
+                    "type": "compact",
+                    "id": self._entry_id(),
+                    "timestamp": _format_timestamp(now),
+                    "message": self._message_body(history[0], now),
+                }
+            )
+            save_start = 1
+            saved_asst = 0
+        else:
+            save_start = len(stored_history)
+            saved_asst = sum(1 for m in stored_history if m["role"] == "assistant")
+
+        for message in history[save_start:]:
+            now = datetime.now(UTC)
+            usage = None
+            if (
+                message["role"] == "assistant"
+                and round_usages
+                and saved_asst < len(round_usages)
+            ):
+                usage = round_usages[saved_asst]
+                saved_asst += 1
             entries.append(
                 {
                     "type": "message",
-                    "id": new_id,
-                    "timestamp": entry_ts,
-                    "message": msg_body,
+                    "id": self._entry_id(),
+                    "timestamp": _format_timestamp(now),
+                    "message": self._message_body(message, now, usage),
                 }
             )
 
@@ -160,6 +223,7 @@ class SessionManager:
                 "id": session_id,
                 "timestamp": ts,
                 "cwd": cwd,
+                "title": _session_title(history),
             }
             file_timestamp = ts.replace(":", "-").replace(".", "-")
             path = session_dir / f"{file_timestamp}_{session_id}.jsonl"
@@ -175,28 +239,13 @@ class SessionManager:
             return [], []
 
         lines = [line for line in path.read_text().splitlines() if line.strip()]
-        history: History = []
-        round_usages: list[Usage] = []
+        entries: list[dict[str, Any]] = []
         for line in lines[1:]:
             try:
-                entry = json.loads(line)
+                entries.append(json.loads(line))
             except json.JSONDecodeError:
                 continue
-            msg = entry["message"]
-            history.append({"role": msg["role"], "content": msg["content"]})
-            if msg["role"] == "assistant":
-                u = msg.get("usage")
-                if u:
-                    round_usages.append(
-                        Usage(
-                            input_tokens=u.get("input_tokens", 0),
-                            cache_creation_input_tokens=u.get(
-                                "cache_creation_input_tokens", 0
-                            ),
-                            cache_read_input_tokens=u.get("cache_read_input_tokens", 0),
-                            output_tokens=u.get("output_tokens", 0),
-                        )
-                    )
+        history, round_usages, _ = self._decode_entries(entries)
         return history, round_usages
 
     def list_sessions(self) -> list[_StoredSession]:
@@ -218,32 +267,8 @@ class SessionManager:
                     sid = header.get("id", "")
                     if not sid:
                         continue
-                    entry_lines = lines[1:]
-                    max_ts = 0
-                    history: History = []
-                    round_usages: list[Usage] = []
-                    for line in entry_lines:
-                        entry = json.loads(line)
-                        msg = entry["message"]
-                        history.append({"role": msg["role"], "content": msg["content"]})
-                        ts = msg.get("timestamp", 0)
-                        if ts > max_ts:
-                            max_ts = ts
-                        if msg["role"] == "assistant":
-                            u = msg.get("usage")
-                            if u:
-                                round_usages.append(
-                                    Usage(
-                                        input_tokens=u.get("input_tokens", 0),
-                                        cache_creation_input_tokens=u.get(
-                                            "cache_creation_input_tokens", 0
-                                        ),
-                                        cache_read_input_tokens=u.get(
-                                            "cache_read_input_tokens", 0
-                                        ),
-                                        output_tokens=u.get("output_tokens", 0),
-                                    )
-                                )
+                    entries = [json.loads(line) for line in lines[1:]]
+                    history, round_usages, max_ts = self._decode_entries(entries)
                     updated_at = (
                         datetime.fromtimestamp(max_ts / 1000, UTC).isoformat()
                         if max_ts
@@ -252,7 +277,7 @@ class SessionManager:
                     sessions.append(
                         _StoredSession(
                             session_id=sid,
-                            title=_session_title(history),
+                            title=header.get("title") or _session_title(history),
                             _updated_at=updated_at,
                             history=history,
                             round_usages=round_usages,

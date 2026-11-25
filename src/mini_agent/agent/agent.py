@@ -11,6 +11,7 @@ from ..cli.display.stream import display_stream_events
 from ..cli.models import get_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import config, get_client
+from .compaction import auto_compact
 from .system_prompt import SYSTEM
 from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError, ToolError
 
@@ -31,6 +32,8 @@ def agent_loop(messages: list[MessageParam]) -> None:
 
     try:
         while True:
+            auto_compact(messages)
+
             working_status = None
             thinking_status = _console.status("Thinking")
             thinking_status.start()

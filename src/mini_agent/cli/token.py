@@ -57,6 +57,11 @@ class _TokenTracker:
             self._total_usage = None
         self._last_round = round_usages[-1] if round_usages else None
 
+    def begin_new_context_segment(self) -> None:
+        """Start tracking rounds for a rewritten conversation, keeping totals."""
+        self.round_usages.clear()
+        self._last_round = None
+
     def reset(self) -> None:
         """Clear all tracked usage data."""
         self.round_usages.clear()

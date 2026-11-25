@@ -20,6 +20,7 @@ from .sessions import SessionManager, prompt_resume
 from .terminal import clear_prompt_line, clear_terminal
 from .token import token_tracker
 lazy from ..agent.agent import agent_loop
+lazy from ..agent.compaction import compact
 lazy from ..agent.mcp import setup_mcp, shutdown_mcp
 lazy from .display.printing import print_session_history
 lazy from .image_messages import build_user_content, count_images_in_history
@@ -120,6 +121,23 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             copy_last_assistant_text(history)
             print()
             attached_images.clear()
+            continue
+        if command == "/compact" or command.startswith("/compact "):
+            attached_images.clear()
+            mcp_setup.wait()
+            if not history:
+                print("Nothing to compact.\n")
+                continue
+            focus = query.strip()[len("/compact") :].strip() or None
+            compacted = compact(history, focus)
+            if compacted is not None:
+                history[:] = compacted
+                sent_image_count[0] = count_images_in_history(history)
+                _session_manager.save(
+                    current_session_id, history, token_tracker.round_usages
+                )
+                _console.print("Conversation compacted.", style="yellow")
+            print()
             continue
         if command == "/mcp":
             mcp_setup.wait()

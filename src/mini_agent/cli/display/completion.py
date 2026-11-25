@@ -20,6 +20,7 @@ _COMMANDS = {
     "/model": "Select a model",
     "/provider": "Select a provider",
     "/copy": "Copy the last assistant response to clipboard",
+    "/compact": "Summarize the conversation to free context",
     "/status": "Show current session configuration and token usage",
     "/mcp": "Authorize and list MCP servers",
     "/exit": "exit the session",

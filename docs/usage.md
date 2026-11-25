@@ -57,8 +57,11 @@ mini /resume
 | `/new` | Start a new session |
 | `/resume` | Pick from previous sessions |
 | `/copy` | Copy last assistant message to clipboard |
+| `/compact [focus]` | Summarize the conversation into a fresh context, optionally focusing the summary |
 | `/mcp` | Authorize and list MCP servers |
 | `/exit`, `q` | Quit |
+
+When the context window fills up, mini-agent compacts the conversation automatically: it replaces the earlier messages with a structured summary and continues from it. Run `/compact` yourself at a task boundary to reset the context early, or pass a focus such as `/compact the parser refactor` to steer what the summary keeps.
 
 ## Keyboard Shortcuts
 
