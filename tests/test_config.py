@@ -81,11 +81,11 @@ def test_missing_api_key_is_reported(
         get_client()
 
 
-def test_auto_compact_threshold_defaults_to_none(config_file: Path) -> None:
-    assert _Config().get_auto_compact_threshold() is None
+def test_auto_compact_window_defaults_to_none(config_file: Path) -> None:
+    assert _Config().get_auto_compact_window() is None
 
 
-def test_auto_compact_threshold_is_read_from_config(config_file: Path) -> None:
-    config_file.write_text("auto_compact_threshold = 400000\n")
+def test_auto_compact_window_is_read_from_config(config_file: Path) -> None:
+    config_file.write_text("auto_compact_window = 400000\n")
 
-    assert _Config().get_auto_compact_threshold() == 400_000
+    assert _Config().get_auto_compact_window() == 400_000

@@ -66,16 +66,22 @@ def _context_tokens(usage: Usage) -> int:
     return usage.total_input_tokens + usage.output_tokens
 
 
-def get_compact_threshold(model: str) -> int | None:
+def get_compact_window(model: str) -> int | None:
     limit = get_max_context_tokens(model)
-    configured = config.get_auto_compact_threshold()
+    configured = config.get_auto_compact_window()
     if limit is None:
         return configured
-    output_reserve = min(get_request_max_output_tokens(model), _OUTPUT_RESERVE_CAP)
-    safe_threshold = limit - output_reserve - _COMPACT_BUFFER
     if configured is None:
-        return safe_threshold
-    return min(configured, safe_threshold)
+        return limit
+    return min(configured, limit)
+
+
+def get_compact_threshold(model: str) -> int | None:
+    window = get_compact_window(model)
+    if window is None:
+        return None
+    output_reserve = min(get_request_max_output_tokens(model), _OUTPUT_RESERVE_CAP)
+    return window - output_reserve - _COMPACT_BUFFER
 
 
 def should_compact(usage: Usage | None) -> bool:

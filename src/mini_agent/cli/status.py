@@ -4,13 +4,12 @@ from pathlib import Path
 from rich.style import Style
 from rich.text import Text
 
-from ..agent.compaction import get_compact_threshold
+from ..agent.compaction import get_compact_threshold, get_compact_window
 from ..agent.mcp.tools import server_statuses
 from ..agent.skills import skill_loader
 from ..agent.system_prompt import context_files as loaded_context_files
 from ..config import config
 from .display.theme import ACCENT_COLOR, LIGHT_HINT_STYLE_RICH
-from .models import get_max_context_tokens
 from .token import Usage, token_tracker
 
 
@@ -38,7 +37,7 @@ def format_usage_report(usage: Usage | None) -> list[Text]:
 
 
 def _format_context_window(usage: Usage | None) -> Text | None:
-    context_limit = get_max_context_tokens(config.get_model())
+    context_limit = get_compact_window(config.get_model())
     if context_limit is None:
         return None
 

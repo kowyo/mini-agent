@@ -59,8 +59,8 @@ class _Config:
         self._reasoning_effort: str | None = None
         self._session_reasoning_effort_override: str | None = None
         self._cache_control: bool | None = None
-        self._auto_compact_threshold: int | None = None
-        self._auto_compact_threshold_loaded = False
+        self._auto_compact_window: int | None = None
+        self._auto_compact_window_loaded = False
         self._providers: dict[str, Provider] | None = None
         self._provider_id: str | None = None
         self._session_provider_override: str | None = None
@@ -108,16 +108,16 @@ class _Config:
             self._cache_control = bool(cfg.get("cache_control", False))
         return self._cache_control
 
-    def get_auto_compact_threshold(self) -> int | None:
-        if not self._auto_compact_threshold_loaded:
-            value = self._load_config().get("auto_compact_threshold")
-            self._auto_compact_threshold = (
+    def get_auto_compact_window(self) -> int | None:
+        if not self._auto_compact_window_loaded:
+            value = self._load_config().get("auto_compact_window")
+            self._auto_compact_window = (
                 value
                 if isinstance(value, int) and not isinstance(value, bool) and value > 0
                 else None
             )
-            self._auto_compact_threshold_loaded = True
-        return self._auto_compact_threshold
+            self._auto_compact_window_loaded = True
+        return self._auto_compact_window
 
     def save_reasoning_effort(self, effort: str) -> None:
         self._session_reasoning_effort_override = None
