@@ -26,6 +26,7 @@ class _StoredSession:
     _updated_at: str
     history: History
     round_usages: list[Usage]
+    total_usage: Usage | None
 
 
 def _serialize_content(content: str | Iterable[object]) -> list[object]:
@@ -44,6 +45,15 @@ def _serialize_content(content: str | Iterable[object]) -> list[object]:
 
 def _format_timestamp(now: datetime) -> str:
     return now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _usage_to_dict(usage: Usage) -> dict[str, int]:
+    return {
+        "input_tokens": usage.input_tokens,
+        "cache_creation_input_tokens": usage.cache_creation_input_tokens,
+        "cache_read_input_tokens": usage.cache_read_input_tokens,
+        "output_tokens": usage.output_tokens,
+    }
 
 
 def _usage_from_dict(usage: dict[str, Any]) -> Usage:
@@ -158,6 +168,7 @@ class SessionManager:
         history: History,
         round_usages: list[Usage] | None = None,
         cwd: str | None = None,
+        total_usage: Usage | None = None,
     ) -> None:
         cwd = cwd or str(Path.cwd())
         session_dir = self._cwd_dir(cwd)
@@ -225,9 +236,14 @@ class SessionManager:
                 "cwd": cwd,
                 "title": _session_title(history),
             }
+            if total_usage is not None:
+                header["total_usage"] = _usage_to_dict(total_usage)
             file_timestamp = ts.replace(":", "-").replace(".", "-")
             path = session_dir / f"{file_timestamp}_{session_id}.jsonl"
             entries.insert(0, header)
+
+        if total_usage is not None:
+            entries[0]["total_usage"] = _usage_to_dict(total_usage)
 
         path.write_text(
             "\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n"
@@ -274,6 +290,7 @@ class SessionManager:
                         if max_ts
                         else header.get("timestamp", "")
                     )
+                    stored_usage = header.get("total_usage")
                     sessions.append(
                         _StoredSession(
                             session_id=sid,
@@ -281,6 +298,11 @@ class SessionManager:
                             _updated_at=updated_at,
                             history=history,
                             round_usages=round_usages,
+                            total_usage=(
+                                _usage_from_dict(stored_usage)
+                                if isinstance(stored_usage, dict)
+                                else None
+                            ),
                         )
                     )
                 except OSError, json.JSONDecodeError, ValueError, KeyError:
@@ -352,5 +374,5 @@ def prompt_resume(
 
     chosen = next(stored for stored in sessions if stored.session_id == result)
     print_session_history(chosen.history)
-    token_tracker.restore(chosen.round_usages)
+    token_tracker.restore(chosen.round_usages, chosen.total_usage)
     return chosen.session_id, chosen.history.copy(), True

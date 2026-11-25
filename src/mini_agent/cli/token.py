@@ -49,9 +49,13 @@ class _TokenTracker:
         else:
             self._total_usage = self._total_usage + usage
 
-    def restore(self, round_usages: list[Usage]) -> None:
+    def restore(
+        self, round_usages: list[Usage], total_usage: Usage | None = None
+    ) -> None:
         self.round_usages = list(round_usages)
-        if round_usages:
+        if total_usage is not None:
+            self._total_usage = total_usage
+        elif round_usages:
             self._total_usage = sum(round_usages[1:], start=round_usages[0])
         else:
             self._total_usage = None

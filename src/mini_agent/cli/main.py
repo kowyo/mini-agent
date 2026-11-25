@@ -41,7 +41,12 @@ def _run_non_interactive(prompt: str) -> None:
     history_len = len(history)
     agent_loop(history)
     if len(history) > history_len and token_tracker.get() is not None:
-        _session_manager.save(session_id, history, token_tracker.round_usages)
+        _session_manager.save(
+            session_id,
+            history,
+            token_tracker.round_usages,
+            total_usage=token_tracker.get(),
+        )
 
 
 def _run_interactive(prompt: str | None = None, session_id: str | None = None) -> None:
@@ -64,7 +69,7 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             history = chosen.history.copy()
             sent_image_count[0] = count_images_in_history(history)
             print_session_history(chosen.history)
-            token_tracker.restore(chosen.round_usages)
+            token_tracker.restore(chosen.round_usages, chosen.total_usage)
         except StopIteration:
             print("Session ID not found.\n")
 
@@ -134,7 +139,10 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
                 history[:] = compacted
                 sent_image_count[0] = count_images_in_history(history)
                 _session_manager.save(
-                    current_session_id, history, token_tracker.round_usages
+                    current_session_id,
+                    history,
+                    token_tracker.round_usages,
+                    total_usage=token_tracker.get(),
                 )
                 _console.print("Conversation compacted.", style="yellow")
             print()
@@ -156,7 +164,10 @@ def _run_interactive(prompt: str | None = None, session_id: str | None = None) -
             continue
         if token_tracker.get() is not None:
             _session_manager.save(
-                current_session_id, history, token_tracker.round_usages
+                current_session_id,
+                history,
+                token_tracker.round_usages,
+                total_usage=token_tracker.get(),
             )
 
     if _session_manager.exists(current_session_id):
