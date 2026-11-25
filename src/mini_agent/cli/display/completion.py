@@ -3,6 +3,7 @@ import subprocess
 from collections.abc import Callable, Iterable
 from typing import cast
 
+from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.completion import CompleteEvent, Completer, Completion
 from prompt_toolkit.data_structures import Point
 from prompt_toolkit.document import Document
@@ -93,6 +94,29 @@ def _patch_completion_menu_anchor() -> None:
 
 _patch_completion_menu_alignment()
 _patch_completion_menu_anchor()
+
+
+def select_first_command_completion(buffer: Buffer) -> None:
+    state = buffer.complete_state
+    if state is None or state.complete_index is not None or not state.completions:
+        return
+    if not state.completions[0].text.startswith("/"):
+        return
+    state.go_to_index(0)
+    if state.new_text_and_position()[0] == state.original_document.text:
+        state.go_to_index(None)
+
+
+def accept_selected_completion(buffer: Buffer) -> None:
+    state = buffer.complete_state
+    if state is None:
+        return
+    completion = state.current_completion
+    if completion is None:
+        return
+    new_text, _ = state.new_text_and_position()
+    if buffer.document.text != new_text:
+        buffer.apply_completion(completion)
 
 
 class CommandCompleter(Completer):

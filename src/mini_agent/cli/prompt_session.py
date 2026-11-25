@@ -14,7 +14,13 @@ from .clipboard import (
     format_image_indicator,
     get_clipboard_image,
 )
-from .display.completion import COMPLETION_STYLE, CommandCompleter, FileCompleter
+from .display.completion import (
+    COMPLETION_STYLE,
+    CommandCompleter,
+    FileCompleter,
+    accept_selected_completion,
+    select_first_command_completion,
+)
 from .display.theme import PROMPT_TOOLKIT_ACCENT_COLOR
 from .display.toolbar import get_status_toolbar
 lazy from .display.printing import print_session_history, toggle_full_tool_output
@@ -54,6 +60,7 @@ def build_session(
 
     @bindings.add("enter")
     def submit(event: KeyPressEvent) -> None:
+        accept_selected_completion(event.current_buffer)
         event.current_buffer.validate_and_handle()
 
     @bindings.add("escape", "enter")
@@ -119,6 +126,7 @@ def build_session(
         style=COMPLETION_STYLE,
         bottom_toolbar=get_status_toolbar,
     )
+    session.default_buffer.on_completions_changed += select_first_command_completion
 
     pre_run: Callable[[], None] | None = None
     if prompt:
