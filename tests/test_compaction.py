@@ -25,19 +25,21 @@ class MessagesStub:
         return SimpleNamespace(content=[TextBlock(type="text", text=self.text)])
 
 
-def test_should_compact_only_when_output_headroom_is_gone(
+def test_should_compact_when_the_next_request_would_not_fit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(compaction, "get_max_context_tokens", lambda model: 1_000_000)
-    monkeypatch.setattr(compaction, "get_max_output_tokens", lambda model: 20_000)
+    monkeypatch.setattr(
+        compaction, "get_request_max_output_tokens", lambda model: 32_000
+    )
     below = Usage(
-        input_tokens=979_999,
+        input_tokens=966_999,
         cache_creation_input_tokens=0,
         cache_read_input_tokens=0,
         output_tokens=0,
     )
     at = Usage(
-        input_tokens=980_000,
+        input_tokens=967_000,
         cache_creation_input_tokens=0,
         cache_read_input_tokens=0,
         output_tokens=0,
@@ -55,11 +57,18 @@ def test_compact_replaces_the_history_with_a_continuation_summary(
         {"role": "user", "content": "Do the thing"},
         {"role": "assistant", "content": "Working on it"},
     ]
-    stub = MessagesStub("The user asked for the thing.")
+    reply = (
+        "<analysis>Working through the request.</analysis>\n"
+        "<summary>The user asked for the thing.</summary>"
+    )
+    stub = MessagesStub(reply)
     monkeypatch.setattr(
         compaction, "get_client", lambda: SimpleNamespace(messages=stub)
     )
     monkeypatch.setattr(compaction, "get_max_context_tokens", lambda model: 200000)
+    monkeypatch.setattr(
+        compaction, "get_request_max_output_tokens", lambda model: 32_000
+    )
     monkeypatch.setattr(compaction._console, "status", lambda message: StatusStub())
     previous_usages = list(token_tracker.round_usages)
 
@@ -73,12 +82,42 @@ def test_compact_replaces_the_history_with_a_continuation_summary(
     content = result[0]["content"]
     assert isinstance(content, str)
     assert content.startswith("This session is being continued")
-    assert "<summary>\nThe user asked for the thing.\n</summary>" in content
+    assert "Summary: The user asked for the thing." in content
+    assert "<analysis>" not in content
+    assert "without asking the user any further questions" in content
+    assert "Pick up the last task as if the break never happened." in content
     assert stub.kwargs is not None
     request_messages = stub.kwargs["messages"]
     assert isinstance(request_messages, list)
     assert request_messages[:-1] == messages
-    assert "Focus especially on: the parser" in request_messages[-1]["content"]
+    prompt = request_messages[-1]["content"]
+    assert isinstance(prompt, str)
+    assert "<analysis> block followed by a <summary> block" in prompt
+    assert "Only messages that actually came from the user" in prompt
+    assert "Additional Instructions: the parser" in prompt
+
+
+def test_compact_rejects_a_reply_without_a_summary_block(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = [
+        {"role": "user", "content": "Do the thing"},
+        {"role": "assistant", "content": "Working on it"},
+    ]
+    stub = MessagesStub("<analysis>No summary here.</analysis>")
+    monkeypatch.setattr(
+        compaction, "get_client", lambda: SimpleNamespace(messages=stub)
+    )
+    monkeypatch.setattr(compaction, "get_max_context_tokens", lambda model: 200000)
+    monkeypatch.setattr(
+        compaction, "get_request_max_output_tokens", lambda model: 32_000
+    )
+    monkeypatch.setattr(compaction._console, "status", lambda message: StatusStub())
+    monkeypatch.setattr(
+        compaction._console, "print", lambda message=None, **kwargs: None
+    )
+
+    assert compaction.compact(messages) is None
 
 
 def test_compact_keeps_the_history_when_summarization_fails(
@@ -97,6 +136,9 @@ def test_compact_keeps_the_history_when_summarization_fails(
         compaction, "get_client", lambda: SimpleNamespace(messages=FailingMessages())
     )
     monkeypatch.setattr(compaction, "get_max_context_tokens", lambda model: 200000)
+    monkeypatch.setattr(
+        compaction, "get_request_max_output_tokens", lambda model: 32_000
+    )
     monkeypatch.setattr(compaction._console, "status", lambda message: StatusStub())
     monkeypatch.setattr(
         compaction._console, "print", lambda message=None, **kwargs: None
@@ -113,18 +155,20 @@ def test_auto_compact_rewrites_the_history_when_context_is_full(
         {"role": "user", "content": "Do the thing"},
         {"role": "assistant", "content": "Working on it"},
     ]
-    stub = MessagesStub("Summary")
+    stub = MessagesStub("<summary>Summary</summary>")
     monkeypatch.setattr(
         compaction, "get_client", lambda: SimpleNamespace(messages=stub)
     )
     monkeypatch.setattr(compaction, "get_max_context_tokens", lambda model: 1_000_000)
-    monkeypatch.setattr(compaction, "get_max_output_tokens", lambda model: 20_000)
+    monkeypatch.setattr(
+        compaction, "get_request_max_output_tokens", lambda model: 32_000
+    )
     monkeypatch.setattr(compaction._console, "status", lambda message: StatusStub())
     monkeypatch.setattr(
         compaction._console, "print", lambda message=None, **kwargs: None
     )
     previous_usages = list(token_tracker.round_usages)
-    token_tracker.restore([Usage(980_000, 0, 0, 0)])
+    token_tracker.restore([Usage(967_000, 0, 0, 0)])
 
     try:
         assert compaction.auto_compact(messages)
@@ -140,9 +184,11 @@ def test_auto_compact_leaves_a_compacted_history_alone(
 ) -> None:
     messages = [{"role": "user", "content": "This session is being continued"}]
     monkeypatch.setattr(compaction, "get_max_context_tokens", lambda model: 1_000_000)
-    monkeypatch.setattr(compaction, "get_max_output_tokens", lambda model: 20_000)
+    monkeypatch.setattr(
+        compaction, "get_request_max_output_tokens", lambda model: 32_000
+    )
     previous_usages = list(token_tracker.round_usages)
-    token_tracker.restore([Usage(980_000, 0, 0, 0)])
+    token_tracker.restore([Usage(967_000, 0, 0, 0)])
 
     try:
         assert not compaction.auto_compact(messages)

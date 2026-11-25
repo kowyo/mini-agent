@@ -14,6 +14,7 @@ from .display.picker import select_from_list
 from .terminal import clear_prompt_line
 
 _CATALOG_URL = "https://models.dev/catalog.json"
+_DEFAULT_MAX_OUTPUT_TOKENS = 32_000
 
 
 def _flatten_catalog(data: dict[str, dict]) -> dict[str, dict]:
@@ -107,6 +108,13 @@ def get_max_context_tokens(model_id: str) -> int | None:
 
 def get_max_output_tokens(model_id: str) -> int | None:
     return _model_info._get_best_limit(model_id, "output")
+
+
+def get_request_max_output_tokens(model_id: str) -> int:
+    limit = get_max_output_tokens(model_id)
+    return (
+        min(limit, _DEFAULT_MAX_OUTPUT_TOKENS) if limit else _DEFAULT_MAX_OUTPUT_TOKENS
+    )
 
 
 def _fetch_models_sdk() -> list[str]:
