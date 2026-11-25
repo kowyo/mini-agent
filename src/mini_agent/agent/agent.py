@@ -8,9 +8,10 @@ from rich.status import Status
 
 from ..cli.display.printing import print_tool_result, print_tool_start
 from ..cli.display.stream import display_stream_events
-from ..cli.models import get_max_output_tokens
+from ..cli.models import get_request_max_output_tokens
 from ..cli.token import Usage, token_tracker
 from ..config import config, get_client
+from .compaction import auto_compact
 from .system_prompt import SYSTEM
 from .tools import TOOL_HANDLERS, TOOLS, BashInterruptedError, ToolError
 
@@ -24,13 +25,15 @@ def _discard_incomplete_turn(messages: list[MessageParam], turn_start: int) -> N
 def agent_loop(messages: list[MessageParam]) -> None:
     turn_start = max(len(messages) - 1, 0)
     model = config.get_model()
-    max_tokens = get_max_output_tokens(model) or 32768
+    max_tokens = get_request_max_output_tokens(model)
 
     working_status: Status | None = None
     thinking_status: Status | None = None
 
     try:
         while True:
+            auto_compact(messages)
+
             working_status = None
             thinking_status = _console.status("Thinking")
             thinking_status.start()
